@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { match } from "ts-pattern";
+import { AnythingLLMService } from '@/lib/anythingllm';
 
 export const runtime = "edge";
 
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  const { prompt, option, command } = await req.json();
+  const { prompt, option, command, model } = await req.json();
 
   const userMessage = match(option)
     .with("continue", () => `Continue: ${prompt}`)
@@ -47,7 +48,15 @@ export async function POST(req: NextRequest): Promise<Response> {
       endpoint,
       option,
       messageLength: userMessage.length,
+      model,
     });
+
+    // Set the model provider for the utility workspace
+    const anythingLLM = new AnythingLLMService(anythingLLMURL, anythingLLMKey);
+    const success = await anythingLLM.setWorkspaceLLMProvider('utility-inline-editor', 'openrouter', model);
+    if (!success) {
+      console.warn('[/api/generate] Failed to set LLM provider, proceeding anyway');
+    }
     
     const response = await fetch(
       endpoint,
@@ -105,16 +114,65 @@ export async function POST(req: NextRequest): Promise<Response> {
             buffer = lines.pop() || '';
             
             for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6).trim();
-                if (data === '[DONE]') continue;
-                
-                try {
-                  const json = JSON.parse(data);
-                  if (json.textResponse && json.type === 'textResponse') {
-                    controller.enqueue(encoder.encode(json.textResponse));
+              if (!line) continue;
+              // SSE-ish lines prefixed with `data: ` or raw JSON lines
+              const candidate = line.startsWith('data: ') ? line.slice(6).trim() : line.trim();
+              if (!candidate || candidate === '[DONE]') continue;
+
+              try {
+                const json = JSON.parse(candidate);
+
+                // Common shapes handled by different LLM backends
+                // 1) { type: 'textResponse', textResponse: '...' }
+                if (typeof json?.textResponse === 'string') {
+                  controller.enqueue(encoder.encode(json.textResponse));
+                  continue;
+                }
+
+                // 2) OpenAI-like choices: { choices: [{ delta: { content: '...' } }, ...] }
+                if (Array.isArray(json?.choices)) {
+                  for (const ch of json.choices) {
+                    const content = ch?.delta?.content || ch?.text || ch?.message?.content?.text || ch?.message?.content;
+                    if (content) controller.enqueue(encoder.encode(String(content)));
                   }
-                } catch (e) {}
+                  continue;
+                }
+
+                // 3) Some GLM or custom outputs use `output_text` or `content`
+                if (typeof json?.output_text === 'string') {
+                  controller.enqueue(encoder.encode(json.output_text));
+                  continue;
+                }
+
+                if (typeof json?.content === 'string') {
+                  controller.enqueue(encoder.encode(json.content));
+                  continue;
+                }
+
+                // 4) Fallback: if top-level is an array of strings
+                if (Array.isArray(json) && json.every(i => typeof i === 'string')) {
+                  for (const s of json) controller.enqueue(encoder.encode(s));
+                  continue;
+                }
+
+                // 5) If the payload is an object with nested text fields, try to stringify useful parts
+                const textFields = ['text', 'message', 'textResponse', 'output_text'];
+                let found = false;
+                for (const f of textFields) {
+                  const v = json[f];
+                  if (typeof v === 'string') {
+                    controller.enqueue(encoder.encode(v));
+                    found = true;
+                    break;
+                  }
+                }
+                if (found) continue;
+
+                // If we get here, nothing matched: surface a debug log for later inspection
+                console.warn('[/api/generate] Unrecognized stream JSON shape:', { preview: candidate.substring(0, 200) });
+              } catch (err) {
+                // Not JSON - treat as raw text
+                if (candidate) controller.enqueue(encoder.encode(candidate + '\n'));
               }
             }
           }

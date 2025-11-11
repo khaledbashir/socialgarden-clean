@@ -253,6 +253,7 @@ const extractFinancialReasoning = (content: string): string | null => {
 };
 
 // 🎯 V4.1 → Backend Schema: Transform Multi-Scope Data for PDF Generation
+// Fixed: Updated type definition to include all properties accessed in the function
 const transformScopesToPDFFormat = (multiScopeData: {
   scopes: Array<{
     scope_name: string;
@@ -263,6 +264,16 @@ const transformScopesToPDFFormat = (multiScopeData: {
   }>;
   discount: number;
   projectTitle?: string;
+  // Additional properties that may be accessed - safely handled with defaults
+  clientName?: string;
+  company?: any;
+  projectSubtitle?: string;
+  projectOverview?: string;
+  budgetNotes?: string;
+  currency?: string;
+  gstApplicable?: boolean;
+  generatedDate?: string;
+  authoritativeTotal?: number;
 }): {
   projectTitle: string;
   scopes: Array<{
@@ -619,17 +630,6 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
       if (exact) return exact;
       // 2) Substring/contains heuristic
       const contains = ROLES.find(r => norm(r.name).includes(n) || n.includes(norm(r.name)));
-      if (contains) return contains;
-      // 3) Token similarity (Jaccard)
-      const nameTokens = tokens(name);
-      let best = { role: undefined as undefined | typeof ROLES[number], score: 0 };
-      for (const r of ROLES) {
-        const score = jaccard(nameTokens, tokens(r.name));
-        if (score > best.score) best = { role: r, score };
-      }
-      // Accept if reasonably similar
-      if (best.role && best.score >= 0.6) return best.role;
-      // 4) Common synonym fixes
       const syn = n
         .replace('offshore', 'off')
         .replace('on-shore', 'onshore')
@@ -1162,6 +1162,9 @@ export default function Page() {
   // Onboarding state (NEW)
   const [showOnboarding, setShowOnboarding] = useState(false);
 
+  // History restore guard to avoid overwriting server-loaded chat
+  const [isHistoryRestored, setIsHistoryRestored] = useState(false);
+
   // OAuth state for Google Sheets
   const [isOAuthAuthorized, setIsOAuthAuthorized] = useState(false);
   const [oauthAccessToken, setOauthAccessToken] = useState<string>('');
@@ -1209,36 +1212,52 @@ export default function Page() {
       const welcomeMessage: ChatMessage = {
         id: `welcome-${Date.now()}`,
         role: 'assistant',
-        content: `Welcome to the Master SOW Analytics assistant. I have access to all embedded SOWs. 
+        content: `Welcome to the Master SOW Analytics assistant. I have access to all embedded SOWs.
 
 Ask me questions to get business insights, such as:
 • "What is our total revenue from HubSpot projects?"
 • "Which services were included in the RealEstateTT SOW?"
 • "How many SOWs did we create this month?"
-• "What's the breakdown of services across all clients?"
-    const oauthToken = params.get('oauth_token');
-    const error = params.get('oauth_error');
+• "What's the breakdown of services across all clients?"`,
+        timestamp: Date.now(),
+      };
 
-    if (error) {
-      toast.error(`OAuth error: ${error}`);
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      return;
+      // Add the welcome message to chat only when appropriate
+      setChatMessages(prev => prev.concat(welcomeMessage));
     }
+  }, [viewMode, chatMessages.length, isHistoryRestored]);
 
-    if (oauthToken) {
-      console.log('✅ OAuth token received from callback');
-      setOauthAccessToken(oauthToken);
-      setIsOAuthAuthorized(true);
-      toast.success('✅ Google authorized! Will create GSheet once document loads...');
-      
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+  // Handle OAuth callback params separately (clean, focused effect)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const oauthToken = params.get('oauth_token');
+      const error = params.get('oauth_error');
+
+      if (error) {
+        toast.error(`OAuth error: ${error}`);
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
+      if (oauthToken) {
+        console.log('\u2705 OAuth token received from callback');
+        setOauthAccessToken(oauthToken);
+        setIsOAuthAuthorized(true);
+        toast.success('\u2705 Google authorized! Will create GSheet once document loads...');
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch (e) {
+      console.warn('Error handling OAuth params:', e);
     }
   }, []);
 
   // Auto-trigger sheet creation when BOTH OAuth token and document are ready
   useEffect(() => {
+    // Known generated/system workspace slugs that should be treated as non-client
+    const GENERATION_SLUGS = new Set([
       'ad-copy-machine',
       'crm-communication-specialist',
       'case-study-crafter',
@@ -1253,11 +1272,13 @@ Ask me questions to get business insights, such as:
       'sow-master-dashboard-63003769',
       'pop'
     ]);
+
     const isGenerationOrSystem = (slug?: string) => {
       if (!slug) return true;
       const lower = slug.toLowerCase();
       return GENERATION_SLUGS.has(lower) || lower.startsWith('gen-');
     };
+
     const workspaceList = [
       { slug: 'sow-master-dashboard', name: '🎯 All SOWs (Master)' },
       ...workspaces
@@ -1267,7 +1288,7 @@ Ask me questions to get business insights, such as:
           name: `📁 ${ws.name}` // Prefix with folder icon
         }))
     ];
-    
+
     setAvailableWorkspaces(workspaceList);
     console.log('📋 Available workspaces for dashboard chat:', workspaceList);
   }, [workspaces]); // Re-run when workspaces change
