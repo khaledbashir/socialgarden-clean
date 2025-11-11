@@ -907,7 +907,7 @@ export default function SidebarNav({
           <h3 className="text-sm font-medium text-gray-300 mb-2">Ready to create your first SOW?</h3>
           <p className="text-xs text-gray-500 mb-4">Start by creating a client workspace, then generate professional Statements of Work with AI assistance.</p>
           <button
-            onClick={() => onCreateWorkspace()}
+            onClick={() => onCreateWorkspace("New Client Workspace", "client")}
             className="inline-flex items-center px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] text-white text-sm font-medium rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4 mr-2" />
