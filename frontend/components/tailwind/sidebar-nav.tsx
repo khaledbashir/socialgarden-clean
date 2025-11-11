@@ -76,6 +76,8 @@ interface SidebarNavProps {
   onToggleSidebar?: () => void;
   onReorderWorkspaces?: (workspaces: Workspace[]) => void;
   onReorderSOWs?: (workspaceId: string, sows: SOW[]) => void;
+  // Move SOW between workspaces (folders)
+  onMoveSOW?: (sowId: string, fromWorkspaceId: string, toWorkspaceId: string, toIndex?: number) => void;
 
   // 🎯 Phase 1C: Dashboard filter support
   dashboardFilter?: {
@@ -102,6 +104,7 @@ export default function SidebarNav({
   onToggleSidebar,
   onReorderWorkspaces,
   onReorderSOWs,
+  onMoveSOW,
   dashboardFilter,
   onClearFilter,
 }: SidebarNavProps) {
@@ -313,25 +316,68 @@ export default function SidebarNav({
       setLocalWorkspaces(reordered);
       onReorderWorkspaces?.(reordered);
     } else {
-      // Reordering SOWs within a workspace
+      // Dragging a SOW
       const activeSOW = localWorkspaces.flatMap(w => w.sows).find(s => s.id === active.id);
       const overSOW = localWorkspaces.flatMap(w => w.sows).find(s => s.id === over.id);
 
+      // Case A: Move SOW within the same workspace (reorder)
       if (activeSOW && overSOW && activeSOW.workspaceId === overSOW.workspaceId) {
         const workspaceId = activeSOW.workspaceId;
         const workspace = localWorkspaces.find(w => w.id === workspaceId);
-
         if (workspace) {
           const oldIndex = workspace.sows.findIndex(s => s.id === active.id);
           const newIndex = workspace.sows.findIndex(s => s.id === over.id);
           const reorderedSOWs = arrayMove(workspace.sows, oldIndex, newIndex);
-
           const updatedWorkspaces = localWorkspaces.map(w =>
             w.id === workspaceId ? { ...w, sows: reorderedSOWs } : w
           );
           setLocalWorkspaces(updatedWorkspaces);
           onReorderSOWs?.(workspaceId, reorderedSOWs);
         }
+        return;
+      }
+
+      // Case B: Dropped over a workspace: move SOW across folders to top
+      if (activeSOW && overWorkspace) {
+        const fromId = activeSOW.workspaceId;
+        const toId = overWorkspace.id;
+        if (fromId !== toId) {
+          const updated = localWorkspaces.map(w => {
+            if (w.id === fromId) {
+              return { ...w, sows: w.sows.filter(s => s.id !== activeSOW.id) };
+            }
+            if (w.id === toId) {
+              return { ...w, sows: [{ ...activeSOW, workspaceId: toId }, ...w.sows] };
+            }
+            return w;
+          });
+          setLocalWorkspaces(updated);
+          onMoveSOW?.(activeSOW.id, fromId, toId, 0);
+        }
+        return;
+      }
+
+      // Case C: Dropped over a SOW in a different workspace: move and position before target
+      if (activeSOW && overSOW && activeSOW.workspaceId !== overSOW.workspaceId) {
+        const fromId = activeSOW.workspaceId;
+        const toId = overSOW.workspaceId;
+        const targetWs = localWorkspaces.find(w => w.id === toId);
+        if (!targetWs) return;
+        const targetIndex = targetWs.sows.findIndex(s => s.id === overSOW.id);
+        const updated = localWorkspaces.map(w => {
+          if (w.id === fromId) {
+            return { ...w, sows: w.sows.filter(s => s.id !== activeSOW.id) };
+          }
+          if (w.id === toId) {
+            const newSows = [...w.sows];
+            newSows.splice(Math.max(0, targetIndex), 0, { ...activeSOW, workspaceId: toId });
+            return { ...w, sows: newSows };
+          }
+          return w;
+        });
+        setLocalWorkspaces(updated);
+        onMoveSOW?.(activeSOW.id, fromId, toId, Math.max(0, targetIndex));
+        return;
       }
     }
   };
@@ -412,14 +458,15 @@ export default function SidebarNav({
                 onClick={() => {
                   onSelectWorkspace(workspace.id);
                 }}
-                className={`w-full text-left px-2 py-1 text-sm transition-colors ${
+                className={`w-full text-left px-2 py-1 text-sm transition-colors flex items-center gap-1 ${
                   currentWorkspaceId === workspace.id
                     ? 'text-[#1CBF79] font-medium'
                     : 'text-gray-300 hover:text-white'
                 }`}
                 title={workspace.name}
               >
-                {workspace.name.length > 5 ? workspace.name.substring(0, 5) + '...' : workspace.name}
+                <span>{workspace.name.length > 5 ? workspace.name.substring(0, 5) + '...' : workspace.name}</span>
+                <span className="ml-1 text-xs text-gray-500">({workspace.sows.length})</span>
               </button>
             )}
           </div>
@@ -784,19 +831,28 @@ export default function SidebarNav({
 
                 return (
                   <div className="space-y-1">
-                    <button
-                      onClick={() => toggleCategory('clients')}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800/50 rounded-lg transition-colors"
-                    >
-                      {expandedCategories.has('clients') ? (
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-gray-500" />
-                      )}
-                      <LayoutDashboard className="w-4 h-4 text-[#1CBF79]" />
-                      <span>CLIENT WORKSPACES</span>
-                      <span className="ml-auto text-xs text-gray-500">({clientWorkspaces.length})</span>
-                    </button>
+                    <div className="w-full flex items-center gap-2">
+                      <button
+                        onClick={() => toggleCategory('clients')}
+                        className="flex-1 flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800/50 rounded-lg transition-colors"
+                      >
+                        {expandedCategories.has('clients') ? (
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-gray-500" />
+                        )}
+                        <LayoutDashboard className="w-4 h-4 text-[#1CBF79]" />
+                        <span>CLIENT WORKSPACES</span>
+                        <span className="ml-auto text-xs text-gray-500">({clientWorkspaces.length})</span>
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onCreateWorkspace("New Client Workspace", "client"); }}
+                        className="p-1.5 hover:bg-gray-800/60 rounded-md text-gray-300 hover:text-white"
+                        title="New client workspace"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
 
                     {expandedCategories.has('clients') && (
                       <div className="ml-2 space-y-0.5">

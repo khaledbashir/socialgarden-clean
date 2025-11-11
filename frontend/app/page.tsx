@@ -27,9 +27,9 @@ import { StatefulDashboardChat } from "@/components/tailwind/stateful-dashboard-
 import { KnowledgeBase } from "@/components/tailwind/knowledge-base";
 import { FloatingDocumentActions } from "@/components/tailwind/document-toolbar";
 import { calculateTotalInvestment } from "@/lib/sow-utils";
-import { 
-  extractPricingFromContent, 
-  exportToExcel, 
+import {
+  extractPricingFromContent,
+  exportToExcel,
   exportToPDF,
   cleanSOWContent
 } from "@/lib/export-utils";
@@ -72,7 +72,7 @@ const extractClientName = (prompt: string): string | null => {
       }
     }
   }
-  
+
   return null;
 };
 
@@ -80,13 +80,13 @@ const extractClientName = (prompt: string): string | null => {
 const extractBudgetAndDiscount = (prompt: string): { budget: number; discount: number } => {
   let budget = 0;
   let discount = 0;
-  
+
   // Extract budget using same patterns as parseBudgetFromMarkdown
   const budgetPatterns = [
     /firm\s*\$?\s*([\d\s,\.]+)\s*(k)?\s*aud/i,
     /(budget|target|total|investment)\s*(?:[:=]|is|of)?\s*(aud\s*)?\$?\s*([\d\s,\.]+)\s*(k)?\s*(aud)?\s*(\+\s*gst|incl\s*gst|ex\s*gst)?/i,
   ];
-  
+
   for (const re of budgetPatterns) {
     const m = prompt.match(re);
     if (m) {
@@ -104,14 +104,14 @@ const extractBudgetAndDiscount = (prompt: string): { budget: number; discount: n
       }
     }
   }
-  
+
   // Extract discount percentage
   const discountPatterns = [
     /(\d+(?:\.\d+)?)\s*%\s*(?:goodwill\s+)?discount/i,
     /discount\s*(?:of\s+)?(\d+(?:\.\d+)?)\s*%/i,
     /(\d+(?:\.\d+)?)\s*%\s*off/i,
   ];
-  
+
   for (const re of discountPatterns) {
     const m = prompt.match(re);
     if (m && m[1]) {
@@ -120,7 +120,7 @@ const extractBudgetAndDiscount = (prompt: string): { budget: number; discount: n
       break;
     }
   }
-  
+
   return { budget, discount };
 };
 
@@ -145,20 +145,20 @@ const extractPricingJSON = (content: string): {
   // Look for explicit [PRICING_JSON] or [PRICING/JSON] blocks, else fallback to first JSON code fence
   const pricingJsonMatch = content.match(/\[PRICING[\/_]JSON\]\s*```json\s*([\s\S]*?)\s*```/i) ||
                            content.match(/```json\s*([\s\S]*?)\s*```/);
-   
+
   if (pricingJsonMatch && pricingJsonMatch[1]) {
     try {
       const parsedJson = JSON.parse(pricingJsonMatch[1]);
-      
+
       // 🎯 V4.1 Multi-Scope Format Detection
       if (parsedJson.scopes && Array.isArray(parsedJson.scopes)) {
         console.log('🎯 [V4.1 MULTI-SCOPE] Found', parsedJson.scopes.length, 'scopes');
         console.log('📊 [PRICING_JSON] Block Detected - V4.1 Multi-Scope Format');
-        
+
         // Extract discount from V4.1 format
         const discount = parsedJson.discount || 0;
         console.log(`🎁 Discount extracted from V4.1: ${discount}%`);
-        
+
         // Log scope details
         parsedJson.scopes.forEach((scope: any, index: number) => {
           console.log(`  📋 Scope ${index + 1}: ${scope.scope_name}`);
@@ -166,7 +166,7 @@ const extractPricingJSON = (content: string): {
           console.log(`    Roles: ${scope.role_allocation?.length || 0}`);
           console.log(`    Deliverables: ${scope.deliverables?.length || 0}`);
         });
-        
+
         // Transform all role allocations to suggestedRoles format for backward compatibility
         const allRoles: any[] = [];
         parsedJson.scopes.forEach((scope: any) => {
@@ -181,7 +181,7 @@ const extractPricingJSON = (content: string): {
             });
           }
         });
-        
+
         return {
           roles: allRoles,
           discount,
@@ -191,12 +191,12 @@ const extractPricingJSON = (content: string): {
           }
         };
       }
-      
+
       // Check for role_allocation array (The Architect v3.1 format)
       if (parsedJson.role_allocation && Array.isArray(parsedJson.role_allocation)) {
         console.log('📊 [PRICING_JSON] Block Detected - v3.1 Format');
         console.log(`✅ Extracted ${parsedJson.role_allocation.length} roles with validated hours/costs`);
-        
+
         // Transform role_allocation to suggestedRoles format
         const rolesWithHours = parsedJson.role_allocation.map((item: any) => ({
           role: item.role,
@@ -204,14 +204,14 @@ const extractPricingJSON = (content: string): {
           rate: item.rate || 0,
           cost: item.cost || (item.hours * item.rate)
         }));
-        
+
         // Extract discount from project_details if available
         let discount = 0;
         if (parsedJson.project_details && parsedJson.project_details.discount_percentage) {
           discount = parsedJson.project_details.discount_percentage;
           console.log(`🎁 Discount extracted from [PRICING_JSON]: ${discount}%`);
         }
-        
+
         // Log financial summary if available
         if (parsedJson.financial_summary) {
           console.log('💰 Financial Summary from AI:');
@@ -221,10 +221,10 @@ const extractPricingJSON = (content: string): {
           console.log(`   GST: $${parsedJson.financial_summary.gst_amount}`);
           console.log(`   FINAL TOTAL: $${parsedJson.financial_summary.total_project_value_final}`);
         }
-        
+
         return { roles: rolesWithHours, discount };
       }
-      
+
       // Fallback: Check for legacy suggestedRoles format
       if (parsedJson.suggestedRoles && Array.isArray(parsedJson.suggestedRoles)) {
         console.log(`✅ Extracted ${parsedJson.suggestedRoles.length} roles (legacy suggestedRoles format)`);
@@ -234,7 +234,7 @@ const extractPricingJSON = (content: string): {
       console.warn('⚠️ Could not parse [PRICING_JSON] block:', e);
     }
   }
-  
+
   return null;
 };
 
@@ -301,7 +301,7 @@ const transformScopesToPDFFormat = (multiScopeData: {
   authoritativeTotal?: number; // 🎯 AI-calculated authoritative total
 } => {
   console.log('🔄 [PDF Export] Transforming V4.1 multi-scope data to backend format...');
-  
+
   // 🎯 DEDUPLICATION: Collect all assumptions across scopes and remove duplicates
   const allAssumptions = new Set<string>();
   multiScopeData.scopes.forEach(scope => {
@@ -313,17 +313,17 @@ const transformScopesToPDFFormat = (multiScopeData: {
       }
     });
   });
-  
+
   const uniqueAssumptions = Array.from(allAssumptions);
   console.log(`✅ [Deduplication] Found ${uniqueAssumptions.length} unique assumptions from ${multiScopeData.scopes.reduce((sum, scope) => sum + (scope.assumptions?.length || 0), 0)} total assumptions across ${multiScopeData.scopes.length} scopes`);
-  
+
   const transformedScopes = multiScopeData.scopes.map((scope, index) => {
     // Get rates for roles
     const items = scope.role_allocation.map((roleItem) => {
       const rate = roleItem.rate || 0;
       const hours = roleItem.hours || 0;
       const cost = roleItem.cost || (rate * hours);
-      
+
       return {
         description: roleItem.role, // Use role name as description (required field)
         role: roleItem.role,
@@ -331,7 +331,7 @@ const transformScopesToPDFFormat = (multiScopeData: {
         cost: cost
       };
     });
-    
+
     return {
       id: index + 1, // Required: Unique integer ID for each scope
       title: scope.scope_name,
@@ -341,12 +341,12 @@ const transformScopesToPDFFormat = (multiScopeData: {
       assumptions: uniqueAssumptions // Use deduplicated assumptions for all scopes
     };
   });
-  
+
   console.log(`✅ [PDF Export] Transformed ${transformedScopes.length} scopes for backend`);
   transformedScopes.forEach((scope, index) => {
     console.log(`  📋 Scope ${index + 1}: ${scope.title} (${scope.items.length} items, ${uniqueAssumptions.length} shared assumptions)`);
   });
-  
+
   return {
     projectTitle: multiScopeData.projectTitle || 'SOW',
     scopes: transformedScopes,
@@ -369,7 +369,7 @@ const transformScopesToPDFFormat = (multiScopeData: {
 // 🧹 SANITIZATION: Remove empty text nodes recursively from TipTap JSON
 const sanitizeEmptyTextNodes = (content: any): any => {
   if (!content) return content;
-  
+
   if (Array.isArray(content)) {
     // Filter out text nodes with empty text
     return content
@@ -388,11 +388,11 @@ const sanitizeEmptyTextNodes = (content: any): any => {
         return node;
       });
   }
-  
+
   return content;
 };
 
-type ConvertOptions = { 
+type ConvertOptions = {
   strictRoles?: boolean;
   userPromptBudget?: number; // Budget extracted from user's original prompt
   userPromptDiscount?: number; // Discount extracted from user's original prompt
@@ -437,13 +437,13 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
   const strictRoles = !!options.strictRoles;
   const tablesQueue: any[][] = Array.isArray(options.tablesRoles) ? [...options.tablesRoles] : [];
   const discountQueue: number[] = Array.isArray(options.tablesDiscounts) ? [...options.tablesDiscounts] : [];
-  
+
   // 🎯 SMART DISCOUNT FEATURE: Priority cascade for discount extraction
   // Priority 1: JSON discount from [PRICING_JSON] block (most authoritative)
   // Priority 2: User prompt discount override
   // Priority 3: Parse from AI's markdown response
   let parsedDiscount = 0;
-  
+
   if (options.jsonDiscount !== undefined && options.jsonDiscount > 0) {
     parsedDiscount = options.jsonDiscount;
     console.log(`🎯 Using discount from [PRICING_JSON]: ${parsedDiscount}%`);
@@ -451,7 +451,7 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
     parsedDiscount = options.userPromptDiscount;
     console.log(`🎯 Using discount from user prompt: ${parsedDiscount}%`);
   } else {
-    const discountMatch = markdown.match(/\*\*Discount[:\s]*\*\*\s*(\d+(?:\.\d+)?)\s*%/i) || 
+    const discountMatch = markdown.match(/\*\*Discount[:\s]*\*\*\s*(\d+(?:\.\d+)?)\s*%/i) ||
                           markdown.match(/Discount[:\s]*(\d+(?:\.\d+)?)\s*%/i);
     if (discountMatch && discountMatch[1]) {
       parsedDiscount = parseFloat(discountMatch[1]);
@@ -465,17 +465,17 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
     let currentText = '';
     let isBold = false;
     let isItalic = false;
-    
+
     for (let i = 0; i < text.length; i++) {
       if (text.substring(i, i + 2) === '**') {
         if (currentText) {
           const marks = [];
           if (isBold) marks.push({ type: 'bold' });
           if (isItalic) marks.push({ type: 'italic' });
-          parts.push({ 
-            type: 'text', 
-            text: currentText, 
-            marks: marks.length > 0 ? marks : undefined 
+          parts.push({
+            type: 'text',
+            text: currentText,
+            marks: marks.length > 0 ? marks : undefined
           });
           currentText = '';
         }
@@ -486,10 +486,10 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
           const marks = [];
           if (isBold) marks.push({ type: 'bold' });
           if (isItalic) marks.push({ type: 'italic' });
-          parts.push({ 
-            type: 'text', 
-            text: currentText, 
-            marks: marks.length > 0 ? marks : undefined 
+          parts.push({
+            type: 'text',
+            text: currentText,
+            marks: marks.length > 0 ? marks : undefined
           });
           currentText = '';
         }
@@ -498,18 +498,18 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
         currentText += text[i];
       }
     }
-    
+
     if (currentText) {
       const marks = [];
       if (isBold) marks.push({ type: 'bold' });
       if (isItalic) marks.push({ type: 'italic' });
-      parts.push({ 
-        type: 'text', 
-        text: currentText, 
-        marks: marks.length > 0 ? marks : undefined 
+      parts.push({
+        type: 'text',
+        text: currentText,
+        marks: marks.length > 0 ? marks : undefined
       });
     }
-    
+
     // Never return empty parts - if text is empty, return one node with that empty text
     // (TipTap requires at least one node, but it will be handled by parent)
     return parts.length > 0 ? parts : [];
@@ -523,29 +523,29 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
   // Helper function to parse markdown table rows into pricing rows
   const parseMarkdownTable = (tableLines: string[]): any[] => {
     if (tableLines.length < 2) return [];
-    
+
     const rows: any[] = [];
-    
+
     // Skip alignment row (usually the second row)
     let dataStartIndex = 1;
     if (tableLines[1] && /^\s*\|[\s|:=-]+\|\s*$/.test(tableLines[1])) {
       dataStartIndex = 2;
     }
-    
+
     // Parse each data row
     for (let idx = dataStartIndex; idx < tableLines.length; idx++) {
       const line = tableLines[idx];
       if (!isMarkdownTableRow(line)) break;
-      
+
       const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell.length > 0);
-      
+
       // Expected format: Role | Description | Hours | Rate
       if (cells.length >= 4) {
         const role = cells[0];
         const description = cells[1];
         const hours = parseInt(cells[2]) || 0;
         const rate = parseInt(cells[3]) || 0;
-        
+
         if (role.toLowerCase() !== 'role') { // Skip header
           rows.push({
             role,
@@ -556,7 +556,7 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
         }
       }
     }
-    
+
     return rows;
   };
 
@@ -604,7 +604,7 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
       rolesSource = tablesQueue.shift() || [];
     }
     const effectiveRoles = (rolesSource && rolesSource.length > 0) ? rolesSource : suggestedRoles;
-    
+
     let pricingRows: any[] = [];
     // Robust normalizer and canonical role finder to map AI role names to official rate card
     const norm = (s: string) => (s || '')
@@ -641,7 +641,7 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
       if (exact) return exact;
       return undefined;
     };
-    
+
     // Use provided suggestedRoles first; otherwise use roles parsed from markdown only
     if (effectiveRoles.length > 0) {
       console.log('✅ Using suggestedRoles from JSON.');
@@ -650,7 +650,7 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
 
       if (rolesAreStrings || rolesLackHours) {
         const names = (effectiveRoles as any[]).map(r => typeof r === 'string' ? r : r.role).filter(Boolean);
-        
+
         // Priority 1: Use budget from user's original prompt if provided
         // Priority 2: Parse budget from AI's markdown response
         let budgetExGst = 0;
@@ -665,7 +665,7 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
             console.log(`💰 Budget parsed from AI response: $${budgetExGst.toFixed(2)} (ex GST)`);
           }
         }
-        
+
         if (budgetExGst > 0) {
           console.log(`🧮 Deterministic allocation with budget (ex GST): $${budgetExGst.toFixed(2)}`);
           pricingRows = calculatePricingTable(names, budgetExGst);
@@ -710,15 +710,15 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
       console.log('⚠️ No roles available for pricing table.');
       return; // Can't create pricing table without any roles
     }
-    
+
   pricingTablesInsertedCount += 1;
-    
+
     // 🔧 CRITICAL FIX: Filter out any empty/invalid roles BEFORE enforcement
     pricingRows = pricingRows.filter(r => {
       const roleName = norm(r.role);
       return roleName && roleName !== 'select role' && roleName !== 'select role...' && roleName.length > 0;
     });
-    
+
     // Deterministic PM selection is handled by calculatePricingTable when a budget is provided.
     // No frontend auto-insertion of Head Of or Project Coordination here.
 
@@ -771,7 +771,7 @@ const convertMarkdownToNovelJSON = (markdown: string, suggestedRoles: any[] = []
         tableLines.push(lines[i]);
         i++;
       }
-      
+
       // Try to parse as pricing table
       const parsedRoles = strictRoles ? [] : parseMarkdownTable(tableLines);
       if (!strictRoles && parsedRoles.length > 0) {
@@ -964,9 +964,9 @@ interface Workspace {
 // The Architect classifies SOWs into 3 types: Standard Project, Audit/Strategy, or Retainer
 const extractWorkType = (content: string): 'project' | 'audit' | 'retainer' => {
   if (!content) return 'project';
-  
+
   const lowerContent = content.toLowerCase();
-  
+
   // Check for Retainer patterns
   if (
     lowerContent.includes('retainer') ||
@@ -979,7 +979,7 @@ const extractWorkType = (content: string): 'project' | 'audit' | 'retainer' => {
     console.log('🎯 [Work Type] Detected: Retainer');
     return 'retainer';
   }
-  
+
   // Check for Audit/Strategy patterns
   if (
     lowerContent.includes('audit') ||
@@ -992,7 +992,7 @@ const extractWorkType = (content: string): 'project' | 'audit' | 'retainer' => {
     console.log('🎯 [Work Type] Detected: Audit/Strategy');
     return 'audit';
   }
-  
+
   // Default to Standard Project
   console.log('🎯 [Work Type] Detected: Standard Project');
   return 'project';
@@ -1024,7 +1024,7 @@ export default function Page() {
   const [showGuidedSetup, setShowGuidedSetup] = useState(false);
   const [viewMode, setViewMode] = useState<'editor' | 'dashboard'>('dashboard'); // NEW: View mode - START WITH DASHBOARD
   const [isGrandTotalVisible, setIsGrandTotalVisible] = useState(true); // 👁️ Toggle grand total visibility
-  
+
   // Workspace & SOW state (NEW) - Start empty, load from AnythingLLM
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string>('');
@@ -1176,7 +1176,7 @@ export default function Page() {
   ]);
   // Structured SOW from AI (Architect modular JSON)
   const [structuredSow, setStructuredSow] = useState<ArchitectSOW | null>(null);
-  
+
   // 🎯 V4.1 Multi-Scope Pricing Data from AI
   const [multiScopePricingData, setMultiScopePricingData] = useState<{
     scopes: Array<{
@@ -1296,45 +1296,52 @@ Ask me questions to get business insights, such as:
   useEffect(() => {
     console.log('Loading workspace data, mounted:', mounted);
     if (!mounted) return;
-    
+
     // ⚠️ CRITICAL FIX: Use AbortController to prevent race conditions from double render
     // In development with React.StrictMode, components mount twice. This controller
     // ensures only the latest request completes, preventing duplicate data loads.
     const abortController = new AbortController();
-    
+
     const loadData = async () => {
       console.log('📂 Loading folders and SOWs from database...');
       // No localStorage: read initial doc from URL query
       const urlParams = new URLSearchParams(window.location.search);
       const initialDocId = urlParams.get('docId');
       const hasCompletedSetup = undefined;
-      
+
       try {
         // 🔒 SECURITY FIX: Remove localStorage caching for sensitive data
         // Always fetch from database to ensure data security and consistency
-        
+
         // LOAD FOLDERS FROM DATABASE
         const foldersResponse = await fetch('/api/folders', { signal: abortController.signal });
         const foldersData = await foldersResponse.json();
         console.log('✅ Loaded folders from database:', foldersData.length);
-        
+
         // LOAD SOWS FROM DATABASE
         const sowsResponse = await fetch('/api/sow/list', { signal: abortController.signal });
         const { sows } = await sowsResponse.json();
         const dbSOWs = sows;
         console.log('✅ Loaded SOWs from database:', dbSOWs.length);
-        
+
         const workspacesWithSOWs: Workspace[] = [];
         const documentsFromDB: Document[] = [];
         const foldersFromDB: Folder[] = [];
-        
+
         // Create workspace objects with SOWs from database
         for (const folder of foldersData) {
           console.log(`📁 Processing folder: ${folder.name} (ID: ${folder.id})`);
-          
+
           // Find SOWs that belong to this folder
-          const folderSOWs = dbSOWs.filter((sow: any) => sow.folder_id === folder.id);
-          
+          const folderSOWs = dbSOWs
+            .filter((sow: any) => sow.folder_id === folder.id)
+            // Sort most-recent first using updated_at then created_at
+            .sort((a: any, b: any) => {
+              const ta = new Date(a.updated_at || a.created_at || 0).getTime();
+              const tb = new Date(b.updated_at || b.created_at || 0).getTime();
+              return tb - ta;
+            });
+
           const sows: SOW[] = folderSOWs.map((sow: any) => ({
             id: sow.id,
             name: sow.title || 'Untitled SOW',
@@ -1342,9 +1349,9 @@ Ask me questions to get business insights, such as:
             vertical: sow.vertical || null,
             service_line: sow.service_line || null,
           }));
-          
+
           console.log(`   ✓ Found ${sows.length} SOWs in this folder`);
-          
+
           // Add to workspaces array
           workspacesWithSOWs.push({
             id: folder.id,
@@ -1352,7 +1359,7 @@ Ask me questions to get business insights, such as:
             sows: sows,
             workspace_slug: folder.workspace_slug,
           });
-          
+
           // Add to folders array
           foldersFromDB.push({
             id: folder.id,
@@ -1362,22 +1369,22 @@ Ask me questions to get business insights, such as:
             embedId: folder.embed_id,
             syncedAt: folder.updated_at || folder.created_at,
           });
-          
+
           // Create document objects for each SOW from database
           for (const sow of folderSOWs) {
             // Parse content if it's a JSON string, otherwise use as-is
             let parsedContent = defaultEditorContent;
             if (sow.content) {
               try {
-                parsedContent = typeof sow.content === 'string' 
-                  ? JSON.parse(sow.content) 
+                parsedContent = typeof sow.content === 'string'
+                  ? JSON.parse(sow.content)
                   : sow.content;
               } catch (e) {
                 console.warn('Failed to parse SOW content:', sow.id);
                 parsedContent = defaultEditorContent;
               }
             }
-            
+
             documentsFromDB.push({
               id: sow.id,
               title: sow.title || 'Untitled SOW',
@@ -1389,15 +1396,15 @@ Ask me questions to get business insights, such as:
             });
           }
         }
-        
+
         console.log('✅ Total workspaces loaded:', workspacesWithSOWs.length);
         console.log('✅ Total SOWs loaded:', documentsFromDB.length);
-        
+
         // Update state
         setWorkspaces(workspacesWithSOWs);
         setFolders(foldersFromDB);
         setDocuments(documentsFromDB);
-        
+
         // Set current workspace to first one if available
         // BUT: Don't auto-select a SOW - let user click from dashboard
         if (workspacesWithSOWs.length > 0 && !currentWorkspaceId) {
@@ -1405,7 +1412,7 @@ Ask me questions to get business insights, such as:
           // Removed: Don't auto-select first SOW - user should manually select from dashboard
           // This provides a better UX where dashboard is the entry point
         }
-        
+
         // 🎓 Show onboarding if no workspaces (no localStorage gating)
         if (workspacesWithSOWs.length === 0) {
           setTimeout(() => {
@@ -1417,7 +1424,7 @@ Ask me questions to get business insights, such as:
         if (!hasCompletedSetup && workspacesWithSOWs.length === 0) {
           setTimeout(() => setShowGuidedSetup(true), 1000);
         }
-        
+
       } catch (error) {
         // Don't log abort errors - they're expected cleanup
         if (error instanceof Error && error.name === 'AbortError') {
@@ -1433,9 +1440,9 @@ Ask me questions to get business insights, such as:
         setCurrentSOWId(initialDocId);
       }
     };
-    
+
     loadData();
-    
+
     // Cleanup: abort any pending requests if component unmounts or mounted changes
     return () => {
       console.log('🧹 Cleaning up workspace data loading');
@@ -1448,25 +1455,25 @@ Ask me questions to get business insights, such as:
   // ✨ NEW: When currentSOWId changes, load the corresponding document and switch to editor view
   useEffect(() => {
     if (!currentSOWId) return;
-    
+
     console.log('📄 Loading document for SOW:', currentSOWId);
-    
+
     // Find the document in the documents array
     const doc = documents.find(d => d.id === currentSOWId);
-    
+
     if (doc) {
       console.log('✅ Found document:', doc.title);
       setCurrentDocId(doc.id);
       setViewMode('editor'); // Switch to editor view
-      
+
       // 🧵 Load chat history from AnythingLLM thread
       const loadChatHistory = async () => {
-        if (doc.threadSlug) {
+        if (doc.threadSlug && !doc.threadSlug.startsWith('temp-')) {
           try {
             console.log('💬 Loading chat history for thread:', doc.threadSlug);
             // 🎯 Use the workspace where the SOW was created (where its thread lives)
-            const history = await anythingLLM.getThreadChats(doc.workspaceSlug || 'gen-the-architect', doc.threadSlug);
-            
+            const history = await anythingLLM.getThreadChats(doc.workspaceSlug || 'sow-generator', doc.threadSlug);
+
             if (history && history.length > 0) {
               // Convert AnythingLLM history format to our ChatMessage format
               const messages: ChatMessage[] = history.map((msg: any) => ({
@@ -1475,7 +1482,7 @@ Ask me questions to get business insights, such as:
                 content: msg.content,
                 timestamp: Date.now(),
               }));
-              
+
               console.log(`✅ Loaded ${messages.length} messages from thread`);
               setChatMessages(messages);
             } else {
@@ -1487,11 +1494,11 @@ Ask me questions to get business insights, such as:
             setChatMessages([]);
           }
         } else {
-          console.log('ℹ️ No thread associated with this SOW, clearing chat');
+          console.log('ℹ️ No valid thread associated with this SOW yet (temp or missing), clearing chat');
           setChatMessages([]);
         }
       };
-      
+
       loadChatHistory();
     } else {
       console.warn('⚠️ Document not found for SOW:', currentSOWId);
@@ -1591,11 +1598,11 @@ Ask me questions to get business insights, such as:
   // This ensures we don't set the agent until we know where we are (dashboard vs editor)
   useEffect(() => {
     if (agents.length === 0 || !mounted) return; // Wait for agents to load and app to be ready
-    
+
     // Determine which agent to use based on current context
     const determineAndSetAgent = async () => {
       let agentIdToUse: string | null = null;
-      
+
       if (viewMode === 'dashboard') {
         // In dashboard mode, we should NOT use the default (gen-the-architect)
         // The dashboard will handle its own agent selection based on dashboardChatTarget
@@ -1615,16 +1622,16 @@ Ask me questions to get business insights, such as:
         } catch (err) {
           console.error('Failed to load agent preference:', err);
         }
-        
+
         // If no saved preference, use default only if in editor mode with a document
         if (!agentIdToUse) {
-          const genArchitect = agents.find(a => 
+          const genArchitect = agents.find(a =>
             a.name === 'GEN - The Architect' || a.id === 'gen-the-architect'
           );
           agentIdToUse = genArchitect?.id || agents[0]?.id || null;
           console.log(`🎯 [Agent Selection] In EDITOR mode - using default agent: ${agentIdToUse}`);
         }
-        
+
         setCurrentAgentId(agentIdToUse);
       } else {
         // No specific context yet, don't set an agent
@@ -1632,7 +1639,7 @@ Ask me questions to get business insights, such as:
         setCurrentAgentId(null);
       }
     };
-    
+
     determineAndSetAgent();
   }, [agents, viewMode, currentDocId, mounted]);
 
@@ -1765,11 +1772,11 @@ Ask me questions to get business insights, such as:
   const handleNewDoc = async (folderId?: string) => {
     const newId = `doc${Date.now()}`;
     const title = "New SOW";
-    
+
     // Find workspace slug from the folder this SOW belongs to
     const parentFolder = folderId ? folders.find(f => f.id === folderId) : null;
     const workspaceSlug = parentFolder?.workspaceSlug;
-    
+
     let newDoc: Document = {
       id: newId,
       title,
@@ -1777,7 +1784,7 @@ Ask me questions to get business insights, such as:
       folderId,
       workspaceSlug,
     };
-    
+
     try {
       // 🧵 Create AnythingLLM thread for this SOW (if workspace exists)
       if (workspaceSlug) {
@@ -1791,13 +1798,13 @@ Ask me questions to get business insights, such as:
             threadId: thread.id,
             syncedAt: new Date().toISOString(),
           };
-          
+
           // 📊 Embed SOW in master 'gen' workspace and master dashboard
           console.log(`📊 Embedding new SOW in master workspaces`);
           const sowContent = JSON.stringify(defaultEditorContent);
           const clientContext = parentFolder?.name || 'unknown';
           await anythingLLM.embedSOWInBothWorkspaces(title, sowContent, clientContext);
-          
+
           toast.success(`✅ SOW created with chat thread in ${parentFolder?.name || 'workspace'}`);
         } else {
           console.warn('⚠️ Thread creation failed - SOW created without thread');
@@ -1811,7 +1818,7 @@ Ask me questions to get business insights, such as:
       console.error('❌ Error creating thread:', error);
       toast.error('SOW created but thread sync failed');
     }
-    
+
     // Save new SOW to database first
     try {
       const saveResponse = await fetch('/api/sow/create', {
@@ -1827,7 +1834,7 @@ Ask me questions to get business insights, such as:
           total_investment: 0,
         }),
       });
-      
+
       if (saveResponse.ok) {
         const savedDoc = await saveResponse.json();
         // Update newDoc with the database ID
@@ -1841,18 +1848,18 @@ Ask me questions to get business insights, such as:
       console.error('❌ Error saving SOW to database:', error);
       toast.error('⚠️ Failed to save SOW');
     }
-    
+
     setDocuments(prev => [...prev, newDoc]);
     setCurrentDocId(newDoc.id);
-    
+
     // 🎯 Switch to editor view (in case we're on dashboard/AI management)
     if (viewMode !== 'editor') {
       setViewMode('editor');
     }
-    
+
     // Clear chat messages for current agent (in state only - database messages persist)
     setChatMessages([]);
-    
+
     // Keep sidebar closed - let user open manually
     const architectAgent = agents.find(a => a.id === "architect");
     if (architectAgent) {
@@ -1862,15 +1869,23 @@ Ask me questions to get business insights, such as:
 
   const handleRenameDoc = async (id: string, title: string) => {
     const doc = documents.find(d => d.id === id);
-    
+
     try {
       // 🧵 Update AnythingLLM thread name if it exists
       if (doc?.workspaceSlug && doc?.threadSlug) {
         await anythingLLM.updateThread(doc.workspaceSlug, doc.threadSlug, title);
         toast.success(`✅ SOW renamed to "${title}"`);
       }
-      
+
       setDocuments(prev => prev.map(d => d.id === id ? { ...d, title, syncedAt: new Date().toISOString() } : d));
+      // Keep sidebar in sync and move to top within its folder
+      setWorkspaces(prev => prev.map(ws => {
+        const has = ws.sows.some(s => s.id === id);
+        if (!has) return ws;
+        const updated = ws.sows.map(s => s.id === id ? { ...s, name: title } : s);
+        const moved = [updated.find(s => s.id === id)!, ...updated.filter(s => s.id !== id)];
+        return { ...ws, sows: moved };
+      }));
     } catch (error) {
       console.error('Error renaming document:', error);
       setDocuments(prev => prev.map(d => d.id === id ? { ...d, title } : d));
@@ -1880,7 +1895,7 @@ Ask me questions to get business insights, such as:
 
   const handleDeleteDoc = async (id: string) => {
     const doc = documents.find(d => d.id === id);
-    
+
     try {
       // Delete SOW from database first
       const deleteResponse = await fetch(`/api/sow/${id}`, {
@@ -1904,7 +1919,7 @@ Ask me questions to get business insights, such as:
       console.error('Error deleting SOW:', error);
       toast.error('Failed to delete SOW');
     }
-    
+
     setDocuments(prev => prev.filter(d => d.id !== id));
     if (currentDocId === id) {
       const remaining = documents.filter(d => d.id !== id);
@@ -1918,7 +1933,7 @@ Ask me questions to get business insights, such as:
       // 🏢 Access master SOW workspace for this folder
       const workspace = await anythingLLM.getMasterSOWWorkspace(name);
       const embedId = await anythingLLM.getOrCreateEmbedId(workspace.slug);
-      
+
       // 💾 Save folder to DATABASE
       const response = await fetch('/api/folders', {
         method: 'POST',
@@ -1931,15 +1946,15 @@ Ask me questions to get business insights, such as:
           embedId: embedId,
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.details || 'Failed to create folder in database');
       }
-      
+
       const savedFolder = await response.json();
       console.log('✅ Folder saved to database:', savedFolder);
-      
+
       const newFolder: Folder = {
         id: savedFolder.id,
         name: name,
@@ -1948,10 +1963,10 @@ Ask me questions to get business insights, such as:
         embedId,
         syncedAt: new Date().toISOString(),
       };
-      
+
       setFolders(prev => [...prev, newFolder]);
       toast.success(`✅ Workspace "${name}" created!`);
-      
+
       // 🎯 AUTO-CREATE FIRST SOW IN NEW FOLDER
       // This creates an empty SOW and opens it immediately
       await handleNewDoc(newFolder.id);
@@ -1963,7 +1978,7 @@ Ask me questions to get business insights, such as:
 
   const handleRenameFolder = async (id: string, name: string) => {
     const folder = folders.find(f => f.id === id);
-    
+
     try {
       // 💾 Update folder in DATABASE
       const response = await fetch(`/api/folders/${id}`, {
@@ -1971,16 +1986,16 @@ Ask me questions to get business insights, such as:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to update folder in database');
       }
-      
+
       // 🏢 Update AnythingLLM workspace name if it exists
       if (folder?.workspaceSlug) {
         await anythingLLM.updateWorkspace(folder.workspaceSlug, name);
       }
-      
+
       setFolders(prev => prev.map(f => f.id === id ? { ...f, name, syncedAt: new Date().toISOString() } : f));
       toast.success(`✅ Folder renamed to "${name}"`);
     } catch (error) {
@@ -1991,7 +2006,7 @@ Ask me questions to get business insights, such as:
 
   const handleDeleteFolder = async (id: string) => {
     const folder = folders.find(f => f.id === id);
-    
+
     // Also delete subfolders and docs in folder
     const toDelete = [id];
     const deleteRecursive = (folderId: string) => {
@@ -2001,22 +2016,22 @@ Ask me questions to get business insights, such as:
       });
     };
     deleteRecursive(id);
-    
+
     try {
       // 💾 Delete folder from DATABASE
       const response = await fetch(`/api/folders/${id}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to delete folder from database');
       }
-      
+
       // 🏢 Delete AnythingLLM workspace (cascades to all threads)
       if (folder?.workspaceSlug) {
         await anythingLLM.deleteWorkspace(folder.workspaceSlug);
       }
-      
+
       setFolders(prev => prev.filter(f => !toDelete.includes(f.id)));
       setDocuments(prev => prev.filter(d => !d.folderId || !toDelete.includes(d.folderId)));
       toast.success(`✅ Folder deleted from database`);
@@ -2034,7 +2049,7 @@ Ask me questions to get business insights, such as:
   const handleCreateWorkspace = async (workspaceName: string, workspaceType: "sow" | "client" | "generic" = "sow") => {
     try {
       console.log('📁 Creating workspace folder:', workspaceName);
-      
+
       // 📊 SHOW PROGRESS MODAL
       setWorkspaceCreationProgress({
         isOpen: true,
@@ -2042,26 +2057,26 @@ Ask me questions to get business insights, such as:
         currentStep: 0,
         completedSteps: [],
       });
-      
+
       // 🏢 STEP 1: Get/ensure master 'gen' workspace exists
       console.log('🏢 Getting/ensuring master SOW generation workspace...');
       const workspace = await anythingLLM.getMasterSOWWorkspace(workspaceName);
       const embedId = await anythingLLM.getOrCreateEmbedId(workspace.slug);
       console.log('✅ Master SOW workspace ready:', workspace.slug);
-      
+
       // Mark step 1 complete
       setWorkspaceCreationProgress(prev => ({
         ...prev,
         completedSteps: [0],
         currentStep: 1,
       }));
-      
+
       // 💾 STEP 2: Save folder to DATABASE (no workspace creation - using master 'gen')
       console.log('💾 Saving folder to database...');
       const folderResponse = await fetch('/api/folders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           name: workspaceName,
           workspaceSlug: workspace.slug, // Always 'gen' now
           workspaceId: workspace.id,
@@ -2077,7 +2092,7 @@ Ask me questions to get business insights, such as:
       const folderData = await folderResponse.json();
       const folderId = folderData.id;
       console.log('✅ Folder saved to database with ID:', folderId);
-      
+
       // Mark step 2 complete
       setWorkspaceCreationProgress(prev => ({
         ...prev,
@@ -2094,9 +2109,9 @@ Ask me questions to get business insights, such as:
         embedId: embedId,
         syncedAt: new Date().toISOString(),
       };
-      
+
       setFolders(prev => [...prev, newFolder]);
-      
+
       // Create workspace in local state
       const newWorkspace: Workspace = {
         id: folderId,
@@ -2104,10 +2119,10 @@ Ask me questions to get business insights, such as:
         sows: [],
         workspace_slug: workspace.slug
       };
-      
+
       // IMMEDIATELY CREATE A BLANK SOW
       const sowTitle = `New SOW for ${workspaceName}`;
-      
+
       // Save SOW to database with folder ID
       console.log('📄 Creating SOW in database');
       const sowResponse = await fetch('/api/sow/create', {
@@ -2135,7 +2150,7 @@ Ask me questions to get business insights, such as:
       console.log('🧵 Creating thread in master workspace...');
       const thread = await anythingLLM.createThread(workspace.slug);
       console.log('✅ Thread created:', thread.slug);
-      
+
       // Update SOW with thread info
       await fetch(`/api/sow/${sowId}`, {
         method: 'PUT',
@@ -2145,7 +2160,7 @@ Ask me questions to get business insights, such as:
           workspaceSlug: workspace.slug, // 'gen'
         }),
       });
-      
+
       // Mark step 3 complete
       setWorkspaceCreationProgress(prev => ({
         ...prev,
@@ -2158,7 +2173,7 @@ Ask me questions to get business insights, such as:
       const sowContent = JSON.stringify(defaultEditorContent);
       await anythingLLM.embedSOWInBothWorkspaces(sowTitle, sowContent, workspaceName);
       console.log('✅ SOW embedded in master workspaces');
-      
+
       // Mark all steps complete
       setWorkspaceCreationProgress(prev => ({
         ...prev,
@@ -2181,7 +2196,7 @@ Ask me questions to get business insights, such as:
       setCurrentWorkspaceId(folderId);
       setCurrentSOWId(sowId);
       setViewMode('editor');
-      
+
       // Add document to local state
       const newDoc: Document = {
         id: sowId,
@@ -2196,9 +2211,9 @@ Ask me questions to get business insights, such as:
       setDocuments(prev => [...prev, newDoc]);
       setCurrentDocId(sowId);
       setChatMessages([]);
-      
+
       toast.success(`✅ Created workspace "${workspaceName}" with blank SOW ready to edit!`);
-      
+
       // Close progress modal and auto-select the new SOW
       setTimeout(() => {
         setWorkspaceCreationProgress(prev => ({
@@ -2218,7 +2233,7 @@ Ask me questions to get business insights, such as:
   };
 
   const handleRenameWorkspace = (workspaceId: string, newName: string) => {
-    setWorkspaces(prev => prev.map(ws => 
+    setWorkspaces(prev => prev.map(ws =>
       ws.id === workspaceId ? { ...ws, name: newName } : ws
     ));
   };
@@ -2226,7 +2241,7 @@ Ask me questions to get business insights, such as:
   const handleDeleteWorkspace = async (workspaceId: string) => {
     try {
       const workspace = workspaces.find(ws => ws.id === workspaceId);
-      
+
       if (!workspace) {
         toast.error('Workspace not found');
         return;
@@ -2247,7 +2262,7 @@ Ask me questions to get business insights, such as:
 
       // Update state
       setWorkspaces(prev => prev.filter(ws => ws.id !== workspaceId));
-      
+
       // If we deleted the current workspace, switch to first available
       if (currentWorkspaceId === workspaceId) {
         const remaining = workspaces.filter(ws => ws.id !== workspaceId);
@@ -2370,8 +2385,9 @@ Ask me questions to get business insights, such as:
         name: sowName,
         workspaceId
       };
+      // Show new SOW at the top (most-recent-first)
       setWorkspaces(prev => prev.map(ws =>
-        ws.id === workspaceId ? { ...ws, sows: [...ws.sows, newSOW] } : ws
+        ws.id === workspaceId ? { ...ws, sows: [newSOW, ...ws.sows] } : ws
       ));
 
       // 🎯 CRITICAL: Switch to editor view IMMEDIATELY
@@ -2456,12 +2472,13 @@ Ask me questions to get business insights, such as:
   };
 
   const handleRenameSOW = (sowId: string, newName: string) => {
-    setWorkspaces(prev => prev.map(ws => ({
-      ...ws,
-      sows: ws.sows.map(sow => 
-        sow.id === sowId ? { ...sow, name: newName } : sow
-      )
-    })));
+    setWorkspaces(prev => prev.map(ws => {
+      const hasSOW = ws.sows.some(s => s.id === sowId);
+      if (!hasSOW) return ws;
+      const updated = ws.sows.map(s => (s.id === sowId ? { ...s, name: newName } : s));
+      const moved = [updated.find(s => s.id === sowId)!, ...updated.filter(s => s.id !== sowId)];
+      return { ...ws, sows: moved };
+    }));
   };
 
   const handleDeleteSOW = (sowId: string) => {
@@ -2503,6 +2520,53 @@ Ask me questions to get business insights, such as:
 
   const handleReorderWorkspaces = (reorderedWorkspaces: Workspace[]) => {
     setWorkspaces(reorderedWorkspaces);
+
+  // Move SOW across workspaces (folders) with optional target index
+  const handleMoveSOW = async (
+    sowId: string,
+    fromWorkspaceId: string,
+    toWorkspaceId: string,
+    toIndex?: number
+  ) => {
+    try {
+      if (fromWorkspaceId === toWorkspaceId) return;
+
+      // Update UI optimistically
+      setWorkspaces(prev => {
+        const fromWs = prev.find(w => w.id === fromWorkspaceId);
+        const toWs = prev.find(w => w.id === toWorkspaceId);
+        if (!fromWs || !toWs) return prev;
+
+        const moving = fromWs.sows.find(s => s.id === sowId);
+        if (!moving) return prev;
+
+        const newFromSows = fromWs.sows.filter(s => s.id !== sowId);
+        const insertAt = typeof toIndex === 'number' ? Math.max(0, Math.min(toIndex, toWs.sows.length)) : 0;
+        const newToSows = [...toWs.sows];
+        newToSows.splice(insertAt, 0, { ...moving, workspaceId: toWorkspaceId });
+
+        return prev.map(w => {
+          if (w.id === fromWorkspaceId) return { ...w, sows: newFromSows };
+          if (w.id === toWorkspaceId) return { ...w, sows: newToSows };
+          return w;
+        });
+      });
+
+      // Keep documents in sync with new folder
+      setDocuments(prev => prev.map(d => d.id === sowId ? { ...d, folderId: toWorkspaceId } : d));
+
+      // Persist move to DB
+      await fetch(`/api/sow/${sowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: toWorkspaceId }),
+      });
+    } catch (error) {
+      console.error('❌ Failed to move SOW:', error);
+      toast.error('Failed to move SOW');
+    }
+  };
+
     // Persist ordering to database (no localStorage). TODO: implement server persistence.
   };
 
@@ -2564,7 +2628,7 @@ Ask me questions to get business insights, such as:
         toast.success(`✅ SOW embedded! Available in ${clientName}'s workspace AND master dashboard.`, {
           duration: 5000,
         });
-        
+
         // Save workspace slug to database (non-blocking)
         if (currentDoc.folderId) {
           fetch(`/api/folders/${currentDoc.folderId}`, {
@@ -2607,14 +2671,14 @@ Ask me questions to get business insights, such as:
       toast.error('Please select a document first');
       return;
     }
-    
+
     try {
       // Get or create share link (only generated once per document)
       const baseUrl = window.location.origin;
       const shareLink = `${baseUrl}/portal/sow/${currentDocId}`;
-      
+
       console.log('📤 Share link generated:', shareLink);
-      
+
       // Copy to clipboard with fallback
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(shareLink);
@@ -2628,7 +2692,7 @@ Ask me questions to get business insights, such as:
         document.execCommand('copy');
         document.body.removeChild(textarea);
       }
-      
+
       // Show share modal with all details
       setShareModalData({
         shareLink,
@@ -2638,7 +2702,7 @@ Ask me questions to get business insights, such as:
         lastShared: new Date().toISOString(),
       });
       setShowShareModal(true);
-      
+
       toast.success('✅ Share link copied to clipboard!');
     } catch (error) {
       console.error('Error sharing:', error);
@@ -2651,9 +2715,9 @@ Ask me questions to get business insights, such as:
       toast.error('❌ No document selected');
       return;
     }
-    
+
     toast.info('📄 Generating PDF...');
-    
+
     try {
       // Extract showTotal flag from pricing table node (if exists)
       let showPricingSummary = true; // Default to true
@@ -2662,13 +2726,13 @@ Ask me questions to get business insights, such as:
           (node: any) => node.type === 'editablePricingTable'
         );
         if (pricingTableNode && pricingTableNode.attrs) {
-          showPricingSummary = pricingTableNode.attrs.showTotal !== undefined 
-            ? pricingTableNode.attrs.showTotal 
+          showPricingSummary = pricingTableNode.attrs.showTotal !== undefined
+            ? pricingTableNode.attrs.showTotal
             : true;
           console.log('🎯 Show Pricing Summary in PDF:', showPricingSummary);
         }
       }
-      
+
       // Extract final price target text from content, if present
       const finalPriceTargetText = extractFinalPriceTargetText(currentDoc.content);
 
@@ -2690,14 +2754,14 @@ Ask me questions to get business insights, such as:
 
       // Build clean HTML from TipTap JSON to ensure proper tables/lists
       const editorHTML = convertNovelToHTML(contentForExport);
-      
+
       if (!editorHTML || editorHTML.trim() === '' || editorHTML === '<p></p>') {
         toast.error('❌ Document is empty. Please add content before exporting.');
         return;
       }
-      
+
       const filename = currentDoc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      
+
       // Call WeasyPrint PDF service via Next.js API
       const response = await fetch('/api/generate-pdf', {
         method: 'POST',
@@ -2714,14 +2778,14 @@ Ask me questions to get business insights, such as:
           final_investment_target_text: finalPriceTargetText || undefined,
         })
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('PDF service error:', errorText);
         toast.error(`❌ PDF service error: ${response.status}`);
         throw new Error(`PDF service error: ${errorText}`);
       }
-      
+
       // Download the PDF
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -2732,9 +2796,9 @@ Ask me questions to get business insights, such as:
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast.success('✅ PDF downloaded successfully!');
-      
+
     } catch (error) {
       console.error('Error exporting PDF:', error);
       toast.error(`❌ Error exporting PDF: ${error.message}`);
@@ -2752,21 +2816,21 @@ Ask me questions to get business insights, such as:
     }
 
     toast.info('📄 Preparing professional PDF...');
-    
+
     try {
       // Get current editor content
       const editorJSON = editorRef.current?.getContent?.() || latestEditorJSON || currentDoc.content;
       console.log('📝 [PDF Export] Editor JSON:', editorJSON);
-      
+
       // 🎯 Check for multi-scope data in state
       if (multiScopePricingData && multiScopePricingData.scopes && multiScopePricingData.scopes.length > 0) {
         console.log(`✅ [PDF Export] Found multi-scope data: ${multiScopePricingData.scopes.length} scopes`);
         console.log('✅ [PDF Export] Using multi-scope professional format');
-        
+
         // Transform V4.1 multi-scope data to backend format
         const transformedData = transformScopesToPDFFormat(multiScopePricingData);
         console.log('✅ [PDF Export] Transformed multi-scope data for backend');
-        
+
         // Call the new professional PDF API route
         const response = await fetch('/api/generate-professional-pdf', {
           method: 'POST',
@@ -2775,14 +2839,14 @@ Ask me questions to get business insights, such as:
           },
           body: JSON.stringify(transformedData)
         });
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error('❌ Professional PDF service error:', errorText);
           toast.error(`❌ Professional PDF service error: ${response.status}`);
           return;
         }
-        
+
         // Download the PDF
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -2794,18 +2858,18 @@ Ask me questions to get business insights, such as:
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        
+
         toast.success('✅ Professional PDF downloaded successfully!');
-        
+
       } else {
         console.log('📄 [PDF Export] Using standard HTML conversion (no multi-scope data)');
-        
+
         // Fallback to standard PDF export
         const sowData = prepareSOWForNewPDF({
           ...currentDoc,
           content: editorJSON,
         });
-        
+
         if (!sowData) {
           toast.error('❌ Unable to generate PDF from current document');
           return;
@@ -2815,7 +2879,7 @@ Ask me questions to get business insights, such as:
         setShowNewPDFModal(true);
         toast.success('✅ PDF ready! Click to download.');
       }
-      
+
     } catch (error) {
       console.error('Error preparing new PDF:', error);
       toast.error(`❌ Error preparing PDF: ${error.message}`);
@@ -2865,7 +2929,7 @@ Ask me questions to get business insights, such as:
     try {
       // Extract pricing from content
       const pricing = extractPricingFromContent(currentDoc.content);
-      
+
       // Prepare SOW data
       const sowData = {
         clientName: currentDoc.title.split(' - ')[0] || 'Client',
@@ -2894,9 +2958,9 @@ Ask me questions to get business insights, such as:
       }
 
       const result = await response.json();
-      
+
       toast.success('✅ Google Sheet created!');
-      
+
       // Show link to user
       setTimeout(() => {
         const openSheet = window.confirm(`Sheet created!\n\nClick OK to open in Google Sheets, or Cancel to copy the link.`);
@@ -2931,7 +2995,7 @@ Ask me questions to get business insights, such as:
     try {
       // Get current URL to return to after OAuth
       const returnUrl = window.location.pathname + window.location.search;
-      
+
       // Get authorization URL from backend
       const response = await fetch(`/api/oauth/authorize?returnUrl=${encodeURIComponent(returnUrl)}`, {
         method: 'GET',
@@ -2942,7 +3006,7 @@ Ask me questions to get business insights, such as:
       }
 
       const data = await response.json();
-      
+
       // Redirect to Google OAuth
       window.location.href = data.auth_url;
     } catch (error) {
@@ -3178,11 +3242,11 @@ Ask me questions to get business insights, such as:
           const rows = node.attrs?.rows || [];
           const discount = node.attrs?.discount || 0;
           const showTotal = node.attrs?.showTotal !== undefined ? node.attrs.showTotal : true;
-          
+
           html += '<h3>Project Pricing</h3>';
           html += '<table>';
           html += '<tr><th>Role</th><th>Description</th><th>Hours</th><th>Rate (AUD)</th><th class="num">Cost (AUD, ex GST)</th></tr>';
-          
+
           let subtotal = 0;
           rows.forEach((row: any) => {
             const cost = row.hours * row.rate;
@@ -3195,16 +3259,16 @@ Ask me questions to get business insights, such as:
             html += `<td class="num">${formatCurrency(cost)} <span style="color:#6b7280; font-size: 0.85em;">+GST</span></td>`;
             html += `</tr>`;
           });
-          
+
           html += '</table>';
-          
+
           // 🎯 SMART PDF EXPORT: Only show summary section if showTotal is true
           if (showTotal) {
             // Summary section
             html += '<h4 style="margin-top: 20px;">Summary</h4>';
             html += '<table class="summary-table">';
             html += `<tr><td style="text-align: right; padding-right: 12px;"><strong>Subtotal (ex GST):</strong></td><td class="num">${formatCurrency(subtotal)} <span style="color:#6b7280; font-size: 0.85em;">+GST</span></td></tr>`;
-            
+
             if (discount > 0) {
               const discountAmount = subtotal * (discount / 100);
               const afterDiscount = subtotal - discountAmount;
@@ -3212,11 +3276,11 @@ Ask me questions to get business insights, such as:
               html += `<tr><td style="text-align: right; padding-right: 12px;"><strong>After Discount (ex GST):</strong></td><td class="num">${formatCurrency(afterDiscount)} <span style=\"color:#6b7280; font-size: 0.85em;\">+GST</span></td></tr>`;
               subtotal = afterDiscount;
             }
-            
+
             const gst = subtotal * 0.1;
             const total = subtotal + gst;
             const roundedTotal = Math.round(total / 100) * 100; // nearest $100
-            
+
             html += `<tr><td style=\"text-align: right; padding-right: 12px;\"><strong>GST (10%):</strong></td><td class=\"num\">${formatCurrency(gst)}</td></tr>`;
             html += `<tr><td style=\"text-align: right; padding-right: 12px;\"><strong>Total (incl GST, unrounded):</strong></td><td class=\"num\">${formatCurrency(total)}</td></tr>`;
             html += `<tr style=\"border-top: 2px solid #2C823D;\"><td style=\"text-align: right; padding-right: 12px; padding-top: 8px;\"><strong>Total Project Value (incl GST, rounded):</strong></td><td class=\"num\" style=\"padding-top: 8px; color: #2C823D; font-size: 18px;\"><strong>${formatCurrency(roundedTotal)}</strong></td></tr>`;
@@ -3248,14 +3312,14 @@ Ask me questions to get business insights, such as:
   const handleCreateAgent = async (agent: Omit<Agent, 'id'>) => {
     const newId = `agent${Date.now()}`;
     const newAgent: Agent = { id: newId, ...agent };
-    
+
     try {
       const response = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newAgent)
       });
-      
+
       if (response.ok) {
         setAgents(prev => [...prev, newAgent]);
         setCurrentAgentId(newId);
@@ -3268,12 +3332,12 @@ Ask me questions to get business insights, such as:
 
   const handleSelectAgent = async (id: string) => {
     setCurrentAgentId(id);
-    
+
     // ⚠️ REMOVED DATABASE CALLS - AnythingLLM handles message storage via threads
     // Chat history is maintained by AnythingLLM's workspace threads system
     // No need to duplicate in MySQL database
     setChatMessages([]); // Start fresh - AnythingLLM maintains history in its threads
-    
+
     console.log(`✅ Agent selected: ${id}. Chat history managed by AnythingLLM threads.`);
   };
 
@@ -3284,7 +3348,7 @@ Ask me questions to get business insights, such as:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       });
-      
+
       if (response.ok) {
         setAgents(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
         console.log('✅ Agent updated in database');
@@ -3304,7 +3368,7 @@ Ask me questions to get business insights, such as:
       } else if (viewMode === 'editor') {
         // Load SOW thread history for the current document if available
         const doc = currentDocId ? documents.find(d => d.id === currentDocId) : null;
-        if (doc?.threadSlug && doc.workspaceSlug) {
+        if (doc?.threadSlug && !doc.threadSlug.startsWith('temp-') && doc.workspaceSlug) {
           try {
             console.log('💬 [Context Switch] Loading SOW chat history for thread:', doc.threadSlug);
             const history = await anythingLLM.getThreadChats(doc.workspaceSlug, doc.threadSlug);
@@ -3320,7 +3384,7 @@ Ask me questions to get business insights, such as:
             setChatMessages([]);
           }
         } else {
-          // No thread yet; start clean
+          // No valid thread yet (temp or missing); start clean
           setChatMessages([]);
         }
       }
@@ -3335,7 +3399,7 @@ Ask me questions to get business insights, such as:
       const response = await fetch(`/api/agents/${id}`, {
         method: 'DELETE'
       });
-      
+
       if (response.ok) {
         setAgents(prev => prev.filter(a => a.id !== id));
         if (currentAgentId === id) {
@@ -3353,15 +3417,15 @@ Ask me questions to get business insights, such as:
     console.log('📝 Inserting content into editor:', content.substring(0, 100));
     console.log('📝 Editor ref exists:', !!editorRef.current);
     console.log('📄 Current doc ID:', currentDocId);
-    
+
     // 🎯 Extract and log [FINANCIAL_REASONING] block for transparency
     extractFinancialReasoning(content);
-    
+
     if (!editorRef.current) {
       console.error("Editor not initialized, cannot insert content.");
       return;
     }
-    
+
     if (!content || !currentDocId) {
       console.error('❌ Missing content or document ID');
       return;
@@ -3401,7 +3465,7 @@ Ask me questions to get business insights, such as:
           lastIndex = end;
           try {
             const obj = JSON.parse(body);
-            console.log('📦 [JSON Block] Parsed object:', { 
+            console.log('📦 [JSON Block] Parsed object:', {
               hasRoles: Array.isArray(obj?.roles),
               hasSuggestedRoles: Array.isArray(obj?.suggestedRoles),
               hasScopeItems: Array.isArray(obj?.scopeItems),
@@ -3414,7 +3478,7 @@ Ask me questions to get business insights, such as:
             });
             let rolesArr: any[] = [];
             let discountVal: number | undefined = undefined;
-            
+
             // Check for role_allocation (new [PRICING_JSON] format)
             if (Array.isArray(obj?.role_allocation)) {
               rolesArr = obj.role_allocation;
@@ -3432,7 +3496,7 @@ Ask me questions to get business insights, such as:
             } else {
               console.warn('⚠️ JSON block has no roles, suggestedRoles, scopeItems, or role_allocation arrays');
             }
-            
+
             // Check for discount in various formats
             if (typeof obj?.discount === 'number') {
               discountVal = obj.discount;
@@ -3476,7 +3540,7 @@ Ask me questions to get business insights, such as:
           const jm = filteredContent.match(/```json\s*[\s\S]*?\s*```/i);
           if (jm) markdownPart = filteredContent.replace(jm[0], '').trim();
           console.log(`✅ Using ${suggestedRoles.length} roles from [PRICING_JSON] (single-block)`);
-          
+
           // 🎯 V4.1 Multi-Scope Data Storage
           if (single.multiScopeData && single.multiScopeData.scopes) {
             console.log(`✅ Storing V4.1 multi-scope data: ${single.multiScopeData.scopes.length} scopes`);
@@ -3535,15 +3599,15 @@ Ask me questions to get business insights, such as:
       console.log('🧹 Cleaning SOW content...');
       const cleanedContent = cleanSOWContent(markdownPart);
       console.log('✅ Content cleaned');
-      
+
       // 3. Validate suggestedRoles were properly extracted
       console.log('🔄 Converting markdown to JSON with suggested roles...');
       console.log('📊 suggestedRoles array:', suggestedRoles);
       console.log('📊 suggestedRoles length:', suggestedRoles?.length || 0);
-      
+
       // 🎯 Extract budget and discount from last user prompt for financial calculations
       const { budget: userPromptBudget, discount: userPromptDiscount } = extractBudgetAndDiscount(lastUserPrompt);
-      const convertOptions: ConvertOptions = { 
+      const convertOptions: ConvertOptions = {
         strictRoles: false,
         userPromptBudget,
         userPromptDiscount,
@@ -3551,7 +3615,7 @@ Ask me questions to get business insights, such as:
         tablesRoles: tablesRolesQueue,
         tablesDiscounts: tablesDiscountsQueue,
       };
-      
+
       // CRITICAL: If no suggestedRoles provided from JSON, try extracting Architect structured JSON from the message body
   let convertedContent;
   console.log(`🔍 [Validation] hasValidSuggestedRoles=${hasValidSuggestedRoles}, tablesRolesQueue.length=${tablesRolesQueue.length}`);
@@ -3584,8 +3648,8 @@ Ask me questions to get business insights, such as:
           convertedContent = convertMarkdownToNovelJSON(cleanedContent, sanitized, convertOptions);
         } else {
           console.error('❌ CRITICAL ERROR: AI did not provide suggestedRoles JSON or scopeItems. The application requires one of these.');
-          console.error('📊 Debug info:', { 
-            hasValidSuggestedRoles, 
+          console.error('📊 Debug info:', {
+            hasValidSuggestedRoles,
             tablesRolesQueueLength: tablesRolesQueue.length,
             parsedStructured: !!parsedStructured,
             structured: !!structured,
@@ -3607,12 +3671,12 @@ Ask me questions to get business insights, such as:
         convertedContent = convertMarkdownToNovelJSON(cleanedContent, sanitized, convertOptions);
       }
       console.log('✅ Content converted');
-      
+
       // 4. Extract title from the content
       const titleMatch = cleanedContent.match(/^#\s+(.+)$/m);
       const clientMatch = cleanedContent.match(/\*\*Client:\*\*\s+(.+)$/m);
       const scopeMatch = cleanedContent.match(/Scope of Work:\s+(.+)/);
-      
+
       let docTitle = "New SOW";
       if (titleMatch) {
         docTitle = titleMatch[1];
@@ -3621,15 +3685,15 @@ Ask me questions to get business insights, such as:
       } else if (clientMatch) {
         docTitle = `SOW - ${clientMatch[1]}`;
       }
-      
+
       // 5. Merge or set editor content depending on existing content
       let finalContent = convertedContent;
       const existing = editorRef.current?.getContent?.();
-      const isTrulyEmpty = !existing 
-        || !Array.isArray(existing.content) 
-        || existing.content.length === 0 
-        || (existing.content.length === 1 
-            && existing.content[0]?.type === 'paragraph' 
+      const isTrulyEmpty = !existing
+        || !Array.isArray(existing.content)
+        || existing.content.length === 0
+        || (existing.content.length === 1
+            && existing.content[0]?.type === 'paragraph'
             && (!existing.content[0].content || existing.content[0].content.length === 0));
 
       if (!isTrulyEmpty) {
@@ -3672,26 +3736,26 @@ Ask me questions to get business insights, such as:
         )
       );
       console.log('✅ Document state updated successfully');
-      
+
       // 7. Embed SOW in both client workspace and master dashboard
       const currentAgent = agents.find(a => a.id === currentAgentId);
       const useAnythingLLM = currentAgent?.model === 'anythingllm';
-      
+
       if (useAnythingLLM && currentAgentId) {
         console.log('🤖 Embedding SOW in workspaces...');
         try {
           // 🔧 CRITICAL FIX: Extract client name from document title to create client-specific workspace
           // SOW title format: "SOW - ClientName - ServiceType" or "Scope of Work: ClientName"
           let clientWorkspaceSlug = getWorkspaceForAgent(currentAgentId); // Default fallback
-          
+
           // Extract client name from document title OR use workspace name as fallback
           const clientNameMatch = docTitle.match(/(?:SOW|Scope of Work)[:\s-]+([^-:]+)/i);
-          const clientName = clientNameMatch && clientNameMatch[1] 
-            ? clientNameMatch[1].trim() 
+          const clientName = clientNameMatch && clientNameMatch[1]
+            ? clientNameMatch[1].trim()
             : getWorkspaceForAgent(currentAgentId); // Use workspace name as fallback
-            
+
           console.log(`🏢 Using client name: ${clientName} (from ${clientNameMatch ? 'title' : 'workspace'})`);
-          
+
           // ARCHITECTURAL SIMPLIFICATION: Use master 'gen' workspace for all SOW generation
           try {
             const masterWorkspace = await anythingLLM.getMasterSOWWorkspace(clientName);
@@ -3700,9 +3764,9 @@ Ask me questions to get business insights, such as:
           } catch (wsError) {
             console.warn(`⚠️ Could not access master workspace`, wsError);
           }
-          
+
           const success = await anythingLLM.embedSOWInBothWorkspaces(docTitle, cleanedContent, clientName);
-          
+
           if (success) {
             console.log('✅ SOW embedded in both workspaces successfully');
             toast.success("✅ Content inserted and embedded in both workspaces!");
@@ -3734,7 +3798,7 @@ Ask me questions to get business insights, such as:
   ) => {
     // In dashboard mode, we don't need an agent selected - use dashboard workspace directly
     const isDashboardMode = viewMode === 'dashboard';
-    
+
   if (!message.trim()) return;
   // Do not require an agent in editor mode — workspace context is sufficient
 
@@ -3767,23 +3831,23 @@ Ask me questions to get business insights, such as:
     )) {
       console.log('📝 Insert command detected!', { message });
       setIsChatLoading(false);
-      
+
       // Find the last AI response in chat history (excluding confirmation messages)
-      const lastAIMessage = [...chatMessages].reverse().find(msg => 
-        msg.role === 'assistant' && 
+      const lastAIMessage = [...chatMessages].reverse().find(msg =>
+        msg.role === 'assistant' &&
         !msg.content.includes('✅ SOW has been inserted') &&
         !msg.content.includes('Ready to insert')
       );
-      
+
       console.log('📋 Found AI message:', lastAIMessage?.content.substring(0, 100));
       console.log('📝 Editor ref exists:', !!editorRef.current);
       console.log('📄 Current doc ID:', currentDocId);
-      
+
       // 🎯 Extract and log [FINANCIAL_REASONING] block for transparency
       if (lastAIMessage) {
         extractFinancialReasoning(lastAIMessage.content);
       }
-      
+
       if (lastAIMessage && currentDocId) {
         try {
               // 1. Separate Markdown from JSON from the last AI message (multi-block aware)
@@ -3836,7 +3900,7 @@ Ask me questions to get business insights, such as:
                   suggestedRoles = pricingJsonData.roles;
                   extractedDiscount = pricingJsonData.discount;
                   hasValidSuggestedRoles = true;
-                  
+
                   // 🎯 V4.1 Multi-Scope Data Storage
                   if (pricingJsonData.multiScopeData && pricingJsonData.multiScopeData.scopes) {
                     console.log(`✅ Storing V4.1 multi-scope data: ${pricingJsonData.multiScopeData.scopes.length} scopes`);
@@ -3845,7 +3909,7 @@ Ask me questions to get business insights, such as:
                       extractedAt: Date.now()
                     });
                   }
-                  
+
                   if (legacyMatch) markdownPart = markdownPart.replace(legacyMatch[0], '').trim();
                   console.log(`✅ Using ${suggestedRoles.length} roles from [PRICING_JSON] (insert command)`);
                 } else if (legacyMatch && legacyMatch[1]) {
@@ -3888,13 +3952,13 @@ Ask me questions to get business insights, such as:
             )
           );
           console.log('✅ Content cleaned');
-          
+
           // 3. Convert markdown and roles to Novel/TipTap JSON
           console.log('🔄 Converting markdown to JSON for insertion...');
-          
+
           // 🎯 Extract budget and discount from last user prompt for financial calculations
           const { budget: userPromptBudget, discount: userPromptDiscount } = extractBudgetAndDiscount(lastUserPrompt);
-          const convertOptions: ConvertOptions = { 
+          const convertOptions: ConvertOptions = {
             strictRoles: false,
             userPromptBudget,
             userPromptDiscount,
@@ -3902,7 +3966,7 @@ Ask me questions to get business insights, such as:
             tablesRoles: tablesRolesQueue,
             tablesDiscounts: tablesDiscountsQueue,
           };
-          
+
           let content;
           if (!hasValidSuggestedRoles) {
             // Try deriving roles from Architect structured JSON in the chat message
@@ -3932,12 +3996,12 @@ Ask me questions to get business insights, such as:
             content = convertMarkdownToNovelJSON(cleanedMessage, sanitized, convertOptions);
           }
           console.log('✅ Content converted');
-          
+
           // 4. Extract title from the SOW content
           const titleMatch = cleanedMessage.match(/^#\s+(.+)$/m);
           const clientMatch = cleanedMessage.match(/\*\*Client:\*\*\s+(.+)$/m);
           const scopeMatch = cleanedMessage.match(/Scope of Work:\s+(.+)/);
-          
+
           let docTitle = "New SOW";
           if (titleMatch) {
             docTitle = titleMatch[1];
@@ -3946,14 +4010,14 @@ Ask me questions to get business insights, such as:
           } else if (clientMatch) {
             docTitle = `SOW - ${clientMatch[1]}`;
           }
-          
+
           // 5. Determine if editor is truly empty; if not, replace with full merged content
           const existing = editorRef.current?.getContent?.();
-          const isTrulyEmpty = !existing 
-            || !Array.isArray(existing.content) 
-            || existing.content.length === 0 
-            || (existing.content.length === 1 
-                && existing.content[0]?.type === 'paragraph' 
+          const isTrulyEmpty = !existing
+            || !Array.isArray(existing.content)
+            || existing.content.length === 0
+            || (existing.content.length === 1
+                && existing.content[0]?.type === 'paragraph'
                 && (!existing.content[0].content || existing.content[0].content.length === 0));
           const finalContent = {
             ...content,
@@ -3986,7 +4050,7 @@ Ask me questions to get business insights, such as:
           } catch (saveError) {
             console.error('❌ Database save error:', saveError);
           }
-          
+
           // 8. Update the editor directly with full merged content
           if (editorRef.current) {
             if (editorRef.current.commands?.setContent) {
@@ -3995,7 +4059,7 @@ Ask me questions to get business insights, such as:
               editorRef.current.insertContent(finalContent);
             }
           }
-          
+
           // 9. Embed SOW in master 'gen' workspace and master dashboard
           const currentAgent = agents.find(a => a.id === currentAgentId);
           if (currentAgent?.model === 'anythingllm' && currentAgentId) {
@@ -4008,7 +4072,7 @@ Ask me questions to get business insights, such as:
               console.error('⚠️ AnythingLLM embedding error:', embedError);
             }
           }
-          
+
           // 10. Add confirmation message to chat
           const confirmMessage: ChatMessage = {
             id: `msg${Date.now()}`,
@@ -4017,7 +4081,7 @@ Ask me questions to get business insights, such as:
             timestamp: Date.now(),
           };
           setChatMessages(prev => [...prev, confirmMessage]);
-          
+
           return;
         } catch (error) {
           console.error("Error inserting content:", error);
@@ -4037,10 +4101,10 @@ Ask me questions to get business insights, such as:
     const detectedClientName = extractClientName(message);
     if (detectedClientName && currentDocId) {
       console.log('🏢 Detected client name in prompt:', detectedClientName);
-      
+
       // Auto-rename SOW to include client name
       const newSOWTitle = `SOW - ${detectedClientName}`;
-      
+
       // Update document title in state
       setDocuments(prev =>
         prev.map(doc =>
@@ -4049,7 +4113,16 @@ Ask me questions to get business insights, such as:
             : doc
         )
       );
-      
+
+      // Also update sidebar workspaces list and move SOW to top of its folder
+      setWorkspaces(prev => prev.map(ws => {
+        const has = ws.sows.some(s => s.id === currentDocId);
+        if (!has) return ws;
+        const updated = ws.sows.map(s => s.id === currentDocId ? { ...s, name: newSOWTitle } : s);
+        const moved = [updated.find(s => s.id === currentDocId)!, ...updated.filter(s => s.id !== currentDocId)];
+        return { ...ws, sows: moved };
+      }));
+
       // Save to database
       fetch('/api/sow/update', {
         method: 'PUT',
@@ -4060,11 +4133,11 @@ Ask me questions to get business insights, such as:
           clientName: detectedClientName,
         }),
       }).catch(err => console.error('❌ Failed to auto-rename SOW:', err));
-      
+
       console.log('✅ Auto-renamed SOW to:', newSOWTitle);
       toast.success(`🏢 Auto-detected client: ${detectedClientName}`);
     }
-    
+
     // 🎯 EXTRACT BUDGET AND DISCOUNT from user prompt for pricing calculator
     setLastUserPrompt(message); // Store for later use when AI responds
 
@@ -4077,7 +4150,7 @@ Ask me questions to get business insights, such as:
 
     const newMessages = [...chatMessages, userMessage];
     setChatMessages(newMessages);
-    
+
     // ⚠️ REMOVED DATABASE SAVE - AnythingLLM handles all message storage
 
     // Always route via AnythingLLM using workspace context (no agents required)
@@ -4087,11 +4160,11 @@ Ask me questions to get business insights, such as:
       systemPrompt: '',
       model: 'anythingllm'
     };
-    
+
     if (effectiveAgent) {
       try {
         const useAnythingLLM = effectiveAgent.model === 'anythingllm';
-        
+
         // 🎯 WORKSPACE ROUTING (AnythingLLM streaming):
         let endpoint: string;
         let workspaceSlug: string | undefined;
@@ -4128,7 +4201,7 @@ Ask me questions to get business insights, such as:
           dashboardChatTarget,
           endpoint,
           workspaceSlug,
-          routeType: isDashboardMode 
+          routeType: isDashboardMode
             ? (dashboardChatTarget === WORKSPACE_CONFIG.dashboard.slug ? 'MASTER_DASHBOARD' : 'CLIENT_WORKSPACE')
             : 'SOW_GENERATION'
         });
@@ -4136,7 +4209,7 @@ Ask me questions to get business insights, such as:
         // 🌊 STREAMING SUPPORT: Use stream-chat endpoint for AnythingLLM
         const shouldStream = useAnythingLLM;
         const streamEndpoint = endpoint.includes('/stream-chat') ? endpoint : endpoint.replace('/chat', '/stream-chat');
-        
+
         if (shouldStream) {
           // Decide when to enforce SOW narrative+JSON contract
           const lastUserMessage = newMessages[newMessages.length - 1]?.content || '';
@@ -4151,7 +4224,7 @@ Ask me questions to get business insights, such as:
           // ✨ STREAMING MODE: Real-time response with thinking display
           const aiMessageId = `msg${Date.now() + 1}`;
           let accumulatedContent = '';
-          
+
           // Create initial empty AI message
           const initialAIMessage: ChatMessage = {
             id: aiMessageId,
@@ -4173,6 +4246,12 @@ Ask me questions to get business insights, such as:
           } else if (currentDocId) {
             // Editor mode fallback: current document's thread
             threadSlugToUse = documents.find(d => d.id === currentDocId)?.threadSlug || undefined;
+          }
+
+          // 🛡️ If this is a temp thread (created for instant navigation), avoid thread API and use workspace-level chat
+          if (threadSlugToUse && threadSlugToUse.startsWith('temp-')) {
+            console.log('ℹ️ Temp thread detected; using workspace-level chat for first message');
+            threadSlugToUse = undefined;
           }
 
           // Smart mode selection for Master Dashboard: use 'chat' for greetings/non-analytic prompts
@@ -4203,14 +4282,14 @@ Ask me questions to get business insights, such as:
               statusText: response.statusText,
               errorText: errorText
             });
-            
+
             let errorMessage = "Sorry, there was an error processing your request.";
-            
+
             // Try to parse the error response for details
             try {
               const errorData = JSON.parse(errorText);
               console.error('📋 Error details:', errorData);
-              
+
               if (errorData.details) {
                 errorMessage = `⚠️ Error: ${errorData.details}`;
               } else if (errorData.error) {
@@ -4229,8 +4308,8 @@ Ask me questions to get business insights, such as:
               }
             }
 
-            setChatMessages(prev => 
-              prev.map(msg => msg.id === aiMessageId 
+            setChatMessages(prev =>
+              prev.map(msg => msg.id === aiMessageId
                 ? { ...msg, content: errorMessage }
                 : msg
               )
@@ -4253,7 +4332,7 @@ Ask me questions to get business insights, such as:
             let buffer = '';
             while (true) {
               const { done, value } = await reader.read();
-              
+
               if (done) {
                 console.log('✅ Stream complete');
                 setStreamingMessageId(null);
@@ -4266,16 +4345,16 @@ Ask me questions to get business insights, such as:
 
               for (const line of lines) {
                 if (!line.trim() || !line.startsWith('data: ')) continue;
-                
+
                 try {
                   const jsonStr = line.substring(6); // Remove 'data: ' prefix
                   const data = JSON.parse(jsonStr);
-                  
+
                   // Handle different message types from AnythingLLM stream
                   if (data.type === 'textResponseChunk' && data.textResponse) {
                     // Preserve internal thinking tags; UI will collapse them via StreamingThoughtAccordion
                     accumulatedContent += data.textResponse;
-                    
+
                     // Update the message content in real-time
                     setChatMessages(prev =>
                       prev.map(msg =>
@@ -4328,12 +4407,12 @@ Ask me questions to get business insights, such as:
 
           // 🎯 Extract work type from the accumulated AI response
           const detectedWorkType = extractWorkType(accumulatedContent);
-          
+
           // Update current document with detected work type
           if (currentDocId && detectedWorkType) {
-            setDocuments(prev => 
-              prev.map(doc => 
-                doc.id === currentDocId 
+            setDocuments(prev =>
+              prev.map(doc =>
+                doc.id === currentDocId
                   ? { ...doc, workType: detectedWorkType }
                   : doc
               )
@@ -4427,7 +4506,7 @@ Ask me questions to get business insights, such as:
         }
       } catch (error) {
         console.error("❌ Chat API error:", error);
-        
+
         // Check if the error is an AbortError (request was cancelled)
         if (error instanceof Error && error.name === 'AbortError') {
           console.log('ℹ️ Request was cancelled to prevent rate limiting');
@@ -4449,7 +4528,7 @@ Ask me questions to get business insights, such as:
         };
         const updatedMessages = [...newMessages, errorMsg];
         setChatMessages(updatedMessages);
-        
+
         // ⚠️ REMOVED DATABASE SAVE - AnythingLLM handles all message storage
       } finally {
         setIsChatLoading(false);
@@ -4472,7 +4551,7 @@ Ask me questions to get business insights, such as:
         sows: workspace.sows.filter(sow => {
           const doc = documents.find(d => d.id === sow.id);
           if (!doc) return false;
-          
+
           if (dashboardFilter.type === 'vertical') {
             return doc.vertical === dashboardFilter.value;
           } else if (dashboardFilter.type === 'serviceLine') {
@@ -4487,7 +4566,7 @@ Ask me questions to get business insights, such as:
     <div className="flex flex-col h-screen bg-[#0e0f0f]">
       {/* Onboarding Tutorial */}
       <InteractiveOnboarding />
-      
+
       {/* Resizable Layout with Sidebar, Editor, and AI Chat */}
       <div className="flex-1 h-full overflow-hidden">
         <ResizableLayout
@@ -4515,6 +4594,7 @@ Ask me questions to get business insights, such as:
             onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
             onReorderWorkspaces={handleReorderWorkspaces}
             onReorderSOWs={handleReorderSOWs}
+            onMoveSOW={handleMoveSOW}
             // 🎯 Phase 1C: Pass filter state and clear handler
             dashboardFilter={dashboardFilter}
             onClearFilter={handleClearDashboardFilter}
@@ -4532,12 +4612,12 @@ Ask me questions to get business insights, such as:
                   vertical={currentDoc.vertical}
                   serviceLine={currentDoc.serviceLine}
                   onVerticalChange={(vertical) => {
-                    setDocuments(prev => prev.map(d => 
+                    setDocuments(prev => prev.map(d =>
                       d.id === currentDocId ? { ...d, vertical } : d
                     ));
                   }}
                   onServiceLineChange={(serviceLine) => {
-                    setDocuments(prev => prev.map(d => 
+                    setDocuments(prev => prev.map(d =>
                       d.id === currentDocId ? { ...d, serviceLine } : d
                     ));
                   }}
@@ -4557,7 +4637,7 @@ Ask me questions to get business insights, such as:
                     try {
                       // 1. First, embed the SOW to AnythingLLM
                       const currentFolder = folders.find(f => f.id === currentDoc.folderId);
-                      
+
                       if (!currentFolder || !currentFolder.workspaceSlug) {
                         toast.error('❌ No workspace found for this SOW');
                         return;
@@ -4565,7 +4645,7 @@ Ask me questions to get business insights, such as:
 
                       // Get HTML content from editor
                       const htmlContent = editorRef.current?.getHTML() || '';
-                      
+
                       if (!htmlContent || htmlContent === '<p></p>') {
                         toast.error('❌ Document is empty. Add content before sharing.');
                         return;
@@ -4581,7 +4661,7 @@ Ask me questions to get business insights, such as:
 
                       // 2. Generate portal URL
                       const portalUrl = `${window.location.origin}/portal/sow/${currentDoc.id}`;
-                      
+
                       // 3. Copy to clipboard with fallback
                       if (navigator.clipboard && navigator.clipboard.writeText) {
                         await navigator.clipboard.writeText(portalUrl)
@@ -4613,7 +4693,7 @@ Ask me questions to get business insights, such as:
                   }}
                 />
               )}
-              
+
               {/* Main Content Area */}
               <div className="flex-1 overflow-auto" data-show-totals={isGrandTotalVisible}>
                 {currentDoc ? (
@@ -4636,7 +4716,7 @@ Ask me questions to get business insights, such as:
             </div>
           ) : viewMode === 'dashboard' ? (
             <div className="h-full bg-[#0e0f0f]">
-              <EnhancedDashboard 
+              <EnhancedDashboard
                 onFilterByVertical={handleDashboardFilterByVertical}
                 onFilterByService={handleDashboardFilterByService}
                 currentFilter={dashboardFilter}
@@ -4806,7 +4886,7 @@ Ask me questions to get business insights, such as:
             <h3 className="text-xl font-bold text-white mb-4">Professional PDF Ready!</h3>
             <p className="text-gray-400 mb-6">Your BBUBU-style PDF is ready to download.</p>
             <div className="flex gap-4">
-              <SOWPdfExportWrapper 
+              <SOWPdfExportWrapper
                 sowData={newPDFData}
                 variant="editor"
                 fileName={`${currentDoc?.title || 'SOW'}-Professional.pdf`}

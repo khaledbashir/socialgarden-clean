@@ -124,6 +124,7 @@ export async function PUT(
       embedId,
       vertical,
       serviceLine,
+      folderId,
     } = body;
     
     // Deterministic pricing and PM selection are handled on the frontend. No server-side role enforcement.
@@ -182,6 +183,10 @@ export async function PUT(
     if (serviceLine !== undefined) {
       updates.push('service_line = ?');
       values.push(serviceLine);
+    }
+    if (folderId !== undefined) {
+      updates.push('folder_id = ?');
+      values.push(folderId);
     }
 
     if (updates.length === 0) {
