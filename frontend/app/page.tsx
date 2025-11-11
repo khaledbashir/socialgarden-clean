@@ -2346,72 +2346,109 @@ Ask me questions to get business insights, such as:
         return;
       }
 
-      // Always use the master generation workspace for SOW threads
-      const master = await anythingLLM.getMasterSOWWorkspace(sowName);
-      console.log(`🆕 Creating new SOW: "${sowName}" in master workspace: ${master.slug}`);
+      // 🚀 FAST PATH: Create temporary document and switch to editor IMMEDIATELY
+      // Use a temporary thread slug that will be replaced once AnythingLLM responds
+      const tempThreadSlug = `temp-${Date.now()}`;
 
-      // Step 1: Create AnythingLLM thread (PRIMARY source of truth)
-      const thread = await anythingLLM.createThread(master.slug);
-      if (!thread) {
-        toast.error('Failed to create SOW thread in AnythingLLM');
-        return;
-      }
-
-      console.log(`✅ AnythingLLM thread created: ${thread.slug}`);
-
-      // Step 2: Save to database (for metrics, tracking, portal)
-      const saveResponse = await fetch('/api/sow/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: thread.slug, // Use thread slug as ID for consistency
-          title: sowName,
-          content: defaultEditorContent,
-          client_name: '',
-          client_email: '',
-          total_investment: 0,
-          workspace_slug: master.slug,
-          folder_id: workspaceId,
-        }),
-      });
-
-      if (!saveResponse.ok) {
-        console.warn('⚠️ Failed to save SOW to database, but thread exists in AnythingLLM');
-      }
-
-
-
-      // Step 3: Update local state
-      const newSOW: SOW = {
-        id: thread.slug,
-        name: sowName,
-        workspaceId
-      };
-
-      setWorkspaces(prev => prev.map(ws =>
-        ws.id === workspaceId ? { ...ws, sows: [...ws.sows, newSOW] } : ws
-      ));
-      setCurrentSOWId(thread.slug);
-
-      // Step 4: Create document object and switch to editor
-      const newDoc: Document = {
-        id: thread.slug,
+      const tempDoc: Document = {
+        id: tempThreadSlug,
         title: sowName,
         content: defaultEditorContent,
         folderId: workspaceId,
-        workspaceSlug: master.slug,
-        threadSlug: thread.slug,
+        workspaceSlug: 'sow-generator', // Use the master workspace slug
+        threadSlug: tempThreadSlug,
         syncedAt: new Date().toISOString(),
       };
 
-      setDocuments(prev => [...prev, newDoc]);
-      setCurrentDocId(thread.slug);
+      // Update state immediately to switch to editor
+      setDocuments(prev => [...prev, tempDoc]);
+      setCurrentDocId(tempThreadSlug);
+      setCurrentSOWId(tempThreadSlug);
 
-      console.log('📊 About to set viewMode to editor. Current viewMode:', viewMode);
+      const newSOW: SOW = {
+        id: tempThreadSlug,
+        name: sowName,
+        workspaceId
+      };
+      setWorkspaces(prev => prev.map(ws =>
+        ws.id === workspaceId ? { ...ws, sows: [...ws.sows, newSOW] } : ws
+      ));
+
+      // 🎯 CRITICAL: Switch to editor view IMMEDIATELY
+      console.log('📊 Switching to editor view immediately');
       setViewMode('editor');
-      console.log('✅ setViewMode("editor") called');
+      toast.success(`✅ SOW "${sowName}" created - opening editor...`);
 
-      toast.success(`✅ SOW "${sowName}" created`);
+      // 🔄 BACKGROUND: Run heavy operations without blocking UI
+      // This happens asynchronously after the UI has switched
+      (async () => {
+        try {
+          console.log('🔄 [Background] Starting heavy operations...');
+
+          // Get or create master workspace
+          const master = await anythingLLM.getMasterSOWWorkspace(sowName);
+          console.log(`🔄 [Background] Master workspace ready: ${master.slug}`);
+
+          // Create actual thread in AnythingLLM
+          const thread = await anythingLLM.createThread(master.slug);
+          if (!thread) {
+            console.error('❌ [Background] Failed to create thread in AnythingLLM');
+            return;
+          }
+
+          console.log(`🔄 [Background] AnythingLLM thread created: ${thread.slug}`);
+
+          // Save to database
+          const saveResponse = await fetch('/api/sow/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: thread.slug,
+              title: sowName,
+              content: defaultEditorContent,
+              client_name: '',
+              client_email: '',
+              total_investment: 0,
+              workspace_slug: master.slug,
+              folder_id: workspaceId,
+            }),
+          });
+
+          if (!saveResponse.ok) {
+            console.warn('⚠️ [Background] Failed to save SOW to database');
+          }
+
+          // Update document with real thread slug
+          setDocuments(prev => prev.map(doc =>
+            doc.id === tempThreadSlug
+              ? {
+                  ...doc,
+                  id: thread.slug,
+                  threadSlug: thread.slug,
+                }
+              : doc
+          ));
+          setCurrentDocId(thread.slug);
+          setCurrentSOWId(thread.slug);
+
+          // Update workspace SOWs with real ID
+          setWorkspaces(prev => prev.map(ws =>
+            ws.id === workspaceId
+              ? {
+                  ...ws,
+                  sows: ws.sows.map(sow =>
+                    sow.id === tempThreadSlug ? { ...sow, id: thread.slug } : sow
+                  ),
+                }
+              : ws
+          ));
+
+          console.log(`✅ [Background] SOW "${sowName}" fully initialized with thread: ${thread.slug}`);
+        } catch (error) {
+          console.error('❌ [Background] Error in heavy operations:', error);
+          // Don't show error toast - user is already in editor with temp document
+        }
+      })();
     } catch (error) {
       console.error('❌ Error creating SOW:', error);
       toast.error('Failed to create SOW');

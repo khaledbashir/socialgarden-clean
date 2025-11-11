@@ -166,6 +166,9 @@ export default function SidebarNav({
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
 
+  // 🆕 Loading state for New SOW button
+  const [isCreatingSOW, setIsCreatingSOW] = useState(false);
+
   // Get deletable workspaces (not protected) - calculate inside useMemo to avoid initialization issues
   const { deletableWorkspaces, areAllSelected } = (() => {
     const deletable = workspaces.filter(w => !isProtectedWorkspace(w));
@@ -651,20 +654,37 @@ export default function SidebarNav({
         {/* Primary New SOW CTA */}
         <div className="px-4 pb-3">
           <button
-            onClick={() => {
+            onClick={async () => {
+              if (isCreatingSOW) return; // Prevent duplicate clicks
+
               const targetId = currentWorkspaceId || (workspaces && workspaces.length > 0 ? workspaces[0].id : null);
               console.log('🆕 New SOW button clicked', { targetId, currentWorkspaceId, workspacesCount: workspaces?.length });
               if (targetId) {
                 console.log('📝 Calling onCreateSOW with:', { targetId, name: 'Untitled SOW' });
-                onCreateSOW(targetId, 'Untitled SOW');
+                setIsCreatingSOW(true);
+                try {
+                  await onCreateSOW(targetId, 'Untitled SOW');
+                } finally {
+                  setIsCreatingSOW(false);
+                }
               } else {
                 toast.error('Please create a client workspace first');
               }
             }}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] text-white text-sm font-semibold rounded-lg transition-colors"
+            disabled={isCreatingSOW}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] disabled:bg-[#0d8c4a] disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
           >
-            <Plus className="w-4 h-4" />
-            New SOW
+            {isCreatingSOW ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4" />
+                New SOW
+              </>
+            )}
           </button>
         </div>
 
