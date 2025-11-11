@@ -653,7 +653,9 @@ export default function SidebarNav({
           <button
             onClick={() => {
               const targetId = currentWorkspaceId || (workspaces && workspaces.length > 0 ? workspaces[0].id : null);
+              console.log('🆕 New SOW button clicked', { targetId, currentWorkspaceId, workspacesCount: workspaces?.length });
               if (targetId) {
+                console.log('📝 Calling onCreateSOW with:', { targetId, name: 'Untitled SOW' });
                 onCreateSOW(targetId, 'Untitled SOW');
               } else {
                 toast.error('Please create a client workspace first');

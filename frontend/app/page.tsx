@@ -2337,6 +2337,8 @@ Ask me questions to get business insights, such as:
 
   const handleCreateSOW = async (workspaceId: string, sowName: string) => {
     try {
+      console.log('🆕 handleCreateSOW called with:', { workspaceId, sowName });
+
       // Find the folder/workspace in local state (for display only)
       const folder = workspaces.find(ws => ws.id === workspaceId);
       if (!folder) {
@@ -2404,7 +2406,10 @@ Ask me questions to get business insights, such as:
 
       setDocuments(prev => [...prev, newDoc]);
       setCurrentDocId(thread.slug);
+
+      console.log('📊 About to set viewMode to editor. Current viewMode:', viewMode);
       setViewMode('editor');
+      console.log('✅ setViewMode("editor") called');
 
       toast.success(`✅ SOW "${sowName}" created`);
     } catch (error) {

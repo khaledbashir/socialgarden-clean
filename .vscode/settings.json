@@ -21,5 +21,8 @@
         "**/archive/**": true,
         "**/__pycache__/**": true
     },
-    "CodeGPT.apiKey": "OpenRouter"
+    "codegpt.apiKey": "eb0d4d6e54ab4258aac5f5d17a7a01a4.FEf31FrtkMWWRN4Z",
+    "codegpt.apiBaseUrl": "https://api.z.ai/api/coding/paas/v4",
+    "codegpt.model": "glm-4.6",
+    "CodeGPT.apiKey": "Custom"
 }
