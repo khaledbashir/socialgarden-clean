@@ -4266,7 +4266,24 @@ Ask me questions to get business insights, such as:
           }
 
           console.log('✅ Streaming complete, total content length:', accumulatedContent.length);
-          
+
+          // Check if we got empty content and show helpful error
+          if (accumulatedContent.length === 0) {
+            console.error('❌ AI returned empty content - possible workspace/thread routing issue');
+            setChatMessages(prev =>
+              prev.map(msg =>
+                msg.id === aiMessageId
+                  ? {
+                      ...msg,
+                      content: '❌ **Generation Failed**\n\nThe AI returned empty content. This usually means:\n- The workspace routing is incorrect\n- The AI workspace is not properly configured\n- There\'s an authentication issue with AnythingLLM\n\nPlease check the console for more details and try again.',
+                      role: 'assistant'
+                    }
+                  : msg
+              )
+            );
+            return;
+          }
+
           // 🎯 Extract work type from the accumulated AI response
           const detectedWorkType = extractWorkType(accumulatedContent);
           

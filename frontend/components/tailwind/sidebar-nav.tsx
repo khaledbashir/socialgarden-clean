@@ -898,7 +898,22 @@ export default function SidebarNav({
 
             {localWorkspaces.length === 0 && (
               <div className="px-4 py-8 text-center">
-                <p className="text-xs text-gray-600">No workspaces yet. Create one, then click the + next to it to create a New SOW.</p>
+                <div className="text-center py-8">
+          <div className="text-gray-400 mb-4">
+            <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <h3 className="text-sm font-medium text-gray-300 mb-2">Ready to create your first SOW?</h3>
+          <p className="text-xs text-gray-500 mb-4">Start by creating a client workspace, then generate professional Statements of Work with AI assistance.</p>
+          <button
+            onClick={() => onCreateWorkspace()}
+            className="inline-flex items-center px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Your First Workspace
+          </button>
+        </div>
 
               </div>
             )}

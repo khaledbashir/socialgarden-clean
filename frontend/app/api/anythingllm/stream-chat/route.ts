@@ -161,12 +161,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🎯 CRITICAL: For gen-the-architect workspace, inject THE_ARCHITECT_V4_PROMPT
+    // 🎯 CRITICAL: For sow-generator workspace, inject THE_ARCHITECT_V4_PROMPT
     // This ensures the AI always uses the latest prompt version, even if workspace settings are stale
-    if (effectiveWorkspaceSlug === 'gen-the-architect') {
+    if (effectiveWorkspaceSlug === 'sow-generator') {
       const { THE_ARCHITECT_V4_PROMPT } = await import('@/lib/knowledge-base');
       messageToSend = `${THE_ARCHITECT_V4_PROMPT}\n\nUser Request: ${messageToSend}`;
-      console.log('🎯 [GEN-THE-ARCHITECT] Injected THE_ARCHITECT_V4_PROMPT into message');
+      console.log('🎯 [SOW-GENERATOR] Injected THE_ARCHITECT_V4_PROMPT into message');
       console.log(`   Prompt length: ${THE_ARCHITECT_V4_PROMPT.length} characters`);
     }
 
@@ -273,6 +273,7 @@ export async function POST(request: NextRequest) {
     (async () => {
       try {
         if (!response.body) {
+          console.error('❌ [STREAM] No response body from AnythingLLM');
           await writer.close();
           return;
         }
@@ -280,30 +281,43 @@ export async function POST(request: NextRequest) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        let totalChunks = 0;
+        let totalBytes = 0;
+
+        console.log('🌊 [STREAM] Starting to read from AnythingLLM...');
 
         while (true) {
           const { done, value } = await reader.read();
-          
+
           if (done) {
+            console.log(`✅ [STREAM] Complete - ${totalChunks} chunks, ${totalBytes} bytes total`);
             await writer.close();
             break;
           }
 
+          totalChunks++;
+          totalBytes += value.length;
+
           // Decode the chunk
           buffer += decoder.decode(value, { stream: true });
-          
+
           // Split by newlines to handle SSE format
           const lines = buffer.split('\n');
           buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
 
           for (const line of lines) {
             if (line.trim()) {
+              // Log first few chunks for debugging
+              if (totalChunks <= 3) {
+                console.log(`📦 [STREAM] Chunk ${totalChunks}: ${line.substring(0, 100)}...`);
+              }
               // Forward the SSE line to the client
               await writer.write(encoder.encode(line + '\n'));
             }
           }
         }
       } catch (error) {
+        console.error('❌ [STREAM] Error:', error);
         await writer.abort(error);
       }
     })();

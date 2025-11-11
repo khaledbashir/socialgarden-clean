@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
         [
           bodyWorkspaceSlug,
           configuredWorkspace,
-          'utility-inline-editor',   // PRIMARY: dedicated inline editor workspace
+          'inline-editor',            // PRIMARY: dedicated inline editor workspace
+          'utility-inline-editor',    // FALLBACK: alternative inline editor workspace
           'pop',                      // FALLBACK: editor assistant workspace (general-purpose)
         ].filter(Boolean) as string[]
       )

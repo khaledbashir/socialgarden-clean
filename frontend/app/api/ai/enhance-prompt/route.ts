@@ -32,8 +32,7 @@ export async function POST(req: NextRequest) {
       mode,
     });
 
-    // Route to the SOW Generation Factory workspace via stream-chat (main SOW generation workspace)
-    // Using the most recent SOW Generation Factory workspace without numeric suffix
+    // Route to the prompt enhancer workspace via stream-chat
     const endpoint = `${anythingLLMURL.replace(/\/$/, '')}/api/v1/workspace/utility-prompt-enhancer/stream-chat`;
     
     const response = await fetch(endpoint, {

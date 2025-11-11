@@ -20,5 +20,6 @@
         "**/node_modules/**": true,
         "**/archive/**": true,
         "**/__pycache__/**": true
-    }
+    },
+    "CodeGPT.apiKey": "OpenRouter"
 }

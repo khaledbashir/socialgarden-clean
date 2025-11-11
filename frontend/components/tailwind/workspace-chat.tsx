@@ -389,7 +389,14 @@ export default function WorkspaceChat({
       toast.success('Prompt enhanced');
     } catch (e) {
       console.error('Enhance failed:', e);
-      toast.error('Failed to enhance your prompt.');
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      if (errorMsg.includes('utility-prompt-enhancer is not a valid workspace')) {
+        toast.error('Prompt enhancer workspace not found. Please check your AnythingLLM configuration.');
+      } else if (errorMsg.includes('400')) {
+        toast.error('Invalid prompt format. Please try rephrasing your request.');
+      } else {
+        toast.error('Failed to enhance your prompt. Please try again.');
+      }
     } finally {
       setEnhancing(false);
     }
@@ -625,20 +632,8 @@ export default function WorkspaceChat({
                       ))}
                     </div>
                     
-                    <div className="flex gap-2 mt-4 items-center sticky bottom-0 z-10 bg-[#0E2E33]/85 backdrop-blur-sm px-2 py-1 rounded-md border-t border-[#1b5e5e]">
+                    <div className="flex gap-2 mt-4 items-center">
                       <p className="text-xs mt-1 opacity-70 flex-1">{formatTimestamp(msg.timestamp)}</p>
-                      {/* Insert button for assistant messages */}
-                      {shouldShowButton && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-xs border-[#1b5e5e] text-gray-200 hover:text-white hover:bg-[#124847]"
-                          title="Insert full SOW (narrative + pricing)"
-                          onClick={() => onInsertToEditor(msg.content)}
-                        >
-                          ✅ Insert SOW
-                        </Button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -653,15 +648,22 @@ export default function WorkspaceChat({
             if (!lastAssistant) return null;
             return (
               <div className="sticky bottom-0 left-0 right-0 z-20 mt-4">
-                <div className="flex items-center justify-end gap-2 bg-[#0E2E33]/90 backdrop-blur-md border border-[#1b5e5e] rounded-md px-3 py-2 shadow-lg">
+                <div className="flex items-center justify-between gap-3 bg-[#0E2E33]/95 backdrop-blur-md border border-[#1b5e5e] rounded-lg px-4 py-3 shadow-lg">
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    Latest AI response ready
+                  </div>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 px-3 text-xs border-[#1b5e5e] text-gray-200 hover:text-white hover:bg-[#124847]"
-                    title="Insert the latest AI draft into the editor"
+                    className="h-8 px-4 text-xs font-medium border-[#1CBF79] text-[#1CBF79] hover:text-white hover:bg-[#1CBF79] transition-all duration-200"
+                    title="Insert the latest AI response into your SOW editor"
                     onClick={() => onInsertToEditor(lastAssistant.content)}
                   >
-                    ✅ Insert into Editor
+                    <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Insert SOW
                   </Button>
                 </div>
               </div>

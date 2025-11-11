@@ -12,10 +12,10 @@ export const WORKSPACE_CONFIG = {
 
   // Editor Popup AI - For editing assistance
   editor: {
-    slug: 'pop',
-    name: 'Editor Assistant',
-    description: 'Workspace for in-editor AI assistance',
-    purpose: 'Help with SOW editing and refinement',
+    slug: 'inline-editor',
+    name: 'Inline Editor',
+    description: 'Workspace for in-editor text improvement',
+    purpose: 'Improve selected text in SOW editor',
   },
 
   // Dashboard AI - For analytics and reporting
@@ -32,6 +32,14 @@ export const WORKSPACE_CONFIG = {
     name: 'Master Dashboard',
     description: 'Central repository for all created SOWs',
     purpose: 'All SOWs are embedded here for analytics',
+  },
+
+  // Prompt enhancer - For enhancing user prompts
+  promptEnhancer: {
+    slug: 'utility-prompt-enhancer',
+    name: 'Prompt Enhancer',
+    description: 'Workspace for enhancing user prompts',
+    purpose: 'Expand brief prompts into detailed SOW briefs',
   },
 };
 

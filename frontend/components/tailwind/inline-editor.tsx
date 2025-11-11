@@ -332,8 +332,12 @@ Please generate content that fits naturally at the cursor position, considering 
       const errorMsg = error instanceof Error ? error.message : String(error);
       if (errorMsg.includes('402')) {
         toast.error("API credit limit reached. Please check your OpenRouter account.");
+      } else if (errorMsg.includes('inline-editor') && errorMsg.includes('not found')) {
+        toast.error("Inline editor workspace not configured. Please check AnythingLLM setup.");
+      } else if (errorMsg.includes('400')) {
+        toast.error("Invalid text selection. Please select some text and try again.");
       } else {
-        toast.error("Failed to generate");
+        toast.error("Failed to improve text. Please try again.");
       }
       setCompletion("");
     } finally {
