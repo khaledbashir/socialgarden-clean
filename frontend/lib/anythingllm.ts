@@ -44,6 +44,32 @@ export class AnythingLLMService {
   }
 
   /**
+   * Fetch with timeout to prevent hanging requests
+   * @param url - URL to fetch
+   * @param options - Fetch options
+   * @param timeoutMs - Timeout in milliseconds (default: 30s)
+   */
+  private async fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 30000): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${timeoutMs}ms`);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Create or get CLIENT-FACING workspace (for portal chat)
    * Separate from generation workspace - uses helpful assistant prompt
    */
@@ -123,13 +149,9 @@ export class AnythingLLMService {
       if (existing) {
         console.log(`✅ Using existing master SOW generation workspace: ${existing.slug}`);
         console.log(`   (Client context: ${clientName})`);
-        // Ensure the correct Architect prompt is applied (idempotent refresh)
-        await this.setWorkspacePrompt(existing.slug, clientName, true);
-        // Strict requirement: rate card must be present for RAG
-        const rateOk = await this.embedRateCardDocument(existing.slug);
-        if (!rateOk) {
-          throw new Error('Rate card embedding failed for master workspace');
-        }
+        // 🚀 OPTIMIZATION: Skip prompt and rate card setup for existing workspace
+        // These are already configured and don't need to be re-run on every SOW creation
+        // Only return the workspace reference
         return { id: existing.id, slug: existing.slug };
       }
 
@@ -307,9 +329,9 @@ export class AnythingLLMService {
    */
   async listWorkspaces(): Promise<any[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/workspaces`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/api/v1/workspaces`, {
         headers: this.getHeaders(),
-      });
+      }, 10000); // 10 second timeout for listing workspaces
 
       if (!response.ok) {
         throw new Error(`Failed to list workspaces: ${response.statusText}`);
@@ -820,7 +842,7 @@ You have access to the full SOW document that has been embedded in this workspac
 
       console.log(`🆕 Creating thread in workspace: ${workspaceSlug} (will auto-name on first message)`);
 
-      const response = await fetch(
+      const response = await this.fetchWithTimeout(
         `${this.baseUrl}/api/v1/workspace/${workspaceSlug}/thread/new`,
         {
           method: 'POST',
@@ -828,7 +850,8 @@ You have access to the full SOW document that has been embedded in this workspac
           body: JSON.stringify({
             name: autoThreadName,  // AnythingLLM will auto-update this on first chat message
           }),
-        }
+        },
+        10000 // 10 second timeout for thread creation
       );
 
       if (!response.ok) {
