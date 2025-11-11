@@ -15,7 +15,7 @@ const nextConfig = {
   },
   
   // Enable SWC minification (faster than Terser)
-  swcMinify: true,
+  // swcMinify: true, // Deprecated in Next.js 15
   
   redirects: async () => {
     return [
