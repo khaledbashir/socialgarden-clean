@@ -106,11 +106,11 @@ export class AnythingLLMService {
   }
 
   /**
-   * Get or create the master SOW generation workspace
-   * Single workspace for ALL SOW generation - the 'gen' factory
-   * This is the ARCHITECTURAL SIMPLIFICATION: one workspace to rule them all
+   * Get the master SOW generation workspace (single workspace for ALL SOWs)
+   * This workspace acts as the "factory" - each SOW becomes a thread within it
+   * ARCHITECTURAL SIMPLIFICATION: One workspace to rule them all
    */
-  async createOrGetClientWorkspace(clientName: string): Promise<{id: string, slug: string}> {
+  async getMasterSOWWorkspace(clientName: string): Promise<{id: string, slug: string}> {
     const masterSlug = 'gen-the-architect';
     const masterName = 'SOW Generation Factory';
 

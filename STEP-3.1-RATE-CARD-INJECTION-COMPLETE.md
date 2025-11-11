@@ -96,7 +96,7 @@ User creates SOW workspace ("Hello Coffee")
               ↓
 frontend/app/page.tsx → handleCreateWorkspace("Hello Coffee", "sow")
               ↓
-anythingllm.ts → createOrGetClientWorkspace("Hello Coffee")
+anythingllm.ts → getMasterSOWWorkspace("Hello Coffee")
               ↓
 anythingllm.ts → setWorkspacePrompt("hello-coffee", "Hello Coffee", isSOWWorkspace=true) ✅ INTEGRATION POINT
               ↓

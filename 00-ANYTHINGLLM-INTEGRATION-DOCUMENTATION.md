@@ -381,7 +381,7 @@ export class AnythingLLMService {
   }
 
   // Create or get client workspace
-  async createOrGetClientWorkspace(clientName: string): Promise<{id: string, slug: string}> {
+  async getMasterSOWWorkspace(clientName: string): Promise<{id: string, slug: string}> {
     // Implementation details...
   }
 
@@ -406,7 +406,7 @@ export class AnythingLLMService {
 #### 1. Workspace Creation
 
 ```typescript
-async createOrGetClientWorkspace(clientName: string): Promise<{id: string, slug: string}> {
+async getMasterSOWWorkspace(clientName: string): Promise<{id: string, slug: string}> {
   const slug = clientName
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
@@ -584,7 +584,7 @@ import { anythingLLM } from './lib/anythingllm';
 async function setupClientWorkspace(clientName: string) {
   try {
     // 1. Create workspace
-    const workspace = await anythingLLM.createOrGetClientWorkspace(clientName);
+    const workspace = await anythingLLM.getMasterSOWWorkspace(clientName);
     console.log(`✅ Workspace created: ${workspace.slug}`);
 
     // 2. Embed rate card

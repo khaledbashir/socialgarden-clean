@@ -239,7 +239,7 @@ async function main() {
     console.log('\n' + progressBar(step, totalSteps));
     log(`Creating workspace for: "${WORKSPACE_NAME}"...`);
     workspace = await withTimeout(
-      service.createOrGetClientWorkspace(WORKSPACE_NAME),
+      service.getMasterSOWWorkspace(WORKSPACE_NAME),
       15000,
       'Create Workspace'
     );

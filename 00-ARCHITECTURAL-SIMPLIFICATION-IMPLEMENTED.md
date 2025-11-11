@@ -41,11 +41,11 @@ Instead of creating a new workspace per client, all SOW generation now happens i
 
 ### 1. Core Service Changes (`frontend/lib/anythingllm.ts`)
 
-#### Changed: `createOrGetClientWorkspace()`
+#### Changed: `getMasterSOWWorkspace()`
 ```typescript
 // OLD: Created per-client workspace
 // NEW: Returns master 'gen' workspace
-async createOrGetClientWorkspace(clientName: string): Promise<{id: string, slug: string}> {
+async getMasterSOWWorkspace(clientName: string): Promise<{id: string, slug: string}> {
   const masterSlug = 'gen'; // Always 'gen'
   // Get or create the master 'gen' workspace
   // Ensure it has the correct prompt and embedded rate card

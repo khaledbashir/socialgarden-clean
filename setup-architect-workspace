@@ -60,7 +60,7 @@ Tone of Voice: All client-facing text (Overviews, Outcomes) MUST be written in a
       console.log(`🏗️ Setting up 'The Architect' workspace for: ${workspaceName}`);
       
       // Create or get workspace
-      const workspace = await this.service.createOrGetClientWorkspace(workspaceName);
+      const workspace = await this.service.getMasterSOWWorkspace(workspaceName);
       console.log(`✅ Workspace created: ${workspace.slug}`);
       
       // Set the architect prompt

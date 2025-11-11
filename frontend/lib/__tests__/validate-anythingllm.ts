@@ -39,7 +39,7 @@ export function validateAnythingLLMService() {
     // Test 2: Service Methods Exist
     console.log('\n📋 Test 2: Service Methods');
     const methods = [
-      'createOrGetClientWorkspace',
+      'getMasterSOWWorkspace',
       'listWorkspaces',
       'embedSOWInBothWorkspaces',
       'embedSOWDocument',
@@ -181,7 +181,7 @@ export function validateAnythingLLMService() {
 
     // Test 10: API Method Parameters
     console.log('\n📋 Test 10: API Method Parameters');
-    validate(typeof service.createOrGetClientWorkspace === 'function', 'createOrGetClientWorkspace is async');
+    validate(typeof service.getMasterSOWWorkspace === 'function', 'getMasterSOWWorkspace is async');
     validate(typeof service.embedSOWInBothWorkspaces === 'function', 'embedSOWInBothWorkspaces is async');
     validate(typeof service.getThreadChats === 'function', 'getThreadChats is async');
 

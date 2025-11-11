@@ -194,7 +194,7 @@ Logging Level:              DEBUG (emoji-prefixed)
 ───────────────────────────────────────────────────────────────────────────────
 
 1. Create Workspace + Auto-Setup
-   const ws = await service.createOrGetClientWorkspace("ACME Corp");
+   const ws = await service.getMasterSOWWorkspace("ACME Corp");
    // Auto-embeds rate card, sets prompt, creates thread
 
 2. Embed SOW in Both Workspaces

@@ -60,7 +60,7 @@ const prompt = isSOWWorkspace
    └─> frontend/app/page.tsx → handleCreateWorkspace()
 
 2. Workspace creation triggered
-   └─> anythingllm.ts → createOrGetClientWorkspace()
+   └─> anythingllm.ts → getMasterSOWWorkspace()
 
 3. Workspace prompt setup
    └─> anythingllm.ts → setWorkspacePrompt(slug, name, isSOWWorkspace=true)
@@ -112,7 +112,7 @@ User clicks "Create Workspace" → "Hello Coffee" (SOW type)
     ↓
 handleCreateWorkspace("Hello Coffee", "sow") called
     ↓
-createOrGetClientWorkspace("Hello Coffee")
+getMasterSOWWorkspace("Hello Coffee")
     ↓
 setWorkspacePrompt("hello-coffee", "Hello Coffee", isSOWWorkspace=true)
     ↓
@@ -127,7 +127,7 @@ Result: ✅ AI in this workspace uses latest rate card
 ```
 User loads existing "Hello Coffee" workspace
     ↓
-Application calls createOrGetClientWorkspace() again
+Application calls getMasterSOWWorkspace() again
     ↓
 Existing workspace found
     ↓

@@ -25,7 +25,7 @@ This document defines the required, enforced behavior for the SOW workspace life
   - `embedRateCardDocument(workspaceSlug)` → idempotently embeds the authoritative Social Garden rate card.
   - `embedSOWInBothWorkspaces(clientWorkspaceSlug, sowTitle, sowContent)` → dual-embeds the SOW in both the client workspace and the master dashboard.
   - `syncUpdatedSOWInBothWorkspaces(clientWorkspaceSlug, sowTitle, sowContent, metadata)` → re-embeds updated SOW content to BOTH locations with versioned metadata.
-  - `getOrCreateMasterDashboard()` → ensures the master dashboard exists, sets its analytics prompt, embeds company knowledge base AND the official rate card.
+  - `getMasterSOWWorkspace(clientName)` → creates/gets workspace, sets Architect v2 prompt, embeds rate card, and creates default thread.
 
 ## Reasoning Summary (UI/Output)
 - The chat should display a concise “Reasoning Summary” in a collapsible section (e.g., an accordion), using `<think>` tags.

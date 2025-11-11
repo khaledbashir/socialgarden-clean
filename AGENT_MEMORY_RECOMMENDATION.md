@@ -15,8 +15,8 @@ For your SOW generation workflow, use **Agent Memory** approach because:
 
 #### 1. Workspace Initialization
 ```javascript
-// In createOrGetClientWorkspace()
-async createOrGetClientWorkspace(clientName) {
+// In getMasterSOWWorkspace()
+async getMasterSOWWorkspace(clientName) {
   // ... existing workspace creation
   
   // Add rate card to agent memory

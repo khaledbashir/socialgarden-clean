@@ -25,7 +25,7 @@ export async function POST(
     }
 
     const clientName = sow.client_name || 'Client';
-    const workspace = await anythingLLM.createOrGetClientWorkspace(clientName);
+    const workspace = await anythingLLM.getMasterSOWWorkspace(clientName);
     
     const htmlContent = typeof sow.content === 'string' && sow.content.startsWith('<') 
       ? sow.content 

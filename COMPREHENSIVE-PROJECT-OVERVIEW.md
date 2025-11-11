@@ -163,7 +163,7 @@ The system uses a **dual-workspace architecture**:
 #### Workspace Management
 ```typescript
 // Create/update workspaces
-anythingLLM.createOrGetClientWorkspace(clientName)
+anythingLLM.getMasterSOWWorkspace(clientName)
 
 // Embed rate cards (single source of truth)
 anythingLLM.embedRateCardDocument(workspaceSlug)

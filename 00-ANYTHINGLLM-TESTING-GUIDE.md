@@ -47,34 +47,34 @@ console.log('Service methods:', Object.getOwnPropertyNames(AnythingLLMService.pr
 ```typescript
 // Test Case 1.1: Standard workspace creation
 const service = new AnythingLLMService();
-const workspace = await service.createOrGetClientWorkspace("Test Client");
+const workspace = await service.getMasterSOWWorkspace("Test Client");
 
 // Expected Results:
-// - Returns { id: "...", slug: "test-client" }
-// - Creates workspace in AnythingLLM
+// - Returns { id: "...", slug: "gen-the-architect" }
+// - Uses master workspace for all SOWs
 // - Auto-embeds rate card
 // - Creates default thread
 
-console.log('✅ Workspace created:', workspace);
+console.log('✅ Workspace accessed:', workspace);
 // Verify slug generation
-assert(workspace.slug === 'test-client', 'Slug should be "test-client"');
+assert(workspace.slug === 'gen-the-architect', 'Slug should be "gen-the-architect"');
 ```
 
 **Test Case 1.2: Special characters handling**
 ```typescript
-const workspace2 = await service.createOrGetClientWorkspace("Client@123! Test");
+const workspace2 = await service.getMasterSOWWorkspace("Client@123! Test");
 
-// Expected: slug = "client123-test"
-// Verify sanitization
-assert(workspace2.slug === 'client123-test', 'Special characters removed');
+// Expected: slug = "gen-the-architect"
+// Verify master workspace usage
+assert(workspace2.slug === 'gen-the-architect', 'Should use master workspace');
 ```
 
 **Test Case 1.3: Existing workspace (idempotency)**
 ```typescript
-const workspace3 = await service.createOrGetClientWorkspace("Test Client");
+const workspace3 = await service.getMasterSOWWorkspace("Test Client");
 
-// Expected: Returns existing workspace, doesn't create duplicate
-assert(workspace3.id === workspace.id, 'Should return existing workspace');
+// Expected: Returns master workspace, doesn't create duplicate
+assert(workspace3.id === workspace.id, 'Should return master workspace');
 ```
 
 ---
@@ -189,11 +189,11 @@ assert(sowResult === true, 'SOW should embed in both workspaces');
 ```typescript
 // Simulate new client signup
 const clientName = "ACME Corporation";
-const workspace = await service.createOrGetClientWorkspace(clientName);
+const workspace = await service.getMasterSOWWorkspace(clientName);
 
-console.log('✅ Step 1 Complete - Workspace created');
+console.log('✅ Step 1 Complete - Master workspace accessed');
 // Verify:
-// - Workspace visible in AnythingLLM
+// - Master workspace accessible
 // - Rate card embedded
 // - Default thread created
 ```
@@ -245,10 +245,10 @@ console.log('✅ Step 4 Complete - SOW query successful');
 
 ```typescript
 // Create multiple client workspaces
-const client1 = await service.createOrGetClientWorkspace("Tech Startup Inc");
-const client2 = await service.createOrGetClientWorkspace("Property Co");
+const client1 = await service.getMasterSOWWorkspace("Tech Startup Inc");
+const client2 = await service.getMasterSOWWorkspace("Property Co");
 
-// Embed different SOWs
+// Embed different SOWs as threads in master workspace
 await service.embedSOWInBothWorkspaces(
   client1.slug,
   "Tech Startup - MVP Development",

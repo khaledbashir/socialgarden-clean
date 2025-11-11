@@ -9,7 +9,7 @@
 
 ### 2. **STEP 1: Create AnythingLLM Workspace** 
 ```typescript
-const workspace = await anythingLLM.createOrGetClientWorkspace(workspaceName);
+const workspace = await anythingLLM.getMasterSOWWorkspace(workspaceName);
 const embedId = await anythingLLM.getOrCreateEmbedId(workspace.slug);
 ```
 - Creates workspace in AnythingLLM platform

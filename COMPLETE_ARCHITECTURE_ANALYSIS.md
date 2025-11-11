@@ -45,7 +45,7 @@ Master dashboard needs to answer:
 
 ### 🎯 Implementation Correctness:
 
-Your current `embedRateCardDocument()` approach in `createOrGetClientWorkspace()` is **architecturally perfect** for this system because:
+Your current `embedRateCardDocument()` approach in `getMasterSOWWorkspace()` is **architecturally perfect** for this system because:
 
 1. **Rate Card Availability**: Available in both client and master workspaces
 2. **SOW Integration**: SOWs get embedded in both places via `embedSOWInBothWorkspaces()`

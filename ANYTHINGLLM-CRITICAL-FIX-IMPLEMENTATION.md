@@ -67,8 +67,8 @@ async createThreadWithPrompt(workspaceSlug: string, prompt: string) {
 Since prompt configuration is critical, implement this **immediate workaround**:
 
 ```typescript
-// In createOrGetClientWorkspace method
-async createOrGetClientWorkspace(clientName: string): Promise<{id: string, slug: string}> {
+// In getMasterSOWWorkspace method
+async getMasterSOWWorkspace(clientName: string): Promise<{id: string, slug: string}> {
   // ... existing workspace creation logic ...
   
   // Emergency prompt injection via first chat message

@@ -16,13 +16,13 @@
  * - anythingLLM.updateWorkspace(workspaceSlug, newName)
  * 
  * ❌ INCORRECT/NON-EXISTENT:
- * - service.createWorkspace(name) → Use createOrGetClientWorkspace() instead
+ * - service.createWorkspace(name) → Use getMasterSOWWorkspace() instead
  * - service.updateWorkspace(slug, {systemPrompt: ...}) → Use setWorkspacePrompt() instead
  * - service.embedText(slug, content, name) → Use embedRateCardDocument() instead
  * - service.chat(slug, message) → Use streamChatWithThread() instead
  * 
  * PROPER WORKFLOW:
- * 1. workspace = await anythingLLM.createOrGetClientWorkspace("Client Name")
+ * 1. workspace = await anythingLLM.getMasterSOWWorkspace("Client Name")
  * 2. await anythingLLM.setWorkspacePrompt(workspace.slug, "Client Name", true)
  * 3. await anythingLLM.embedRateCardDocument(workspace.slug)
  * 4. await anythingLLM.setWorkspaceLLMProvider(workspace.slug, "openrouter", "minimax/minimax-m2:free")
@@ -39,7 +39,7 @@ const anythingLLM = new AnythingLLMService();
 async function example() {
   try {
     // 1. Create workspace
-    const workspace = await anythingLLM.createOrGetClientWorkspace("Example Client");
+    const workspace = await anythingLLM.getMasterSOWWorkspace("Example Client");
     console.log(`✅ Workspace: ${workspace.slug}`);
 
     // 2. Set prompt

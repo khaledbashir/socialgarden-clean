@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ client_name }} - Proposal</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      color: #222;
+      margin: 40px;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      letter-spacing: 2px;
+    }
+
+    h2 {
+      font-size: 16px;
+      margin-top: 16px;
+    }
+
+    h3 {
+      font-size: 14px;
+      margin-top: 16px;
+    }
+
+    p {
+      margin: 6px 0;
+      line-height: 1.4;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .subheader {
+      text-align: center;
+      margin: 10px 0 20px;
+    }
+
+    .section {
+      margin-bottom: 24px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 6px 8px;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #f5f5f5;
+      font-weight: bold;
+      text-align: left;
+    }
+
+    ul {
+      margin: 4px 0 4px 18px;
+      padding: 0;
+    }
+
+    .no-border {
+      border: none !important;
+    }
+
+    .footer {
+      font-size: 9px;
+      color: #777;
+      text-align: center;
+      margin-top: 40px;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1 -->
+  <div class="header">
+    <h1>SOCIALGARDEN</h1>
+  </div>
+
+  <div class="subheader">
+    <h2>{{ projectTitle }}</h2>
+    <h3>{{ projectTitle }}</h3>
+  </div>
+
+  <div class="section">
+    <p><strong>Client:</strong> {{ clientName }}</p>
+  </div>
+
+  <div class="section">
+    <table>
+      <thead>
+        <tr>
+          <th>ITEMS</th>
+          <th>ROLE</th>
+          <th>HOURS</th>
+          <th>TOTAL COST + GST</th>
+        </tr>
+      </thead>
+      <tbody>
+        {# Loop through scopes #}
+        {% for scope in scopes %}
+          <tr>
+            <td colspan="4"><strong>{{ scope.title }}</strong></td>
+          </tr>
+          {% if scope.description %}
+          <tr>
+            <td colspan="4">
+              <p><i>{{ scope.description }}</i></p>
+            </td>
+          </tr>
+          {% endif %}
+
+          {# Line items #}
+          {% for item in scope.items %}
+          <tr>
+            <td>{{ item.description }}</td>
+            <td>{{ item.role or "" }}</td>
+            <td>{{ item.hours or "" }}</td>
+            <td>${{ "%.2f"|format(item.cost) }}</td>
+          </tr>
+          {% endfor %}
+
+          {# Deliverables #}
+          {% if scope.deliverables and scope.deliverables|length > 0 %}
+          <tr>
+            <td colspan="4"><strong>Deliverables:</strong></td>
+          </tr>
+          <tr>
+            <td colspan="4">
+              <ul>
+                {% for d in scope.deliverables %}
+                <li>{{ d }}</li>
+                {% endfor %}
+              </ul>
+            </td>
+          </tr>
+          {% endif %}
+
+          {# Assumptions #}
+          {% if scope.assumptions and scope.assumptions|length > 0 %}
+          <tr>
+            <td colspan="4"><strong>Assumptions:</strong></td>
+          </tr>
+          <tr>
+            <td colspan="4">
+              <ul>
+                {% for a in scope.assumptions %}
+                <li>{{ a }}</li>
+                {% endfor %}
+              </ul>
+            </td>
+          </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- PAGE 2: Summary / Totals / Notes -->
+  <div class="page-break"></div>
+
+  <div class="section">
+    <h2>Scope &amp; Price Overview</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>SCOPE</th>
+          <th>ESTIMATED TOTAL HOURS</th>
+          <th>TOTAL COST</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for scope in scopes %}
+        <tr>
+          <td><strong>{{ scope.title }}</strong></td>
+          <td><strong>{{ scope.items|sum(attribute='hours') }}</strong></td>
+          <td><strong>${{ "%.2f"|format(scope.items|sum(attribute='cost')) }}</strong></td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td><strong>TOTAL PROJECT</strong></td>
+          <td><strong>{{ scopes|map(attribute='items')|map('sum', attribute='hours')|sum }}</strong></td>
+          <td><strong>${{ "%.2f"|format(subtotal_after_discount) }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {% if budgetNotes %}
+  <div class="section">
+    <h3>Budget Notes:</h3>
+    <p>{{ budgetNotes }}</p>
+  </div>
+  {% endif %}
+
+  <div class="section">
+    <h3>Investment Summary:</h3>
+    <table>
+      <tbody>
+        <tr>
+          <td><strong>Subtotal:</strong></td>
+          <td><strong>${{ "%.2f"|format(subtotal) }}</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Discount ({{ discount }}%):</strong></td>
+          <td><strong>-${{ "%.2f"|format(discount_amount) }}</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Subtotal (After Discount):</strong></td>
+          <td><strong>${{ "%.2f"|format(subtotal_after_discount) }}</strong></td>
+        </tr>
+        <tr>
+          <td><strong>GST (10%):</strong></td>
+          <td><strong>${{ "%.2f"|format(gst_amount) }}</strong></td>
+        </tr>
+        <tr>
+          <td><strong>TOTAL INVESTMENT:</strong></td>
+          <td><strong>${{ "%.2f"|format(total) }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <p>Professional Proposal generated by SocialGarden workspace.</p>
+  </div>
+
+</body>
+</html>

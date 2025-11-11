@@ -229,7 +229,7 @@ async function main() {
   try {
     // --- STEP 1: CREATE OR GET WORKSPACE ---
     log(`Creating or getting workspace: "${WORKSPACE_NAME}"...`);
-    const workspace = await service.createOrGetClientWorkspace(WORKSPACE_NAME);
+    const workspace = await service.getMasterSOWWorkspace(WORKSPACE_NAME);
     if (!workspace || !workspace.slug) throw new Error('Workspace creation/retrieval failed.');
     workspaceSlug = workspace.slug;
     log(`Workspace ready with slug: ${workspace.slug}`, 'success');

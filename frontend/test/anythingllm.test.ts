@@ -8,7 +8,7 @@ async function testAnythingLLMIntegration() {
   // Test 1: Create Client Workspace
   console.log('\n📋 Test 1: Create Client Workspace');
   const clientName = 'Test Client ABC';
-  const workspace = await service.createOrGetClientWorkspace(clientName);
+  const workspace = await service.getMasterSOWWorkspace(clientName);
   console.log('Workspace created:', workspace);
   
   if (!workspace?.slug) {

@@ -30,7 +30,7 @@ async function testCompleteFlow() {
     // ========================================
     console.log('\n📝 STEP 1: Creating workspace in app...');
     
-    const workspace = await service.createOrGetClientWorkspace(testClientName);
+    const workspace = await service.getMasterSOWWorkspace(testClientName);
     console.log('✅ Workspace created successfully:', {
       id: workspace.id,
       slug: workspace.slug

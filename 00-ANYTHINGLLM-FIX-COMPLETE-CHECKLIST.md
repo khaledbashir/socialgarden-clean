@@ -217,7 +217,7 @@ const service = new AnythingLLMService();
 
 ### 2. Create Workspace
 ```typescript
-const workspace = await service.createOrGetClientWorkspace("ACME Corp");
+const workspace = await service.getMasterSOWWorkspace("ACME Corp");
 // Automatically:
 // ✅ Creates workspace with slug "acme-corp"
 // ✅ Sets Architect prompt

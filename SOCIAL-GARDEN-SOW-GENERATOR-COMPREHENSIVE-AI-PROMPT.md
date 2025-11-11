@@ -314,7 +314,7 @@ export const ROLES = [
 **Workspace Management:**
 ```typescript
 // Create/get client workspace
-const workspace = await anythingLLM.createOrGetClientWorkspace(clientName: string)
+const workspace = await anythingLLM.getMasterSOWWorkspace(clientName: string)
 // Returns: { id: string, slug: string }
 
 // Set Architect prompt
@@ -855,7 +855,7 @@ describe('SOW API', () => {
 // Example: Testing AnythingLLM integration
 describe('AnythingLLM Integration', () => {
   it('creates workspace and embeds rate card', async () => {
-    const workspace = await anythingLLM.createOrGetClientWorkspace('test-client');
+    const workspace = await anythingLLM.getMasterSOWWorkspace('test-client');
     const rateCardEmbedded = await anythingLLM.embedRateCardDocument(workspace.slug);
     
     expect(workspace.slug).toBe('test-client');
@@ -957,7 +957,7 @@ service.updateWorkspace(slug, {systemPrompt: ...})
 service.embedText(slug, content, name)
 
 // WRONG - wrong method names
-anythingLLM.createWorkspace() // ❌ Use createOrGetClientWorkspace
+anythingLLM.createWorkspace() // ❌ Use getMasterSOWWorkspace
 anythingLLM.configureLLM() // ❌ Use setWorkspaceLLMProvider
 anythingLLM.streamChat() // ❌ Use streamChatWithThread
 ```
@@ -1003,12 +1003,11 @@ const API_KEY = process.env.ANYTHINGLLM_API_KEY; // ✅
 **4. Missing Rate Card:**
 ```typescript
 // WRONG - Creating workspace without rate card
-const workspace = await anythingLLM.createOrGetClientWorkspace(clientName);
+const workspace = await anythingLLM.getMasterSOWWorkspace(clientName);
 // Missing: embedRateCardDocument()
 
 // CORRECT - Always embed rate card
-const workspace = await anythingLLM.createOrGetClientWorkspace(clientName);
-await anythingLLM.embedRateCardDocument(workspace.slug); // Required for RAG
+const workspace = await anythingLLM.getMasterSOWWorkspace(clientName);
 ```
 
 ---

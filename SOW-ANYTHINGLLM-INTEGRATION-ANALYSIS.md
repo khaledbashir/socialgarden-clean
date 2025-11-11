@@ -114,7 +114,7 @@ try {
   console.log('🤖 Setting up AnyTHINGLLM integration for SOW:', sowId);
   
   // Create/get client workspace
-  const workspace = await anythingLLM.createOrGetClientWorkspace(clientName);
+  const workspace = await anythingLLM.getMasterSOWWorkspace(clientName);
   
   // Create dedicated thread for this SOW
   const thread = await anythingLLM.createThread(workspace.slug, `SOW: ${title}`);

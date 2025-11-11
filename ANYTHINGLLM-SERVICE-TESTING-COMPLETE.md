@@ -53,7 +53,7 @@ The **AnythingLLM Integration Service** (`frontend/lib/anythingllm.ts`) is a com
 
 ### 1. Workspace Management
 
-**Function:** `createOrGetClientWorkspace(clientName: string)`
+**Function:** `getMasterSOWWorkspace(clientName: string)`
 
 **Test Cases:**
 ```typescript
@@ -278,7 +278,7 @@ const ANYTHINGLLM_API_KEY = process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY || '0G0W
 ### Example 1: Create Workspace + Embed Rate Card
 ```typescript
 const service = new AnythingLLMService();
-const workspace = await service.createOrGetClientWorkspace("ACME Corp");
+const workspace = await service.getMasterSOWWorkspace("ACME Corp");
 // Result: { id: "...", slug: "acme-corp" }
 // Automatically embeds rate card and creates default thread
 ```

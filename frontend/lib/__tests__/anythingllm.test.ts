@@ -54,7 +54,7 @@ beforeEach(() => {
 
     test('should have correct service initialization', () => {
       expect(service).toBeDefined();
-      expect(service).toHaveProperty('createOrGetClientWorkspace');
+      expect(service).toHaveProperty('getMasterSOWWorkspace');
       expect(service).toHaveProperty('listWorkspaces');
       expect(service).toHaveProperty('embedSOWInBothWorkspaces');
     });
@@ -243,7 +243,7 @@ Your role is to:
 
   describe('Method Signatures', () => {
     test('should have correct workspace creation signature', () => {
-      const method = service.createOrGetClientWorkspace;
+      const method = service.getMasterSOWWorkspace;
       expect(method).toBeDefined();
       expect(typeof method).toBe('function');
     });
@@ -283,7 +283,7 @@ describe('Integration Flow Validation', () => {
     
     // Verify that service has all required methods for the flow
     expect(service.listWorkspaces).toBeDefined();
-    expect(service.createOrGetClientWorkspace).toBeDefined();
+    expect(service.getMasterSOWWorkspace).toBeDefined();
     expect(service.setWorkspacePrompt).toBeDefined(); // Private but accessible through tests
     expect(service.embedRateCardDocument).toBeDefined();
     expect(service.createThread).toBeDefined();

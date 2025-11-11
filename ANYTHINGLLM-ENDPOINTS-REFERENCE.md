@@ -4,7 +4,7 @@
 
 ```javascript
 // Workspace Management
-const workspace = await anythingLLM.createOrGetClientWorkspace(clientName: string)
+const workspace = await anythingLLM.getMasterSOWWorkspace(clientName: string)
 // Returns: { id: string, slug: string, name: string, ... }
 
 // Prompt & Configuration  
@@ -63,7 +63,7 @@ const anythingLLM = new AnythingLLMService();
 
 async function fullWorkflow() {
   // 1. Create workspace
-  const workspace = await anythingLLM.createOrGetClientWorkspace("My Client");
+  const workspace = await anythingLLM.getMasterSOWWorkspace("My Client");
   
   // 2. Set Architect prompt
   await anythingLLM.setWorkspacePrompt(workspace.slug, "My Client", true);

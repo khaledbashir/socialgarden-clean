@@ -15,7 +15,7 @@
 import { anythingLLM, AnythingLLMService } from '@/lib/anythingllm';
 
 // Use singleton
-await anythingLLM.createOrGetClientWorkspace("ACME Corp");
+await anythingLLM.getMasterSOWWorkspace("ACME Corp");
 
 // Or create new instance
 const service = new AnythingLLMService();
@@ -24,7 +24,7 @@ const service = new AnythingLLMService();
 ### Workspace Management
 ```typescript
 // Create or get client workspace
-const ws = await service.createOrGetClientWorkspace("Client Name");
+const ws = await service.getMasterSOWWorkspace("Client Name");
 // Returns: { id: "...", slug: "client-name" }
 
 // List all workspaces

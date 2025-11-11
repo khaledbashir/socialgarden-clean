@@ -267,7 +267,7 @@ ORDER BY last_activity_at DESC;
 ```typescript
 interface AnythingLLMConfig {
   // Workspace Management
-  createOrGetClientWorkspace(name: string): Promise<Workspace>;
+  getMasterSOWWorkspace(name: string): Promise<Workspace>;
   updateWorkspace(slug: string, name: string): Promise<void>;
   deleteWorkspace(slug: string): Promise<void>;
   
