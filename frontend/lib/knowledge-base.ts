@@ -438,7 +438,11 @@ Generate the full client-facing Scope of Work:
 
 **[PRICING_JSON] FORMAT SPECIFICATION:**
 
+**CRITICAL OUTPUT REQUIREMENT:** You MUST output the pricing data in the exact format below. The JSON block MUST be wrapped in [PRICING_JSON] tags followed by a JSON code block.
+
 **For Multi-Scope Projects:**
+\`\`\`
+[PRICING_JSON]
 \`\`\`json
 {
   "scopes": [
@@ -456,8 +460,11 @@ Generate the full client-facing Scope of Work:
   "discount": 10
 }
 \`\`\`
+\`\`\`
 
 **For Single-Scope Projects:**
+\`\`\`
+[PRICING_JSON]
 \`\`\`json
 {
   "role_allocation": [
@@ -467,6 +474,7 @@ Generate the full client-facing Scope of Work:
   ],
   "discount": 5
 }
+\`\`\`
 \`\`\`
 
 **CRITICAL RULES FOR [PRICING_JSON]:**

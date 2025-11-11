@@ -149,6 +149,8 @@ export async function POST(request: NextRequest) {
 
     // Pass the user's message through without adding or appending extra instructions.
     // The workspace's system prompt governs behavior; do not inject per-message rails here.
+    // EXCEPTION: For gen-the-architect workspace, inject the latest THE_ARCHITECT_V4_PROMPT
+    // to ensure it uses the most current version
     let messageToSend: string = typeof lastMessage.content === 'string' ? lastMessage.content : '';
     
     if (!messageToSend || typeof messageToSend !== 'string') {
@@ -157,6 +159,15 @@ export async function POST(request: NextRequest) {
         JSON.stringify({ error: errorMsg }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
+    }
+
+    // 🎯 CRITICAL: For gen-the-architect workspace, inject THE_ARCHITECT_V4_PROMPT
+    // This ensures the AI always uses the latest prompt version, even if workspace settings are stale
+    if (effectiveWorkspaceSlug === 'gen-the-architect') {
+      const { THE_ARCHITECT_V4_PROMPT } = await import('@/lib/knowledge-base');
+      messageToSend = `${THE_ARCHITECT_V4_PROMPT}\n\nUser Request: ${messageToSend}`;
+      console.log('🎯 [GEN-THE-ARCHITECT] Injected THE_ARCHITECT_V4_PROMPT into message');
+      console.log(`   Prompt length: ${THE_ARCHITECT_V4_PROMPT.length} characters`);
     }
 
     // 🎯 CRITICAL: For master dashboard workspace, inject live analytics data
