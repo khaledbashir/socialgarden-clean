@@ -7,7 +7,7 @@ import { ROLES } from './rateCard';
 
 // Get AnythingLLM URL from environment (NEXT_PUBLIC_ANYTHINGLLM_URL must be set in .env)
 // Falls back to Ahmad's instance for local development
-const ANYTHINGLLM_BASE_URL = typeof window !== 'undefined' 
+const ANYTHINGLLM_BASE_URL = typeof window !== 'undefined'
   ? (process.env.NEXT_PUBLIC_ANYTHINGLLM_URL || 'https://ahmad-anything-llm.840tjq.easypanel.host')
   : 'https://ahmad-anything-llm.840tjq.easypanel.host';
 
@@ -54,14 +54,14 @@ export class AnythingLLMService {
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .trim();
-    
+
     const slug = `${baseSlug}-client`; // Add -client suffix
 
     try {
       // Check if client workspace exists
       const workspaces = await this.listWorkspaces();
       const existing = workspaces.find((w: any) => w.slug === slug);
-      
+
       if (existing) {
         console.log(`✅ Using existing client workspace: ${slug}`);
         // Ensure client-facing prompt is set
@@ -88,16 +88,16 @@ export class AnythingLLMService {
 
       const data: WorkspaceResponse = await response.json();
       console.log(`✅ Client workspace created: ${data.workspace.slug}`);
-      
+
       // Set client-facing prompt (NOT the Architect prompt)
       await this.setWorkspacePrompt(data.workspace.slug, clientName, false);
-      
+
       // Create default thread
       await this.createThread(data.workspace.slug, undefined);
-      
+
       // Get embed ID for portal
       const embedId = await this.getOrCreateEmbedId(data.workspace.slug);
-      
+
       return { id: data.workspace.id, slug: data.workspace.slug, embedId };
     } catch (error) {
       console.error('❌ Error creating client workspace:', error);
@@ -111,15 +111,15 @@ export class AnythingLLMService {
    * ARCHITECTURAL SIMPLIFICATION: One workspace to rule them all
    */
   async getMasterSOWWorkspace(clientName: string): Promise<{id: string, slug: string}> {
-    const masterName = 'SOW Master Dashboard';
-    const masterSlug = 'sow-master-dashboard'; // Match UI expectation
+    const masterName = 'SOW Generator';
+    const masterSlug = 'sow-generator'; // Generation "factory" workspace
 
     try {
       // Check if master workspace exists by slug first, then by name
       const workspaces = await this.listWorkspaces();
-      const existing = workspaces.find((w: any) => w.slug === masterSlug) || 
+      const existing = workspaces.find((w: any) => w.slug === masterSlug) ||
                       workspaces.find((w: any) => w.name === masterName);
-      
+
       if (existing) {
         console.log(`✅ Using existing master SOW generation workspace: ${existing.slug}`);
         console.log(`   (Client context: ${clientName})`);
@@ -140,6 +140,7 @@ export class AnythingLLMService {
         headers: this.getHeaders(),
         body: JSON.stringify({
           name: masterName,
+            slug: masterSlug,
         }),
       });
 
@@ -150,21 +151,21 @@ export class AnythingLLMService {
 
       const data: WorkspaceResponse = await response.json();
       console.log(`✅ Master SOW generation workspace created: ${data.workspace.slug}`);
-      
+
       // Set the Architect prompt for the master workspace
       await this.setWorkspacePrompt(data.workspace.slug, clientName, true);
-      
+
       // Embed the official Social Garden rate card as knowledge base (RAG)
       const rateOk = await this.embedRateCardDocument(data.workspace.slug);
       if (!rateOk) {
         throw new Error('Rate card embedding failed for master workspace');
       }
-      
+
       // Create a default thread for general use
       console.log(`🧵 Creating default thread for master workspace...`);
       await this.createThread(data.workspace.slug, undefined);
       console.log(`✅ Default thread created in master workspace`);
-      
+
       return { id: data.workspace.id, slug: data.workspace.slug };
     } catch (error) {
       console.error('❌ Error with master SOW workspace:', error);
@@ -405,7 +406,7 @@ Metadata:
       }
 
       const rawTextData = await rawTextResponse.json();
-      
+
       if (!rawTextData.success || !rawTextData.documents?.[0]?.location) {
         throw new Error(rawTextData.error || 'Document processing failed - no location returned');
       }
@@ -432,7 +433,7 @@ Metadata:
 
       const embedResult = await workspaceEmbedResponse.json();
       console.log(`✅ Document EMBEDDED in workspace: ${workspaceSlug}`);
-      
+
       return true;
     } catch (error) {
       console.error('❌ Error embedding SOW:', error);
@@ -492,7 +493,7 @@ Metadata:
       });
 
       console.log(`📡 Create embed response status: ${response.status}`);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`❌ Failed to create embed: ${response.status} ${response.statusText}`);
@@ -502,7 +503,7 @@ Metadata:
 
       const responseText = await response.text();
       console.log(`📄 Embed response body:`, responseText.substring(0, 200));
-      
+
       const data = JSON.parse(responseText);
       console.log(`✅ Embed created with ID: ${data.embed?.id}`);
       return data.embed?.id || null;
@@ -577,7 +578,7 @@ Metadata:
       }
 
       const rawTextData = await rawTextResponse.json();
-      
+
       if (!rawTextData.success || !rawTextData.documents?.[0]?.location) {
         throw new Error(rawTextData.error || 'Knowledge base processing failed');
       }
@@ -684,14 +685,14 @@ Metadata:
    * Note: This requires the provider to be available in AnythingLLM instance
    */
   async setWorkspaceLLMProvider(
-    workspaceSlug: string, 
-    provider: string = 'claude', 
+    workspaceSlug: string,
+    provider: string = 'claude',
     model: string = 'claude-3-5-sonnet-20241022'
   ): Promise<boolean> {
     try {
       console.log(`⚙️ Configuring LLM provider for workspace: ${workspaceSlug}`);
       console.log(`   Provider: ${provider}, Model: ${model}`);
-      
+
       const response = await fetch(
         `${this.baseUrl}/api/v1/workspace/${workspaceSlug}/update`,
         {
@@ -816,9 +817,9 @@ You have access to the full SOW document that has been embedded in this workspac
       // Don't pre-name threads - let them be named by first chat content
       // If no name provided, use a generic auto-name that will be replaced on first message
       const autoThreadName = threadName || `Thread ${new Date().toLocaleString()}`;
-      
+
       console.log(`🆕 Creating thread in workspace: ${workspaceSlug} (will auto-name on first message)`);
-      
+
       const response = await fetch(
         `${this.baseUrl}/api/v1/workspace/${workspaceSlug}/thread/new`,
         {
@@ -839,7 +840,7 @@ You have access to the full SOW document that has been embedded in this workspac
 
       const data = await response.json();
       console.log(`✅ Thread created: ${data.thread.slug} (ID: ${data.thread.id}) - will auto-name on first message`);
-      
+
       return {
         slug: data.thread.slug,
         id: data.thread.id,
@@ -856,7 +857,7 @@ You have access to the full SOW document that has been embedded in this workspac
   async updateThread(workspaceSlug: string, threadSlug: string, newName: string): Promise<boolean> {
     try {
       console.log(`✏️ Renaming thread ${threadSlug} to "${newName}"`);
-      
+
       const response = await fetch(
         `${this.baseUrl}/api/v1/workspace/${workspaceSlug}/thread/${threadSlug}/update`,
         {
@@ -887,7 +888,7 @@ You have access to the full SOW document that has been embedded in this workspac
   async deleteThread(workspaceSlug: string, threadSlug: string): Promise<boolean> {
     try {
       console.log(`🗑️ Deleting thread: ${threadSlug}`);
-      
+
       const response = await fetch(
         `${this.baseUrl}/api/v1/workspace/${workspaceSlug}/thread/${threadSlug}`,
         {
@@ -917,7 +918,7 @@ You have access to the full SOW document that has been embedded in this workspac
   async getThreadChats(workspaceSlug: string, threadSlug: string, retries = 5): Promise<any[]> {
     try {
       console.log(`🧵 [getThreadChats] Fetching messages from ${workspaceSlug}/${threadSlug}`);
-      
+
       for (let attempt = 1; attempt <= retries; attempt++) {
         const response = await fetch(
           `${this.baseUrl}/api/v1/workspace/${workspaceSlug}/thread/${threadSlug}/chats`,
@@ -930,13 +931,13 @@ You have access to the full SOW document that has been embedded in this workspac
         if (response.ok) {
           const data = await response.json();
           console.log(`✅ [getThreadChats] Got ${(data.history || []).length} messages from thread (attempt ${attempt}/${retries})`);
-          
+
           // Return history array with role and content fields for conversion to ChatMessage
           const history = data.history || [];
           if (history.length > 0) {
             console.log(`💬 [getThreadChats] Sample message:`, history[0]);
           }
-          
+
           return history;
         }
 
@@ -964,7 +965,7 @@ You have access to the full SOW document that has been embedded in this workspac
         // If final attempt or non-400 error
         const statusText = await response.text();
         console.error(`❌ [getThreadChats] Failed (attempt ${attempt}/${retries}): ${response.status} ${statusText}`);
-        
+
         if (attempt === retries) {
           return [];
         }
@@ -1071,7 +1072,7 @@ You have access to the full SOW document that has been embedded in this workspac
   async deleteWorkspace(workspaceSlug: string): Promise<boolean> {
     try {
       console.log(`🗑️ Deleting workspace: ${workspaceSlug}`);
-      
+
       const response = await fetch(
         `${this.baseUrl}/api/v1/workspace/${workspaceSlug}`,
         {
@@ -1099,7 +1100,7 @@ You have access to the full SOW document that has been embedded in this workspac
   async updateWorkspace(workspaceSlug: string, newName: string): Promise<boolean> {
     try {
       console.log(`✏️ Renaming workspace ${workspaceSlug} to "${newName}"`);
-      
+
       const response = await fetch(
         `${this.baseUrl}/api/v1/workspace/${workspaceSlug}/update`,
         {
@@ -1136,7 +1137,7 @@ You have access to the full SOW document that has been embedded in this workspac
       // Check if master dashboard exists
       const workspaces = await this.listWorkspaces();
       const existing = workspaces.find((w: any) => w.slug === masterDashboardSlug);
-      
+
       if (existing) {
         console.log(`✅ Using existing master dashboard: ${masterDashboardSlug}`);
         // Always ensure the dashboard prompt is correct (idempotent)
@@ -1162,15 +1163,15 @@ You have access to the full SOW document that has been embedded in this workspac
 
       const data: WorkspaceResponse = await response.json();
       console.log(`✅ Master dashboard created: ${data.workspace.slug}`);
-      
+
       // Embed company knowledge base into master dashboard
       await this.embedCompanyKnowledgeBase(data.workspace.slug);
-      
+
       // Set analytics-focused prompt
       await this.setMasterDashboardPrompt(data.workspace.slug);
 
       // Per latest guidance: rate card is not required in the master dashboard.
-      
+
       return data.workspace.slug;
     } catch (error) {
       console.error('❌ Error creating master dashboard:', error);
@@ -1238,7 +1239,7 @@ When asked for analytics, provide clear, actionable insights with specific numbe
     try {
       const masterWorkspaceSlug = 'sow-generator';
       const masterDashboardSlug = await this.getOrCreateMasterDashboard();
-      
+
       console.log(`📊 Embedding SOW in workspaces...`);
       console.log(`   📁 Master generation workspace: ${masterWorkspaceSlug}`);
       console.log(`   � Master dashboard: ${masterDashboardSlug}`);
@@ -1248,33 +1249,33 @@ When asked for analytics, provide clear, actionable insights with specific numbe
 
       // Step 1: Embed in master GENERATION workspace (RAG context)
       const masterEmbed = await this.embedSOWDocument(masterWorkspaceSlug, sowTitle, sowContent);
-      
+
       if (!masterEmbed) {
         console.warn(`⚠️ Failed to embed SOW in master generation workspace: ${masterWorkspaceSlug}`);
         return false;
       }
-      
+
       console.log(`✅ SOW embedded in master generation workspace: ${masterWorkspaceSlug}`);
 
       // Step 2: Embed in master dashboard for analytics (use client context if provided)
-      const dashboardTitle = clientContext 
+      const dashboardTitle = clientContext
         ? `[${clientContext.toUpperCase()}] ${sowTitle}`
         : sowTitle;
-      
+
       const dashboardEmbed = await this.embedSOWDocument(
         masterDashboardSlug,
         dashboardTitle,
         sowContent
       );
-      
+
       if (!dashboardEmbed) {
         console.warn(`⚠️ Failed to embed SOW in master dashboard`);
         return false;
       }
-      
+
       console.log(`✅ SOW embedded in master dashboard for analytics`);
       console.log(`✅✅✅ SOW successfully embedded in all required workspaces!`);
-      
+
       return true;
     } catch (error) {
       console.error('❌ Error embedding SOW in workspaces:', error);
@@ -1300,7 +1301,7 @@ When asked for analytics, provide clear, actionable insights with specific numbe
     try {
       const masterWorkspaceSlug = 'sow-generator';
       const masterDashboardSlug = await this.getOrCreateMasterDashboard();
-      
+
       const versionedMeta = {
         ...metadata,
         clientContext: clientContext || 'unknown',
@@ -1318,10 +1319,10 @@ When asked for analytics, provide clear, actionable insights with specific numbe
       if (!masterOk) return false;
 
       // Master dashboard (for analytics)
-      const dashboardTitle = clientContext 
+      const dashboardTitle = clientContext
         ? `[${clientContext.toUpperCase()}] ${sowTitle}`
         : sowTitle;
-      
+
       const dashboardOk = await this.embedSOWDocument(
         masterDashboardSlug,
         dashboardTitle,

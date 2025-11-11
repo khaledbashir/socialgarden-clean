@@ -38,7 +38,7 @@ import { extractSOWStructuredJson } from "@/lib/export-utils";
 import { anythingLLM } from "@/lib/anythingllm";
 import { ROLES } from "@/lib/rateCard";
 import { calculatePricingTable } from "@/lib/pricingCalculator";
-import { getWorkspaceForAgent } from "@/lib/workspace-config";
+import { getWorkspaceForAgent, WORKSPACE_CONFIG } from "@/lib/workspace-config";
 import { prepareSOWForNewPDF } from "@/lib/sow-pdf-utils";
 
 // Dynamically import PDF components to avoid SSR issues
@@ -1170,9 +1170,9 @@ export default function Page() {
   const [oauthAccessToken, setOauthAccessToken] = useState<string>('');
 
   // Dashboard AI workspace selector state - Master dashboard is the default
-  const [dashboardChatTarget, setDashboardChatTarget] = useState<string>('sow-master-dashboard');
+  const [dashboardChatTarget, setDashboardChatTarget] = useState<string>(WORKSPACE_CONFIG.dashboard.slug);
   const [availableWorkspaces, setAvailableWorkspaces] = useState<Array<{slug: string, name: string}>>([
-    { slug: 'sow-master-dashboard', name: '🎯 All SOWs (Master)' }
+    { slug: WORKSPACE_CONFIG.dashboard.slug, name: '🎯 All SOWs (Master)' }
   ]);
   // Structured SOW from AI (Architect modular JSON)
   const [structuredSow, setStructuredSow] = useState<ArchitectSOW | null>(null);
@@ -1281,7 +1281,7 @@ Ask me questions to get business insights, such as:
 
     // Only show master workspace for SOW generation - single workspace architecture
     const workspaceList = [
-      { slug: 'sow-master-dashboard', name: '🎯 All SOWs (Master)' }
+      { slug: WORKSPACE_CONFIG.dashboard.slug, name: '🎯 All SOWs (Master)' }
     ];
 
     setAvailableWorkspaces(workspaceList);
@@ -2337,33 +2337,25 @@ Ask me questions to get business insights, such as:
 
   const handleCreateSOW = async (workspaceId: string, sowName: string) => {
     try {
-      // Find the workspace to get its slug
-      const workspace = workspaces.find(ws => ws.id === workspaceId);
-      if (!workspace) {
+      // Find the folder/workspace in local state (for display only)
+      const folder = workspaces.find(ws => ws.id === workspaceId);
+      if (!folder) {
         toast.error('Workspace not found');
         return;
       }
 
-      // Validate that workspace has a slug
-      if (!workspace.workspace_slug) {
-        console.error('❌ Workspace missing workspace_slug:', workspace);
-        toast.error('Workspace slug not found. Please try again.');
-        return;
-      }
-
-      console.log(`🆕 Creating new SOW: "${sowName}" in workspace: ${workspace.name} (${workspace.workspace_slug})`);
+      // Always use the master generation workspace for SOW threads
+      const master = await anythingLLM.getMasterSOWWorkspace(sowName);
+      console.log(`🆕 Creating new SOW: "${sowName}" in master workspace: ${master.slug}`);
 
       // Step 1: Create AnythingLLM thread (PRIMARY source of truth)
-      // 🎯 Create threads in the CLIENT WORKSPACE (where SOW content is embedded)
-      // This ensures the thread has access to the SOW's embedded content for context
-      // Don't pass thread name - AnythingLLM auto-names based on first chat message
-      const thread = await anythingLLM.createThread(workspace.workspace_slug);
+      const thread = await anythingLLM.createThread(master.slug);
       if (!thread) {
         toast.error('Failed to create SOW thread in AnythingLLM');
         return;
       }
 
-      console.log(`✅ AnythingLLM thread created: ${thread.slug} (will auto-name on first message)`);
+      console.log(`✅ AnythingLLM thread created: ${thread.slug}`);
 
       // Step 2: Save to database (for metrics, tracking, portal)
       const saveResponse = await fetch('/api/sow/create', {
@@ -2376,7 +2368,7 @@ Ask me questions to get business insights, such as:
           client_name: '',
           client_email: '',
           total_investment: 0,
-          workspace_slug: workspace.workspace_slug,
+          workspace_slug: master.slug,
           folder_id: workspaceId,
         }),
       });
@@ -2385,8 +2377,7 @@ Ask me questions to get business insights, such as:
         console.warn('⚠️ Failed to save SOW to database, but thread exists in AnythingLLM');
       }
 
-      const savedDoc = await saveResponse.json();
-      console.log(`✅ SOW saved to database: ${savedDoc.id}`);
+
 
       // Step 3: Update local state
       const newSOW: SOW = {
@@ -2395,7 +2386,7 @@ Ask me questions to get business insights, such as:
         workspaceId
       };
 
-      setWorkspaces(prev => prev.map(ws => 
+      setWorkspaces(prev => prev.map(ws =>
         ws.id === workspaceId ? { ...ws, sows: [...ws.sows, newSOW] } : ws
       ));
       setCurrentSOWId(thread.slug);
@@ -2406,7 +2397,7 @@ Ask me questions to get business insights, such as:
         title: sowName,
         content: defaultEditorContent,
         folderId: workspaceId,
-        workspaceSlug: workspace.workspace_slug,
+        workspaceSlug: master.slug,
         threadSlug: thread.slug,
         syncedAt: new Date().toISOString(),
       };
@@ -2415,7 +2406,7 @@ Ask me questions to get business insights, such as:
       setCurrentDocId(thread.slug);
       setViewMode('editor');
 
-      toast.success(`✅ SOW "${sowName}" created in ${workspace.name}!`);
+      toast.success(`✅ SOW "${sowName}" created`);
     } catch (error) {
       console.error('❌ Error creating SOW:', error);
       toast.error('Failed to create SOW');
@@ -4065,9 +4056,9 @@ Ask me questions to get business insights, such as:
 
         if (isDashboardMode && useAnythingLLM) {
           // Dashboard mode routing
-          if (dashboardChatTarget === 'sow-master-dashboard') {
+          if (dashboardChatTarget === WORKSPACE_CONFIG.dashboard.slug) {
             endpoint = '/api/anythingllm/stream-chat';
-            workspaceSlug = 'sow-master-dashboard';
+            workspaceSlug = WORKSPACE_CONFIG.dashboard.slug;
           } else {
             endpoint = '/api/anythingllm/stream-chat';
             workspaceSlug = dashboardChatTarget;
@@ -4096,7 +4087,7 @@ Ask me questions to get business insights, such as:
           endpoint,
           workspaceSlug,
           routeType: isDashboardMode 
-            ? (dashboardChatTarget === 'sow-master-dashboard' ? 'MASTER_DASHBOARD' : 'CLIENT_WORKSPACE')
+            ? (dashboardChatTarget === WORKSPACE_CONFIG.dashboard.slug ? 'MASTER_DASHBOARD' : 'CLIENT_WORKSPACE')
             : 'SOW_GENERATION'
         });
 

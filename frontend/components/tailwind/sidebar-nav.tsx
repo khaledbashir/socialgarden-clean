@@ -691,71 +691,7 @@ export default function SidebarNav({
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                <Dialog open={showNewWorkspaceDialog} onOpenChange={setShowNewWorkspaceDialog}>
-                  <DialogTrigger asChild>
-                    <button
-                      className="p-1 hover:bg-gray-800 rounded transition-colors text-[#1CBF79]"
-                      title="New Workspace"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-gray-900 border-gray-700">
-                    <DialogHeader>
-                      <DialogTitle className="text-white">New Workspace</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <Input
-                        placeholder="Workspace name (e.g., Client A, Project Phoenix)"
-                        className="bg-gray-800 border-gray-700 text-white"
-                        value={newWorkspaceName}
-                        onChange={(e) => setNewWorkspaceName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && newWorkspaceName.trim()) {
-                            onCreateWorkspace(newWorkspaceName, newWorkspaceType);
-                            setShowNewWorkspaceDialog(false);
-                            setNewWorkspaceName("");
-                            setNewWorkspaceType("sow");
-                          }
-                        }}
-                        autoFocus
-                      />
-                      
-                      {/* 🎯 Workspace Type Selector */}
-                      <div className="space-y-2">
-                        <label className="text-sm text-gray-300">Workspace Type</label>
-                        <select
-                          value={newWorkspaceType}
-                          onChange={(e) => setNewWorkspaceType(e.target.value as "sow" | "client" | "generic")}
-                          className="w-full bg-gray-800 border border-gray-700 text-white rounded px-3 py-2 text-sm"
-                        >
-                          <option value="sow">📄 Scope of Work (SOW)</option>
-                          <option value="client">👥 Client Portal</option>
-                          <option value="generic">📋 Generic Workspace</option>
-                        </select>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {newWorkspaceType === "sow" && "Optimized for SOW generation with The Architect system prompt"}
-                          {newWorkspaceType === "client" && "Client-facing workspace for proposals and documents"}
-                          {newWorkspaceType === "generic" && "Standard workspace with default settings"}
-                        </p>
-                      </div>
-                      
-                      <Button
-                        onClick={() => {
-                          if (newWorkspaceName.trim()) {
-                            onCreateWorkspace(newWorkspaceName, newWorkspaceType);
-                            setShowNewWorkspaceDialog(false);
-                            setNewWorkspaceName("");
-                            setNewWorkspaceType("sow");
-                          }
-                        }}
-                        className="bg-[#1CBF79] hover:bg-[#15a366] text-white w-full"
-                      >
-                        Create Workspace
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+
               </>
             ) : (
               // 🗑️ Delete Mode UI
@@ -849,7 +785,7 @@ export default function SidebarNav({
                         {clientWorkspaces.length === 0 && (
                           <div className="px-4 py-4 text-center">
                             <p className="text-xs text-gray-600">No client workspaces yet</p>
-                            <p className="text-xs text-gray-700 mt-1">Click + above to create one</p>
+
                           </div>
                         )}
                       </div>
@@ -962,7 +898,7 @@ export default function SidebarNav({
             {localWorkspaces.length === 0 && (
               <div className="px-4 py-8 text-center">
                 <p className="text-xs text-gray-600">No workspaces yet</p>
-                <p className="text-xs text-gray-700 mt-2">Click the + button to create one</p>
+
               </div>
             )}
           </div>
