@@ -5,6 +5,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { toast } from 'sonner';
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { ScrollArea } from "./ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { ChevronRight, Send, Bot, Plus, Loader2 } from "lucide-react";
@@ -67,6 +69,9 @@ export default function WorkspaceChat({
   const [showSettings, setShowSettings] = useState(false);
   const [showSlashCommands, setShowSlashCommands] = useState(false);
   const [selectedModelForAgent, setSelectedModelForAgent] = useState("");
+  
+  // 💰 DISCOUNT STATE
+  const [discount, setDiscount] = useState(0);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -323,12 +328,16 @@ export default function WorkspaceChat({
 
     console.log('📤 Sending message:', {
       message: chatInput,
+      discount,
       threadSlug,
       attachments: attachments.length,
       workspaceSlug: editorWorkspaceSlug,
     });
 
-    onSendMessage(chatInput, threadSlug, attachments);
+    onSendMessage(JSON.stringify({
+      prompt: chatInput,
+      discount,
+    }), threadSlug, attachments);
     setChatInput("");
     setAttachments([]);
   };
@@ -669,6 +678,25 @@ export default function WorkspaceChat({
 
         {/* Chat Input */}
         <div className="flex gap-3">
+          {/* Discount Input */}
+          <div className="flex flex-col w-32">
+            <Label htmlFor="discount" className="text-xs text-gray-400 mb-1">
+              Discount (%)
+            </Label>
+            <Input
+              id="discount"
+              type="number"
+              min={0}
+              max={100}
+              value={discount}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (!Number.isNaN(value)) setDiscount(value);
+              }}
+              className="h-9 bg-[#1b1b1e] border-[#0E2E33] text-white text-xs"
+            />
+          </div>
+          
           <div className="flex-1 space-y-2">
             <div className="relative">
               <Textarea 

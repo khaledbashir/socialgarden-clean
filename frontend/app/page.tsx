@@ -124,15 +124,71 @@ const extractBudgetAndDiscount = (prompt: string): { budget: number; discount: n
   return { budget, discount };
 };
 
-// 🎯 UTILITY: Extract and parse [PRICING_JSON] or [PRICING/JSON] block from The Architect v3.1
-const extractPricingJSON = (content: string): { roles: any[]; discount?: number } | null => {
+// 🎯 UTILITY: Extract and parse V4.1 Multi-Scope JSON or v3.1 format
+const extractPricingJSON = (content: string): {
+  roles: any[];
+  discount?: number;
+  // NEW: Multi-scope support
+  multiScopeData?: {
+    scopes: Array<{
+      scope_name: string;
+      scope_description: string;
+      deliverables: string[];
+      assumptions: string[];
+      role_allocation: Array<{ role: string; hours: number; rate?: number; cost?: number }>;
+    }>;
+    discount: number;
+  };
+} | null => {
   // Look for explicit [PRICING_JSON] or [PRICING/JSON] blocks, else fallback to first JSON code fence
   const pricingJsonMatch = content.match(/\[PRICING[\/_]JSON\]\s*```json\s*([\s\S]*?)\s*```/i) ||
                            content.match(/```json\s*([\s\S]*?)\s*```/);
-  
+   
   if (pricingJsonMatch && pricingJsonMatch[1]) {
     try {
       const parsedJson = JSON.parse(pricingJsonMatch[1]);
+      
+      // 🎯 V4.1 Multi-Scope Format Detection
+      if (parsedJson.scopes && Array.isArray(parsedJson.scopes)) {
+        console.log('🎯 [V4.1 MULTI-SCOPE] Found', parsedJson.scopes.length, 'scopes');
+        console.log('📊 [PRICING_JSON] Block Detected - V4.1 Multi-Scope Format');
+        
+        // Extract discount from V4.1 format
+        const discount = parsedJson.discount || 0;
+        console.log(`🎁 Discount extracted from V4.1: ${discount}%`);
+        
+        // Log scope details
+        parsedJson.scopes.forEach((scope: any, index: number) => {
+          console.log(`  📋 Scope ${index + 1}: ${scope.scope_name}`);
+          console.log(`    Description: ${scope.scope_description?.substring(0, 100)}...`);
+          console.log(`    Roles: ${scope.role_allocation?.length || 0}`);
+          console.log(`    Deliverables: ${scope.deliverables?.length || 0}`);
+        });
+        
+        // Transform all role allocations to suggestedRoles format for backward compatibility
+        const allRoles: any[] = [];
+        parsedJson.scopes.forEach((scope: any) => {
+          if (scope.role_allocation && Array.isArray(scope.role_allocation)) {
+            scope.role_allocation.forEach((role: any) => {
+              allRoles.push({
+                role: role.role,
+                hours: role.hours || 0,
+                rate: role.rate || 0,
+                cost: role.cost || (role.hours * role.rate)
+              });
+            });
+          }
+        });
+        
+        return {
+          roles: allRoles,
+          discount,
+          multiScopeData: {
+            scopes: parsedJson.scopes,
+            discount
+          }
+        };
+      }
       
       // Check for role_allocation array (The Architect v3.1 format)
       if (parsedJson.role_allocation && Array.isArray(parsedJson.role_allocation)) {
@@ -192,6 +248,77 @@ const extractFinancialReasoning = (content: string): string | null => {
     return reasoning;
   }
   return null;
+};
+
+// 🎯 V4.1 → Backend Schema: Transform Multi-Scope Data for PDF Generation
+const transformScopesToPDFFormat = (multiScopeData: {
+  scopes: Array<{
+    scope_name: string;
+    scope_description: string;
+    deliverables: string[];
+    assumptions: string[];
+    role_allocation: Array<{ role: string; hours: number; rate?: number; cost?: number }>;
+  }>;
+  discount: number;
+  projectTitle?: string;
+}): {
+  projectTitle: string;
+  scopes: Array<{
+    id: number;
+    title: string;
+    description: string;
+    items: Array<{
+      description: string;
+      role: string;
+      hours: number;
+      cost: number;
+    }>;
+    deliverables: string[];
+    assumptions: string[];
+  }>;
+  discount: number;
+  clientName?: string;
+  company?: string;
+} => {
+  console.log('🔄 [PDF Export] Transforming V4.1 multi-scope data to backend format...');
+  
+  const transformedScopes = multiScopeData.scopes.map((scope, index) => {
+    // Get rates for roles
+    const items = scope.role_allocation.map((roleItem) => {
+      const rate = roleItem.rate || 0;
+      const hours = roleItem.hours || 0;
+      const cost = roleItem.cost || (rate * hours);
+      
+      return {
+        description: roleItem.role, // Use role name as description (required field)
+        role: roleItem.role,
+        hours: hours,
+        cost: cost
+      };
+    });
+    
+    return {
+      id: index + 1, // Required: Unique integer ID for each scope
+      title: scope.scope_name,
+      description: scope.scope_description,
+      items: items,
+      deliverables: scope.deliverables || [],
+      assumptions: scope.assumptions || [] // Required: assumptions array
+    };
+  });
+  
+  console.log(`✅ [PDF Export] Transformed ${transformedScopes.length} scopes for backend`);
+  transformedScopes.forEach((scope, index) => {
+    console.log(`  📋 Scope ${index + 1}: ${scope.title} (${scope.items.length} items)`);
+  });
+  
+  return {
+    projectTitle: multiScopeData.projectTitle || 'SOW',
+    scopes: transformedScopes,
+    discount: multiScopeData.discount || 0,
+    clientName: undefined,
+    company: 'Social Garden'
+  };
 };
 
 // Helper function to convert markdown to Novel editor JSON format
@@ -1019,6 +1146,20 @@ export default function Page() {
   // 🛡️ CRITICAL FIX: Guard flag to prevent race condition on chat history restoration
   const [isHistoryRestored, setIsHistoryRestored] = useState(false);
 
+  // 🎯 V4.1 Multi-Scope Pricing Data State
+  const [multiScopePricingData, setMultiScopePricingData] = useState<{
+    scopes: Array<{
+      scope_name: string;
+      scope_description: string;
+      deliverables: string[];
+      assumptions: string[];
+      role_allocation: Array<{ role: string; hours: number; rate?: number; cost?: number }>;
+    }>;
+    discount: number;
+    projectTitle?: string;
+    extractedAt: number;
+  } | null>(null);
+
   // Initialize master dashboard on app load
   useEffect(() => {
     const initDashboard = async () => {
@@ -1631,10 +1772,11 @@ Ask me questions to get business insights, such as:
             syncedAt: new Date().toISOString(),
           };
           
-          // 📊 Embed SOW in BOTH client workspace AND master dashboard
-          console.log(`📊 Embedding new SOW in both workspaces: ${workspaceSlug}`);
+          // 📊 Embed SOW in master 'gen' workspace and master dashboard
+          console.log(`📊 Embedding new SOW in master workspaces`);
           const sowContent = JSON.stringify(defaultEditorContent);
-          await anythingLLM.embedSOWInBothWorkspaces(workspaceSlug, title, sowContent);
+          const clientContext = parentFolder?.name || 'unknown';
+          await anythingLLM.embedSOWInBothWorkspaces(title, sowContent, clientContext);
           
           toast.success(`✅ SOW created with chat thread in ${parentFolder?.name || 'workspace'}`);
         } else {
@@ -1871,7 +2013,7 @@ Ask me questions to get business insights, such as:
   // ==================== WORKSPACE & SOW HANDLERS (NEW) ====================
   const handleCreateWorkspace = async (workspaceName: string, workspaceType: "sow" | "client" | "generic" = "sow") => {
     try {
-      console.log('📁 Creating workspace:', workspaceName);
+      console.log('📁 Creating workspace folder:', workspaceName);
       
       // 📊 SHOW PROGRESS MODAL
       setWorkspaceCreationProgress({
@@ -1881,46 +2023,11 @@ Ask me questions to get business insights, such as:
         completedSteps: [],
       });
       
-      // 🏢 STEP 1: Create AnythingLLM workspace FIRST
-      console.log('🏢 Creating AnythingLLM workspace...');
+      // 🏢 STEP 1: Get/ensure master 'gen' workspace exists
+      console.log('🏢 Getting/ensuring master SOW generation workspace...');
       const workspace = await anythingLLM.createOrGetClientWorkspace(workspaceName);
       const embedId = await anythingLLM.getOrCreateEmbedId(workspace.slug);
-      console.log('✅ AnythingLLM workspace created:', workspace.slug);
-      
-      // 🎯 STEP 1.5: Create client-facing workspace for portal chat
-      console.log('🔥🔥🔥 [NEW CODE] About to create client-facing workspace for portal...');
-      try {
-        console.log('🎯 Creating client-facing workspace for portal...');
-        const clientWorkspace = await anythingLLM.createOrGetClientFacingWorkspace(workspaceName);
-        console.log(`✅✅✅ [SUCCESS] Client-facing workspace created: ${clientWorkspace.slug} (embed: ${clientWorkspace.embedId})`);
-      } catch (clientError) {
-        console.error('❌❌❌ [FAILED] Could not create client-facing workspace:', clientError);
-      }
-      
-      // 🧠 STEP 1b: Configure workspace with The Architect system prompt (SOW type only)
-      if (workspaceType === "sow") {
-        console.log('🧠 Configuring SOW workspace with The Architect system prompt...');
-        
-        // 🎯 STRATEGIC: Log prompt injection for verification
-        console.log(`🎯 [PROMPT INJECTION] Injecting master prompt into new workspace: "${workspaceName}"`);
-        console.log(`   Workspace slug: ${workspace.slug}`);
-        console.log(`   Workspace type: ${workspaceType}`);
-        
-        try {
-          // Use AnythingLLM service method to avoid client env/key exposure
-          const configured = await anythingLLM.setWorkspacePrompt(workspace.slug, workspaceName, true);
-          if (!configured) {
-            console.warn('⚠️ Failed to configure workspace system prompt via service');
-          } else {
-            console.log('✅ [PROMPT INJECTION SUCCESS] Workspace configured with The Architect system prompt');
-            console.log(`   This workspace will now use the battle-tested prompt with mandatory rules`);
-          }
-        } catch (error) {
-          console.error('⚠️ Error configuring workspace:', error);
-        }
-      } else {
-        console.log(`✅ Workspace created as ${workspaceType} type (no custom prompt applied)`);
-      }
+      console.log('✅ Master SOW workspace ready:', workspace.slug);
       
       // Mark step 1 complete
       setWorkspaceCreationProgress(prev => ({
@@ -1929,14 +2036,14 @@ Ask me questions to get business insights, such as:
         currentStep: 1,
       }));
       
-      // 💾 STEP 2: Save folder to DATABASE with workspace info
-      console.log('💾 Saving folder to database with AnythingLLM mapping...');
+      // 💾 STEP 2: Save folder to DATABASE (no workspace creation - using master 'gen')
+      console.log('💾 Saving folder to database...');
       const folderResponse = await fetch('/api/folders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           name: workspaceName,
-          workspaceSlug: workspace.slug,
+          workspaceSlug: workspace.slug, // Always 'gen' now
           workspaceId: workspace.id,
           embedId: embedId,
         }),
@@ -1958,11 +2065,11 @@ Ask me questions to get business insights, such as:
         currentStep: 2,
       }));
 
-      // Create folder in local state with AnythingLLM mapping
+      // Create folder in local state
       const newFolder: Folder = {
         id: folderId,
         name: workspaceName,
-        workspaceSlug: workspace.slug,
+        workspaceSlug: workspace.slug, // Always 'gen'
         workspaceId: workspace.id,
         embedId: embedId,
         syncedAt: new Date().toISOString(),
@@ -1972,14 +2079,14 @@ Ask me questions to get business insights, such as:
       
       // Create workspace in local state
       const newWorkspace: Workspace = {
-        id: folderId, // Use database folder ID
+        id: folderId,
         name: workspaceName,
         sows: [],
-        workspace_slug: workspace.slug  // Add workspace slug here!
+        workspace_slug: workspace.slug
       };
       
-      // IMMEDIATELY CREATE A BLANK SOW (NO MODAL, NO USER INPUT)
-      const sowTitle = `New SOW for ${workspaceName}`; // Auto-generated title
+      // IMMEDIATELY CREATE A BLANK SOW
+      const sowTitle = `New SOW for ${workspaceName}`;
       
       // Save SOW to database with folder ID
       console.log('📄 Creating SOW in database');
@@ -1992,7 +2099,7 @@ Ask me questions to get business insights, such as:
           clientName: workspaceName,
           clientEmail: '',
           totalInvestment: 0,
-          folderId: folderId, // Associate with folder
+          folderId: folderId,
         }),
       });
 
@@ -2004,22 +2111,20 @@ Ask me questions to get business insights, such as:
       const sowId = sowData.id || sowData.sowId;
       console.log('✅ SOW created with ID:', sowId);
 
-      // 🧵 STEP 3: Create AnythingLLM thread for this SOW
-      console.log('🧵 Creating AnythingLLM thread...');
-      // Don't pass thread name - AnythingLLM auto-names based on first chat message
+      // 🧵 STEP 3: Create AnythingLLM thread in master 'gen' workspace
+      console.log('🧵 Creating thread in master workspace...');
       const thread = await anythingLLM.createThread(workspace.slug);
-      console.log('✅ AnythingLLM thread created:', thread.slug, '(will auto-name on first message)');
+      console.log('✅ Thread created:', thread.slug);
       
-      // 🧵 UPDATE SOW WITH THREAD SLUG
+      // Update SOW with thread info
       await fetch(`/api/sow/${sowId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           threadSlug: thread.slug,
-          workspaceSlug: workspace.slug,
+          workspaceSlug: workspace.slug, // 'gen'
         }),
       });
-      console.log(`✅ SOW ${sowId} updated with thread ${thread.slug} and workspace ${workspace.slug}`);
       
       // Mark step 3 complete
       setWorkspaceCreationProgress(prev => ({
@@ -2028,11 +2133,11 @@ Ask me questions to get business insights, such as:
         currentStep: 3,
       }));
 
-      // 📊 STEP 4: Embed SOW in BOTH client workspace AND master dashboard
-      console.log('📊 Embedding SOW in both workspaces...');
+      // 📊 STEP 4: Embed SOW in master 'gen' workspace and master dashboard
+      console.log('📊 Embedding SOW in master workspaces...');
       const sowContent = JSON.stringify(defaultEditorContent);
-      await anythingLLM.embedSOWInBothWorkspaces(workspace.slug, sowTitle, sowContent);
-      console.log('✅ SOW embedded in both workspaces');
+      await anythingLLM.embedSOWInBothWorkspaces(sowTitle, sowContent, workspaceName);
+      console.log('✅ SOW embedded in master workspaces');
       
       // Mark all steps complete
       setWorkspaceCreationProgress(prev => ({
@@ -2051,50 +2156,40 @@ Ask me questions to get business insights, such as:
       // Update workspace with the SOW
       newWorkspace.sows = [newSOW];
 
-      // Update state - INSERT AT TOP (index 0) so newest appears first
+      // Update state
       setWorkspaces(prev => [newWorkspace, ...prev]);
       setCurrentWorkspaceId(folderId);
       setCurrentSOWId(sowId);
-      
-      // AUTOMATICALLY SWITCH TO EDITOR VIEW
       setViewMode('editor');
       
-      // Add document to local state with AnythingLLM mapping
+      // Add document to local state
       const newDoc: Document = {
         id: sowId,
         title: sowTitle,
         content: defaultEditorContent,
         folderId: folderId,
-        workspaceSlug: workspace.slug,
+        workspaceSlug: workspace.slug, // 'gen'
         threadSlug: thread.slug,
         syncedAt: new Date().toISOString(),
       };
 
       setDocuments(prev => [...prev, newDoc]);
       setCurrentDocId(sowId);
-      
-      // Clear chat messages for clean state when switching to new workspace
       setChatMessages([]);
-      
-      toast.success(`✅ Workspace "${workspaceName}" created with AnythingLLM integration!`);
       
       toast.success(`✅ Created workspace "${workspaceName}" with blank SOW ready to edit!`);
       
-      // Close progress modal and auto-select the new SOW for editing
+      // Close progress modal and auto-select the new SOW
       setTimeout(() => {
         setWorkspaceCreationProgress(prev => ({
           ...prev,
           isOpen: false,
         }));
-        
-        // Auto-select the newly created SOW in the editor
         handleSelectDoc(sowId);
       }, 500);
     } catch (error) {
       console.error('❌ Error creating workspace:', error);
       toast.error('Failed to create workspace. Please try again.');
-      
-      // Close progress modal on error
       setWorkspaceCreationProgress(prev => ({
         ...prev,
         isOpen: false,
@@ -2606,20 +2701,67 @@ Ask me questions to get business insights, such as:
     toast.info('📄 Preparing professional PDF...');
     
     try {
+      // Get current editor content
       const editorJSON = editorRef.current?.getContent?.() || latestEditorJSON || currentDoc.content;
-      const sowData = prepareSOWForNewPDF({
-        ...currentDoc,
-        content: editorJSON,
-      });
+      console.log('📝 [PDF Export] Editor JSON:', editorJSON);
       
-      if (!sowData) {
-        toast.error('❌ Unable to generate PDF from current document');
-        return;
-      }
+      // 🎯 Check for multi-scope data in state
+      if (multiScopePricingData && multiScopePricingData.scopes && multiScopePricingData.scopes.length > 0) {
+        console.log(`✅ [PDF Export] Found multi-scope data: ${multiScopePricingData.scopes.length} scopes`);
+        console.log('✅ [PDF Export] Using multi-scope professional format');
+        
+        // Transform V4.1 multi-scope data to backend format
+        const transformedData = transformScopesToPDFFormat(multiScopePricingData);
+        console.log('✅ [PDF Export] Transformed multi-scope data for backend');
+        
+        // Call the new professional PDF API route
+        const response = await fetch('/api/generate-professional-pdf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(transformedData)
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ Professional PDF service error:', errorText);
+          toast.error(`❌ Professional PDF service error: ${response.status}`);
+          return;
+        }
+        
+        // Download the PDF
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const filename = currentDoc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        a.download = `${filename}-Professional.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast.success('✅ Professional PDF downloaded successfully!');
+        
+      } else {
+        console.log('📄 [PDF Export] Using standard HTML conversion (no multi-scope data)');
+        
+        // Fallback to standard PDF export
+        const sowData = prepareSOWForNewPDF({
+          ...currentDoc,
+          content: editorJSON,
+        });
+        
+        if (!sowData) {
+          toast.error('❌ Unable to generate PDF from current document');
+          return;
+        }
 
-      setNewPDFData(sowData);
-      setShowNewPDFModal(true);
-      toast.success('✅ PDF ready! Click to download.');
+        setNewPDFData(sowData);
+        setShowNewPDFModal(true);
+        toast.success('✅ PDF ready! Click to download.');
+      }
       
     } catch (error) {
       console.error('Error preparing new PDF:', error);
@@ -3281,6 +3423,15 @@ Ask me questions to get business insights, such as:
           const jm = filteredContent.match(/```json\s*[\s\S]*?\s*```/i);
           if (jm) markdownPart = filteredContent.replace(jm[0], '').trim();
           console.log(`✅ Using ${suggestedRoles.length} roles from [PRICING_JSON] (single-block)`);
+          
+          // 🎯 V4.1 Multi-Scope Data Storage
+          if (single.multiScopeData && single.multiScopeData.scopes) {
+            console.log(`✅ Storing V4.1 multi-scope data: ${single.multiScopeData.scopes.length} scopes`);
+            setMultiScopePricingData({
+              ...single.multiScopeData,
+              extractedAt: Date.now()
+            });
+          }
         } else {
           // Legacy: attempt to parse first JSON block for roles/scopeItems
           const legacyMatch = filteredContent.match(/```json\s*([\s\S]*?)\s*```/);
@@ -3488,24 +3639,16 @@ Ask me questions to get business insights, such as:
             
           console.log(`🏢 Using client name: ${clientName} (from ${clientNameMatch ? 'title' : 'workspace'})`);
           
-          // ALWAYS create client-specific workspace (FOR GENERATION)
+          // ARCHITECTURAL SIMPLIFICATION: Use master 'gen' workspace for all SOW generation
           try {
-            const clientWorkspace = await anythingLLM.createOrGetClientWorkspace(clientName);
-            clientWorkspaceSlug = clientWorkspace.slug;
-            console.log(`✅ Using client-specific workspace: ${clientWorkspaceSlug}`);
-            
-            // ALWAYS create client-facing workspace (FOR PORTAL CHAT)
-            try {
-              const clientFacingWorkspace = await anythingLLM.createOrGetClientFacingWorkspace(clientName);
-              console.log(`✅ Created client-facing workspace: ${clientFacingWorkspace.slug} (embed: ${clientFacingWorkspace.embedId})`);
-            } catch (clientError) {
-              console.warn(`⚠️ Could not create client-facing workspace:`, clientError);
-            }
+            const masterWorkspace = await anythingLLM.createOrGetClientWorkspace(clientName);
+            clientWorkspaceSlug = masterWorkspace.slug;
+            console.log(`✅ Using master SOW generation workspace: ${clientWorkspaceSlug}`);
           } catch (wsError) {
-            console.warn(`⚠️ Could not create client workspace, using default: ${clientWorkspaceSlug}`, wsError);
+            console.warn(`⚠️ Could not access master workspace`, wsError);
           }
           
-          const success = await anythingLLM.embedSOWInBothWorkspaces(clientWorkspaceSlug, docTitle, cleanedContent);
+          const success = await anythingLLM.embedSOWInBothWorkspaces(docTitle, cleanedContent, clientName);
           
           if (success) {
             console.log('✅ SOW embedded in both workspaces successfully');
@@ -3640,6 +3783,16 @@ Ask me questions to get business insights, such as:
                   suggestedRoles = pricingJsonData.roles;
                   extractedDiscount = pricingJsonData.discount;
                   hasValidSuggestedRoles = true;
+                  
+                  // 🎯 V4.1 Multi-Scope Data Storage
+                  if (pricingJsonData.multiScopeData && pricingJsonData.multiScopeData.scopes) {
+                    console.log(`✅ Storing V4.1 multi-scope data: ${pricingJsonData.multiScopeData.scopes.length} scopes`);
+                    setMultiScopePricingData({
+                      ...pricingJsonData.multiScopeData,
+                      extractedAt: Date.now()
+                    });
+                  }
+                  
                   if (legacyMatch) markdownPart = markdownPart.replace(legacyMatch[0], '').trim();
                   console.log(`✅ Using ${suggestedRoles.length} roles from [PRICING_JSON] (insert command)`);
                 } else if (legacyMatch && legacyMatch[1]) {
@@ -3790,14 +3943,14 @@ Ask me questions to get business insights, such as:
             }
           }
           
-          // 9. Embed SOW in both client workspace and master dashboard
+          // 9. Embed SOW in master 'gen' workspace and master dashboard
           const currentAgent = agents.find(a => a.id === currentAgentId);
           if (currentAgent?.model === 'anythingllm' && currentAgentId) {
-            console.log('🤖 Embedding SOW in AnythingLLM workspaces...');
+            console.log('🤖 Embedding SOW in master AnythingLLM workspaces...');
             try {
-              const clientWorkspaceSlug = getWorkspaceForAgent(currentAgentId);
-              await anythingLLM.embedSOWInBothWorkspaces(clientWorkspaceSlug, docTitle, cleanedMessage);
-              console.log('✅ SOW embedded in both AnythingLLM workspaces');
+              const clientContext = getWorkspaceForAgent(currentAgentId) || 'unknown';
+              await anythingLLM.embedSOWInBothWorkspaces(docTitle, cleanedMessage, clientContext);
+              console.log('✅ SOW embedded in master AnythingLLM workspaces');
             } catch (embedError) {
               console.error('⚠️ AnythingLLM embedding error:', embedError);
             }
@@ -4348,11 +4501,12 @@ Ask me questions to get business insights, such as:
                         return;
                       }
 
-                      // Embed to AnythingLLM (both client and master workspaces)
+                      // Embed to master 'gen' workspace and master dashboard
+                      const clientContext = currentFolder?.name || 'unknown';
                       await anythingLLM.embedSOWInBothWorkspaces(
-                        currentFolder.workspaceSlug,
                         currentDoc.title,
-                        htmlContent
+                        htmlContent,
+                        clientContext
                       );
 
                       // 2. Generate portal URL

@@ -2,7 +2,7 @@
 // Handles workspace creation, document embedding, and chat integration
 
 import SOCIAL_GARDEN_KNOWLEDGE_BASE from './social-garden-knowledge-base';
-import { THE_ARCHITECT_V2_PROMPT } from './knowledge-base';
+import { THE_ARCHITECT_V4_PROMPT } from './knowledge-base';
 import { ROLES } from './rateCard';
 
 // Get AnythingLLM URL from environment (NEXT_PUBLIC_ANYTHINGLLM_URL must be set in .env)
@@ -106,73 +106,68 @@ export class AnythingLLMService {
   }
 
   /**
-   * Create or get workspace for a client (GENERATION workspace)
-   * One workspace per client (recommended approach)
+   * Get or create the master SOW generation workspace
+   * Single workspace for ALL SOW generation - the 'gen' factory
+   * This is the ARCHITECTURAL SIMPLIFICATION: one workspace to rule them all
    */
   async createOrGetClientWorkspace(clientName: string): Promise<{id: string, slug: string}> {
-    const slug = clientName
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim();
+    const masterSlug = 'gen';
+    const masterName = 'SOW Generation Factory';
 
     try {
-      // Check if workspace exists
+      // Check if master 'gen' workspace exists
       const workspaces = await this.listWorkspaces();
-      const existing = workspaces.find((w: any) => w.slug === slug);
+      const existing = workspaces.find((w: any) => w.slug === masterSlug);
       
       if (existing) {
-        console.log(`✅ Using existing workspace: ${slug}`);
+        console.log(`✅ Using existing master SOW generation workspace: ${masterSlug}`);
+        console.log(`   (Client context: ${clientName})`);
         // Ensure the correct Architect prompt is applied (idempotent refresh)
         await this.setWorkspacePrompt(existing.slug, clientName, true);
         // Strict requirement: rate card must be present for RAG
         const rateOk = await this.embedRateCardDocument(existing.slug);
         if (!rateOk) {
-          throw new Error('Rate card embedding failed for existing workspace');
+          throw new Error('Rate card embedding failed for master workspace');
         }
         return { id: existing.id, slug: existing.slug };
       }
 
-      // Create new workspace
-      console.log(`🆕 Creating new workspace: ${slug}`);
+      // Create master 'gen' workspace
+      console.log(`🆕 Creating master SOW generation workspace: ${masterSlug}`);
       const response = await fetch(`${this.baseUrl}/api/v1/workspace/new`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
-          name: clientName,
+          name: masterName,
+          slug: masterSlug,
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to create workspace: ${response.statusText} - ${errorText}`);
+        throw new Error(`Failed to create master workspace: ${response.statusText} - ${errorText}`);
       }
 
       const data: WorkspaceResponse = await response.json();
-      console.log(`✅ Workspace created: ${data.workspace.slug}`);
+      console.log(`✅ Master SOW generation workspace created: ${data.workspace.slug}`);
       
-      // � STEP 1: Set client-facing prompt for new workspace
-      await this.setWorkspacePrompt(data.workspace.slug, clientName);
+      // Set the Architect prompt for the master workspace
+      await this.setWorkspacePrompt(data.workspace.slug, clientName, true);
       
-      // 📚 STEP 1b: Strictly embed the official Social Garden rate card as knowledge base (required)
+      // Embed the official Social Garden rate card as knowledge base (RAG)
       const rateOk = await this.embedRateCardDocument(data.workspace.slug);
       if (!rateOk) {
-        throw new Error('Rate card embedding failed for new workspace');
+        throw new Error('Rate card embedding failed for master workspace');
       }
       
-      // 🧵 STEP 2: Create a default thread (no user naming required)
-      // Thread will auto-name based on first message (AnythingLLM behavior)
-      console.log(`🧵 Creating default thread for workspace...`);
+      // Create a default thread for general use
+      console.log(`🧵 Creating default thread for master workspace...`);
       await this.createThread(data.workspace.slug, undefined);
-      console.log(`✅ Default thread created - users can start chatting immediately`);
-      
-      // ⚠️ NOTE: Knowledge base embedding happens when first SOW is created,
-      // NOT at workspace creation time. This prevents embedding empty workspaces.
+      console.log(`✅ Default thread created in master workspace`);
       
       return { id: data.workspace.id, slug: data.workspace.slug };
     } catch (error) {
-      console.error('❌ Error creating workspace:', error);
+      console.error('❌ Error with master SOW workspace:', error);
       throw error;
     }
   }
@@ -637,22 +632,23 @@ Metadata:
    * This prompt is used in the embed widget on the client portal
    */
   async setWorkspacePrompt(workspaceSlug: string, clientName?: string, isSOWWorkspace: boolean = true): Promise<boolean> {
-    // For SOW workspaces: Use The Architect prompt with dynamically injected rate card
+    // For SOW workspaces: Use The Architect V4.1 prompt with embedded rate card
     // For other workspaces: Use client-facing prompt for Q&A
-    const prompt = isSOWWorkspace 
-      ? THE_ARCHITECT_V2_PROMPT
+    const prompt = isSOWWorkspace
+      ? THE_ARCHITECT_V4_PROMPT
       : this.getClientFacingPrompt(clientName);
 
-    // 🎯 STRATEGIC LOGGING: Prove prompt injection is working
+    // 🎯 STRATEGIC LOGGING: Prove V4.1 prompt injection is working
     console.log(`\n${'='.repeat(80)}`);
     console.log(`🎯 [PROMPT INJECTION VERIFICATION]`);
     console.log(`   Workspace: ${workspaceSlug}`);
     console.log(`   Client: ${clientName || 'N/A'}`);
-    console.log(`   Type: ${isSOWWorkspace ? 'SOW (The Architect)' : 'Client Q&A'}`);
+    console.log(`   Type: ${isSOWWorkspace ? 'SOW (The Architect V4.1)' : 'Client Q&A'}`);
     console.log(`   Prompt Length: ${prompt.length} characters`);
+    console.log(`   Contains "v4.1 - Self-Contained Multi-Scope": ${prompt.includes('v4.1 - Self-Contained Multi-Scope')}`);
+    console.log(`   Contains "[FINANCIAL_REASONING]": ${prompt.includes('[FINANCIAL_REASONING]')}`);
+    console.log(`   Contains "[OFFICIAL_RATE_CARD]": ${prompt.includes('[OFFICIAL_RATE_CARD]')}`);
     console.log(`   Contains "Tech - Head Of - Senior Project Management": ${prompt.includes('Tech - Head Of - Senior Project Management')}`);
-    console.log(`   Contains "EXACTLY 5 hours": ${prompt.includes('EXACTLY 5 hours')}`);
-    console.log(`   Contains "non-negotiable": ${prompt.includes('non-negotiable')}`);
     console.log(`${'='.repeat(80)}\n`);
 
     try {
@@ -1228,74 +1224,56 @@ When asked for analytics, provide clear, actionable insights with specific numbe
   }
 
   /**
-   * Embed a newly created SOW in BOTH client workspace AND master dashboard
-   * This ensures SOWs are tracked in the master dashboard for analytics
-   * @param clientWorkspaceSlug - The client's workspace slug
+   * Embed a newly created SOW in the master 'gen' workspace and master dashboard
+   * ARCHITECTURAL SIMPLIFICATION: All SOWs go to 'gen' workspace for RAG context
    * @param sowTitle - The title of the SOW
    * @param sowContent - The markdown content of the SOW
+   * @param clientContext - Optional client context for analytics tagging
    */
   async embedSOWInBothWorkspaces(
-    clientWorkspaceSlug: string,
     sowTitle: string,
-    sowContent: string
+    sowContent: string,
+    clientContext?: string
   ): Promise<boolean> {
     try {
-      console.log(`📊 Embedding SOW in all workspaces...`);
-      console.log(`   📁 Client workspace (gen): ${clientWorkspaceSlug}`);
-      console.log(`   📁 Client workspace (portal): ${clientWorkspaceSlug}-client`);
-      console.log(`   📈 Master dashboard: sow-master-dashboard`);
-
-      // Step 1: Embed in client GENERATION workspace
-      const clientEmbed = await this.embedSOWDocument(clientWorkspaceSlug, sowTitle, sowContent);
+      const masterWorkspaceSlug = 'gen';
+      const masterDashboardSlug = await this.getOrCreateMasterDashboard();
       
-      if (!clientEmbed) {
-        console.warn(`⚠️ Failed to embed SOW in client workspace: ${clientWorkspaceSlug}`);
+      console.log(`📊 Embedding SOW in workspaces...`);
+      console.log(`   📁 Master generation workspace: ${masterWorkspaceSlug}`);
+      console.log(`   � Master dashboard: ${masterDashboardSlug}`);
+      if (clientContext) {
+        console.log(`   👤 Client context: ${clientContext}`);
+      }
+
+      // Step 1: Embed in master GENERATION workspace (RAG context)
+      const masterEmbed = await this.embedSOWDocument(masterWorkspaceSlug, sowTitle, sowContent);
+      
+      if (!masterEmbed) {
+        console.warn(`⚠️ Failed to embed SOW in master generation workspace: ${masterWorkspaceSlug}`);
         return false;
       }
       
-      console.log(`✅ SOW embedded in client workspace: ${clientWorkspaceSlug}`);
+      console.log(`✅ SOW embedded in master generation workspace: ${masterWorkspaceSlug}`);
 
-      // Step 2: Ensure client PORTAL workspace exists, then embed
-      const clientPortalSlug = `${clientWorkspaceSlug}-client`;
+      // Step 2: Embed in master dashboard for analytics (use client context if provided)
+      const dashboardTitle = clientContext 
+        ? `[${clientContext.toUpperCase()}] ${sowTitle}`
+        : sowTitle;
       
-      // Create/get portal workspace (safe to call multiple times - it checks if exists)
-      try {
-        // Extract client name from workspace slug (format: "client-name" or "client-name-gen")
-        const clientName = clientWorkspaceSlug.replace(/-gen$/, '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        console.log(`📝 Ensuring client portal workspace exists: ${clientPortalSlug} for client: ${clientName}`);
-        await this.createOrGetClientFacingWorkspace(clientName);
-        console.log(`✅ Client portal workspace ready: ${clientPortalSlug}`);
-      } catch (error) {
-        console.warn(`⚠️ Could not ensure portal workspace exists:`, error);
-        // Continue anyway - embedding will fail gracefully if workspace doesn't exist
-      }
-      
-      const portalEmbed = await this.embedSOWDocument(clientPortalSlug, sowTitle, sowContent);
-      
-      if (!portalEmbed) {
-        console.warn(`⚠️ Failed to embed SOW in portal workspace: ${clientPortalSlug}`);
-        // Don't fail - portal workspace might not exist for old SOWs
-      } else {
-        console.log(`✅ SOW embedded in portal workspace: ${clientPortalSlug}`);
-      }
-
-      // Step 3: Ensure master dashboard exists
-      const masterDashboardSlug = await this.getOrCreateMasterDashboard();
-      
-      // Step 4: Embed in master dashboard
-      const masterEmbed = await this.embedSOWDocument(
+      const dashboardEmbed = await this.embedSOWDocument(
         masterDashboardSlug,
-        `[${clientWorkspaceSlug.toUpperCase()}] ${sowTitle}`,
+        dashboardTitle,
         sowContent
       );
       
-      if (!masterEmbed) {
-        console.warn(`❌ Failed to embed SOW in master dashboard`);
+      if (!dashboardEmbed) {
+        console.warn(`⚠️ Failed to embed SOW in master dashboard`);
         return false;
       }
       
       console.log(`✅ SOW embedded in master dashboard for analytics`);
-      console.log(`✅✅✅ SOW successfully embedded in ALL workspaces!`);
+      console.log(`✅✅✅ SOW successfully embedded in all required workspaces!`);
       
       return true;
     } catch (error) {
@@ -1305,58 +1283,55 @@ When asked for analytics, provide clear, actionable insights with specific numbe
   }
 
   /**
-   * Sync an UPDATED SOW to BOTH client workspace and master dashboard.
+   * Sync an UPDATED SOW in the master 'gen' workspace and master dashboard.
    * This will re-embed the provided content with versioned metadata to ensure
-   * analytics and search remain consistent across locations.
+   * analytics and search remain consistent.
+   * @param sowTitle - The title of the SOW
+   * @param sowContent - The markdown content of the SOW
+   * @param clientContext - Optional client context for analytics tagging
+   * @param metadata - Optional metadata
    */
   async syncUpdatedSOWInBothWorkspaces(
-    clientWorkspaceSlug: string,
     sowTitle: string,
     sowContent: string,
+    clientContext?: string,
     metadata: Record<string, any> = {}
   ): Promise<boolean> {
     try {
+      const masterWorkspaceSlug = 'gen';
+      const masterDashboardSlug = await this.getOrCreateMasterDashboard();
+      
       const versionedMeta = {
         ...metadata,
-        clientWorkspace: clientWorkspaceSlug,
+        clientContext: clientContext || 'unknown',
         version: metadata.version || new Date().toISOString(),
         status: 'current',
       };
 
-      // Client GENERATION workspace
-      const clientOk = await this.embedSOWDocument(
-        clientWorkspaceSlug,
-        sowTitle,
-        sowContent,
-        versionedMeta
-      );
-      if (!clientOk) return false;
-
-      // Client PORTAL workspace (for client chat)
-      const clientPortalSlug = `${clientWorkspaceSlug}-client`;
-      const portalOk = await this.embedSOWDocument(
-        clientPortalSlug,
-        sowTitle,
-        sowContent,
-        versionedMeta
-      );
-      if (!portalOk) {
-        console.warn(`⚠️ Failed to sync SOW in portal workspace: ${clientPortalSlug}`);
-        // Don't fail - portal workspace might not exist for old SOWs
-      }
-
-      // Master dashboard
-      const masterDashboardSlug = await this.getOrCreateMasterDashboard();
+      // Master GENERATION workspace (RAG context)
       const masterOk = await this.embedSOWDocument(
+        masterWorkspaceSlug,
+        sowTitle,
+        sowContent,
+        versionedMeta
+      );
+      if (!masterOk) return false;
+
+      // Master dashboard (for analytics)
+      const dashboardTitle = clientContext 
+        ? `[${clientContext.toUpperCase()}] ${sowTitle}`
+        : sowTitle;
+      
+      const dashboardOk = await this.embedSOWDocument(
         masterDashboardSlug,
-        `[${clientWorkspaceSlug.toUpperCase()}] ${sowTitle}`,
+        dashboardTitle,
         sowContent,
         versionedMeta
       );
 
-      return !!masterOk;
+      return !!dashboardOk;
     } catch (e) {
-      console.error('❌ Error syncing updated SOW in all workspaces:', e);
+      console.error('❌ Error syncing updated SOW in workspaces:', e);
       return false;
     }
   }

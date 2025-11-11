@@ -505,6 +505,28 @@ async def oauth_token(request: OAuthTokenRequest):
         print(f"ERROR exchanging token: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Failed to get access token: {str(e)}")
 
+class SOWItem(BaseModel):
+    description: str  # REQUIRED
+    role: str
+    hours: float
+    cost: float
+
+class SOWScope(BaseModel):
+    id: int  # REQUIRED
+    title: str
+    description: str
+    items: list[SOWItem]
+    deliverables: list[str]
+    assumptions: list[str]  # REQUIRED
+
+class ProfessionalPDFRequest(BaseModel):
+    projectTitle: str
+    scopes: list[SOWScope]
+    discount: float = 0
+    clientName: Optional[str] = None
+    company: Optional[str] = "Social Garden"
+    budgetNotes: Optional[str] = None
+
 class SheetRequestOAuth(BaseModel):
     client_name: str
     service_name: str
@@ -544,6 +566,92 @@ async def create_sheet_oauth(request: SheetRequestOAuth):
         error_detail = f"Sheet creation failed: {str(e)}\n{traceback.format_exc()}"
         print(error_detail)
         raise HTTPException(status_code=500, detail=f"Sheet creation failed: {str(e)}")
+
+@app.post("/generate-professional-pdf")
+async def generate_professional_pdf(request: ProfessionalPDFRequest):
+    """Generate professional multi-scope PDF using structured data"""
+    try:
+        print("=== DEBUG: Professional PDF Generation Request ===")
+        print(f"📄 Project Title: {request.projectTitle}")
+        print(f"📊 Scopes: {len(request.scopes)} scopes")
+        print(f"💰 Discount: {request.discount}%")
+        print(f"👤 Client: {request.clientName or 'N/A'}")
+        print(f"🏢 Company: {request.company}")
+        
+        # Load the professional multi-scope template
+        template_path = Path(__file__).parent / "multiscope_template.html"
+        if not template_path.exists():
+            raise HTTPException(status_code=500, detail="Multi-scope template not found")
+        
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+        
+        # Load and encode the Social Garden logo
+        logo_base64 = ""
+        logo_path = Path(__file__).parent / "social-garden-logo-dark-new.png"
+        if logo_path.exists():
+            with open(logo_path, "rb") as logo_file:
+                logo_base64 = base64.b64encode(logo_file.read()).decode('utf-8')
+            print(f"✅ Logo loaded successfully from {logo_path}")
+        else:
+            print(f"⚠️ Logo file not found at {logo_path}")
+        
+        # Render the template with Jinja2
+        template = Template(template_content)
+        
+        # Calculate totals
+        subtotal = sum(scope['cost'] for scope in [{'cost': sum(item.cost for item in scope.items)} for scope in request.scopes])
+        discount_amount = subtotal * (request.discount / 100)
+        subtotal_after_discount = subtotal - discount_amount
+        gst_amount = subtotal_after_discount * 0.10
+        total = subtotal_after_discount + gst_amount
+        
+        full_html = template.render(
+            projectTitle=request.projectTitle,
+            scopes=request.scopes,
+            discount=request.discount,
+            clientName=request.clientName,
+            company=request.company,
+            budgetNotes=request.budgetNotes,
+            logo_base64=logo_base64,
+            subtotal=subtotal,
+            discount_amount=discount_amount,
+            subtotal_after_discount=subtotal_after_discount,
+            gst_amount=gst_amount,
+            total=total
+        )
+        
+        # Generate PDF with WeasyPrint
+        html_doc = weasyprint.HTML(string=full_html)
+        
+        # Create output directory if it doesn't exist
+        output_dir = Path("/tmp/pdfs")
+        output_dir.mkdir(exist_ok=True)
+        
+        # Generate PDF
+        pdf_path = output_dir / f"{request.projectTitle.replace(' ', '-')}-Professional.pdf"
+        
+        # Write PDF to bytes then to file
+        pdf_bytes = html_doc.write_pdf()
+        
+        # Write to file
+        with open(pdf_path, 'wb') as f:
+            f.write(pdf_bytes)
+
+        print("✅ Professional multi-scope PDF generated successfully")
+        
+        # Return PDF file
+        return FileResponse(
+            pdf_path,
+            media_type='application/pdf',
+            filename=f"{request.projectTitle.replace(' ', '-')}-Professional.pdf"
+        )
+
+    except Exception as e:
+        import traceback
+        error_detail = f"Professional PDF generation failed: {str(e)}\n{traceback.format_exc()}"
+        print(error_detail)  # Log to console
+        raise HTTPException(status_code=500, detail=f"Professional PDF generation failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

@@ -7,9 +7,9 @@ export async function POST(request: NextRequest) {
   try {
     const { messages, workspaceSlug, workspace, threadSlug, mode = 'chat' } = await request.json();
     
-    // Use 'workspace' if provided, otherwise fall back to 'workspaceSlug'
-    // NO DEFAULT - if no workspace specified, return error
-    const effectiveWorkspaceSlug = workspace || workspaceSlug;
+    // ARCHITECTURAL SIMPLIFICATION: Default to master 'gen' workspace
+    // Single workspace for all SOW generation
+    const effectiveWorkspaceSlug = workspace || workspaceSlug || 'gen';
     
     console.log('🔍 [AnythingLLM API] Chat Debug:', {
       receivedWorkspace: workspace,
@@ -17,12 +17,14 @@ export async function POST(request: NextRequest) {
       effectiveWorkspaceSlug,
       threadSlug,
       mode,
-      isThreadChat: !!threadSlug
+      isThreadChat: !!threadSlug,
+      isUsingDefault: !workspace && !workspaceSlug
     });
     
+    // If no workspace specified, use the default 'gen' workspace
     if (!effectiveWorkspaceSlug) {
       return NextResponse.json(
-        { error: 'No workspace specified. Must provide workspace or workspaceSlug parameter.' },
+        { error: 'No workspace specified. Defaulting to master "gen" workspace.' },
         { status: 400 }
       );
     }
