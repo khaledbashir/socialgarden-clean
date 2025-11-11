@@ -526,6 +526,7 @@ class ProfessionalPDFRequest(BaseModel):
     clientName: Optional[str] = None
     company: Optional[str] = "Social Garden"
     budgetNotes: Optional[str] = None
+    authoritativeTotal: Optional[float] = None  # 🎯 AI-calculated authoritative total
 
 class SheetRequestOAuth(BaseModel):
     client_name: str
@@ -578,6 +579,19 @@ async def generate_professional_pdf(request: ProfessionalPDFRequest):
         print(f"👤 Client: {request.clientName or 'N/A'}")
         print(f"🏢 Company: {request.company}")
         
+        # DEBUG: Log scope details
+        for i, scope in enumerate(request.scopes):
+            print(f"  📋 Scope {i+1}: {scope.title} (ID: {scope.id})")
+            print(f"    📝 Description: {scope.description}")
+            print(f"    👥 Items: {len(scope.items)} items")
+            total_hours = sum(item.hours for item in scope.items)
+            total_cost = sum(item.cost for item in scope.items)
+            print(f"    ⏱️ Total Hours: {total_hours}")
+            print(f"    💵 Total Cost: ${total_cost:.2f}")
+            print(f"    📋 Deliverables: {len(scope.deliverables)} items")
+            print(f"    ⚠️ Assumptions: {len(scope.assumptions)} items")
+            print()
+        
         # Load the professional multi-scope template
         template_path = Path(__file__).parent / "multiscope_template.html"
         if not template_path.exists():
@@ -600,11 +614,24 @@ async def generate_professional_pdf(request: ProfessionalPDFRequest):
         template = Template(template_content)
         
         # Calculate totals
-        subtotal = sum(scope['cost'] for scope in [{'cost': sum(item.cost for item in scope.items)} for scope in request.scopes])
-        discount_amount = subtotal * (request.discount / 100)
-        subtotal_after_discount = subtotal - discount_amount
-        gst_amount = subtotal_after_discount * 0.10
-        total = subtotal_after_discount + gst_amount
+        calculated_subtotal = sum(sum(item.cost for item in scope.items) for scope in request.scopes)
+        
+        # 🎯 Use authoritative total if provided (from AI), otherwise use calculated
+        if request.authoritativeTotal is not None:
+            print(f"🎯 Using authoritative total from AI: ${request.authoritativeTotal:.2f}")
+            # Use authoritative total as final amount, scale other components proportionally
+            total = request.authoritativeTotal
+            gst_amount = total * (10/110)  # GST portion of total (10/110 = ~9.09%)
+            subtotal_after_discount = total * (100/110)  # Pre-GST portion (100/110 = ~90.91%)
+            discount_amount = calculated_subtotal - subtotal_after_discount
+            subtotal = calculated_subtotal  # Keep original calculated subtotal for display
+        else:
+            print(f"🧮 Using calculated totals: ${calculated_subtotal:.2f}")
+            subtotal = calculated_subtotal
+            discount_amount = subtotal * (request.discount / 100)
+            subtotal_after_discount = subtotal - discount_amount
+            gst_amount = subtotal_after_discount * 0.10
+            total = subtotal_after_discount + gst_amount
         
         full_html = template.render(
             projectTitle=request.projectTitle,

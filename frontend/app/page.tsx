@@ -128,6 +128,7 @@ const extractBudgetAndDiscount = (prompt: string): { budget: number; discount: n
 const extractPricingJSON = (content: string): {
   roles: any[];
   discount?: number;
+  authoritativeTotal?: number; // 🎯 AI-calculated authoritative total
   // NEW: Multi-scope support
   multiScopeData?: {
     scopes: Array<{
@@ -138,6 +139,7 @@ const extractPricingJSON = (content: string): {
       role_allocation: Array<{ role: string; hours: number; rate?: number; cost?: number }>;
     }>;
     discount: number;
+    authoritativeTotal?: number; // 🎯 AI-calculated authoritative total
   };
 } | null => {
   // Look for explicit [PRICING_JSON] or [PRICING/JSON] blocks, else fallback to first JSON code fence
@@ -279,8 +281,30 @@ const transformScopesToPDFFormat = (multiScopeData: {
   discount: number;
   clientName?: string;
   company?: string;
+  projectSubtitle?: string;
+  projectOverview?: string;
+  budgetNotes?: string;
+  currency?: string;
+  gstApplicable?: boolean;
+  generatedDate?: string;
+  authoritativeTotal?: number; // 🎯 AI-calculated authoritative total
 } => {
   console.log('🔄 [PDF Export] Transforming V4.1 multi-scope data to backend format...');
+  
+  // 🎯 DEDUPLICATION: Collect all assumptions across scopes and remove duplicates
+  const allAssumptions = new Set<string>();
+  multiScopeData.scopes.forEach(scope => {
+    (scope.assumptions || []).forEach(assumption => {
+      if (assumption && assumption.trim()) {
+        // Normalize assumption text for better deduplication
+        const normalized = assumption.trim().toLowerCase().replace(/\s+/g, ' ');
+        allAssumptions.add(normalized);
+      }
+    });
+  });
+  
+  const uniqueAssumptions = Array.from(allAssumptions);
+  console.log(`✅ [Deduplication] Found ${uniqueAssumptions.length} unique assumptions from ${multiScopeData.scopes.reduce((sum, scope) => sum + (scope.assumptions?.length || 0), 0)} total assumptions across ${multiScopeData.scopes.length} scopes`);
   
   const transformedScopes = multiScopeData.scopes.map((scope, index) => {
     // Get rates for roles
@@ -303,21 +327,28 @@ const transformScopesToPDFFormat = (multiScopeData: {
       description: scope.scope_description,
       items: items,
       deliverables: scope.deliverables || [],
-      assumptions: scope.assumptions || [] // Required: assumptions array
+      assumptions: uniqueAssumptions // Use deduplicated assumptions for all scopes
     };
   });
   
   console.log(`✅ [PDF Export] Transformed ${transformedScopes.length} scopes for backend`);
   transformedScopes.forEach((scope, index) => {
-    console.log(`  📋 Scope ${index + 1}: ${scope.title} (${scope.items.length} items)`);
+    console.log(`  📋 Scope ${index + 1}: ${scope.title} (${scope.items.length} items, ${uniqueAssumptions.length} shared assumptions)`);
   });
   
   return {
     projectTitle: multiScopeData.projectTitle || 'SOW',
     scopes: transformedScopes,
     discount: multiScopeData.discount || 0,
-    clientName: undefined,
-    company: 'Social Garden'
+    clientName: multiScopeData.clientName || undefined,
+    company: multiScopeData.company || { name: 'Social Garden' },
+    projectSubtitle: multiScopeData.projectSubtitle || '',
+    projectOverview: multiScopeData.projectOverview || '',
+    budgetNotes: multiScopeData.budgetNotes || '',
+    currency: multiScopeData.currency || 'AUD',
+    gstApplicable: multiScopeData.gstApplicable !== undefined ? multiScopeData.gstApplicable : true,
+    generatedDate: multiScopeData.generatedDate || new Date().toISOString(),
+    authoritativeTotal: multiScopeData.authoritativeTotal // 🎯 Pass AI-calculated authoritative total
   };
 };
 
@@ -1143,10 +1174,7 @@ export default function Page() {
   // Structured SOW from AI (Architect modular JSON)
   const [structuredSow, setStructuredSow] = useState<ArchitectSOW | null>(null);
   
-  // 🛡️ CRITICAL FIX: Guard flag to prevent race condition on chat history restoration
-  const [isHistoryRestored, setIsHistoryRestored] = useState(false);
-
-  // 🎯 V4.1 Multi-Scope Pricing Data State
+  // 🎯 V4.1 Multi-Scope Pricing Data from AI
   const [multiScopePricingData, setMultiScopePricingData] = useState<{
     scopes: Array<{
       scope_name: string;
@@ -1156,8 +1184,8 @@ export default function Page() {
       role_allocation: Array<{ role: string; hours: number; rate?: number; cost?: number }>;
     }>;
     discount: number;
-    projectTitle?: string;
-    extractedAt: number;
+    extractedAt?: number;
+    authoritativeTotal?: number; // 🎯 AI-calculated authoritative total
   } | null>(null);
 
   // Initialize master dashboard on app load
@@ -1188,17 +1216,6 @@ Ask me questions to get business insights, such as:
 • "Which services were included in the RealEstateTT SOW?"
 • "How many SOWs did we create this month?"
 • "What's the breakdown of services across all clients?"
-
-**Important:** I can only analyze and query existing SOWs. I cannot create new SOWs. For SOW generation, use the Editor mode with The Architect agent.`,
-        timestamp: Date.now(),
-      };
-      setChatMessages([welcomeMessage]);
-    }
-  }, [viewMode, isHistoryRestored]);
-
-  // Check for OAuth callback on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
     const oauthToken = params.get('oauth_token');
     const error = params.get('oauth_error');
 
@@ -1222,23 +1239,6 @@ Ask me questions to get business insights, such as:
 
   // Auto-trigger sheet creation when BOTH OAuth token and document are ready
   useEffect(() => {
-    if (oauthAccessToken && isOAuthAuthorized && currentDocId && documents.length > 0) {
-      const doc = documents.find(d => d.id === currentDocId);
-      if (doc) {
-        console.log('🚀 Both OAuth token and document ready! Creating GSheet for:', doc.title);
-        createGoogleSheet(oauthAccessToken);
-        // Clear the OAuth state to prevent re-triggering
-        setIsOAuthAuthorized(false);
-      }
-    }
-  }, [oauthAccessToken, isOAuthAuthorized, currentDocId, documents]);
-
-  // Fetch available workspaces for dashboard chat selector from loaded workspaces
-  useEffect(() => {
-    // Build workspace list: Master dashboard + client workspaces (exclude generation/agent/system)
-    const GENERATION_SLUGS = new Set([
-      'gen-the-architect',
-      'property-marketing-pro',
       'ad-copy-machine',
       'crm-communication-specialist',
       'case-study-crafter',
