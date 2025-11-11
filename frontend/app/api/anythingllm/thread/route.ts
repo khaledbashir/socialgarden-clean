@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    // ARCHITECTURAL SIMPLIFICATION: Default to master 'gen' workspace
-    const workspace = (body?.workspace || '').toString() || 'gen';
+    // ARCHITECTURAL SIMPLIFICATION: Default to master 'gen-the-architect' workspace
+    const workspace = (body?.workspace || '').toString() || 'gen-the-architect';
     const name = body?.name ? String(body.name) : undefined;
     
     if (!workspace) {
@@ -93,8 +93,8 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    // ARCHITECTURAL SIMPLIFICATION: Default to master 'gen' workspace
-    const workspace = (searchParams.get('workspace') || '').toString() || 'gen';
+    // ARCHITECTURAL SIMPLIFICATION: Default to master 'gen-the-architect' workspace
+    const workspace = (searchParams.get('workspace') || '').toString() || 'gen-the-architect';
     const thread = (searchParams.get('thread') || '').toString();
     if (!workspace || !thread) {
       return NextResponse.json({ error: 'Missing query params: workspace and thread are required' }, { status: 400 });

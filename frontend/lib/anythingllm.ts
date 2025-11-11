@@ -111,11 +111,11 @@ export class AnythingLLMService {
    * This is the ARCHITECTURAL SIMPLIFICATION: one workspace to rule them all
    */
   async createOrGetClientWorkspace(clientName: string): Promise<{id: string, slug: string}> {
-    const masterSlug = 'gen';
+    const masterSlug = 'gen-the-architect';
     const masterName = 'SOW Generation Factory';
 
     try {
-      // Check if master 'gen' workspace exists
+      // Check if master 'gen-the-architect' workspace exists
       const workspaces = await this.listWorkspaces();
       const existing = workspaces.find((w: any) => w.slug === masterSlug);
       
@@ -132,7 +132,7 @@ export class AnythingLLMService {
         return { id: existing.id, slug: existing.slug };
       }
 
-      // Create master 'gen' workspace
+      // Create master 'gen-the-architect' workspace
       console.log(`🆕 Creating master SOW generation workspace: ${masterSlug}`);
       const response = await fetch(`${this.baseUrl}/api/v1/workspace/new`, {
         method: 'POST',
@@ -1236,7 +1236,7 @@ When asked for analytics, provide clear, actionable insights with specific numbe
     clientContext?: string
   ): Promise<boolean> {
     try {
-      const masterWorkspaceSlug = 'gen';
+      const masterWorkspaceSlug = 'gen-the-architect';
       const masterDashboardSlug = await this.getOrCreateMasterDashboard();
       
       console.log(`📊 Embedding SOW in workspaces...`);
@@ -1298,7 +1298,7 @@ When asked for analytics, provide clear, actionable insights with specific numbe
     metadata: Record<string, any> = {}
   ): Promise<boolean> {
     try {
-      const masterWorkspaceSlug = 'gen';
+      const masterWorkspaceSlug = 'gen-the-architect';
       const masterDashboardSlug = await this.getOrCreateMasterDashboard();
       
       const versionedMeta = {
