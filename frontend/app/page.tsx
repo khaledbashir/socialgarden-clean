@@ -1279,14 +1279,9 @@ Ask me questions to get business insights, such as:
       return GENERATION_SLUGS.has(lower) || lower.startsWith('gen-');
     };
 
+    // Only show master workspace for SOW generation - single workspace architecture
     const workspaceList = [
-      { slug: 'sow-master-dashboard', name: '🎯 All SOWs (Master)' },
-      ...workspaces
-        .filter(ws => ws.workspace_slug && !isGenerationOrSystem(ws.workspace_slug)) // Exclude gen/agent/system
-        .map(ws => ({
-          slug: ws.workspace_slug || '', // Use workspace_slug
-          name: `📁 ${ws.name}` // Prefix with folder icon
-        }))
+      { slug: 'sow-master-dashboard', name: '🎯 All SOWs (Master)' }
     ];
 
     setAvailableWorkspaces(workspaceList);
@@ -1315,15 +1310,46 @@ Ask me questions to get business insights, such as:
       const hasCompletedSetup = undefined;
       
       try {
-        // LOAD FOLDERS FROM DATABASE
-        const foldersResponse = await fetch('/api/folders', { signal: abortController.signal });
-        const foldersData = await foldersResponse.json();
-        console.log('✅ Loaded folders from database:', foldersData.length);
+        // 🚀 PERFORMANCE OPTIMIZATION: Add caching for workspace loading
+        const cacheKey = 'sow-workspace-cache';
+        const cachedData = localStorage.getItem(cacheKey);
+        const cacheTimestamp = localStorage.getItem(`${cacheKey}-timestamp`);
         
-        // LOAD SOWS FROM DATABASE
-        const sowsResponse = await fetch('/api/sow/list', { signal: abortController.signal });
-        const { sows: dbSOWs } = await sowsResponse.json();
-        console.log('✅ Loaded SOWs from database:', dbSOWs.length);
+        // Use cache if less than 5 minutes old
+        const isCacheValid = cachedData && cacheTimestamp &&
+          (Date.now() - parseInt(cacheTimestamp)) < 5 * 60 * 1000;
+        
+        let foldersData: any[];
+        let dbSOWs: any[];
+        
+        if (isCacheValid) {
+          const cached = JSON.parse(cachedData);
+          foldersData = cached.folders;
+          dbSOWs = cached.sows;
+          console.log('📦 Using cached workspace data:', { folders: foldersData.length, sows: dbSOWs.length });
+        } else {
+          // LOAD FOLDERS FROM DATABASE
+          const foldersResponse = await fetch('/api/folders', { signal: abortController.signal });
+          foldersData = await foldersResponse.json();
+          console.log('✅ Loaded folders from database:', foldersData.length);
+          
+          // LOAD SOWS FROM DATABASE
+          const sowsResponse = await fetch('/api/sow/list', { signal: abortController.signal });
+          const { sows } = await sowsResponse.json();
+          dbSOWs = sows;
+          console.log('✅ Loaded SOWs from database:', dbSOWs.length);
+          
+          // Cache the results
+          localStorage.setItem(cacheKey, JSON.stringify({ folders: foldersData, sows: dbSOWs }));
+          localStorage.setItem(`${cacheKey}-timestamp`, Date.now().toString());
+          
+          // 🔄 Cache invalidation helper function
+          window.clearWorkspaceCache = () => {
+            localStorage.removeItem(cacheKey);
+            localStorage.removeItem(`${cacheKey}-timestamp`);
+            console.log('🗑️ Workspace cache cleared');
+          };
+        }
         
         const workspacesWithSOWs: Workspace[] = [];
         const documentsFromDB: Document[] = [];

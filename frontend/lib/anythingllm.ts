@@ -111,8 +111,8 @@ export class AnythingLLMService {
    * ARCHITECTURAL SIMPLIFICATION: One workspace to rule them all
    */
   async getMasterSOWWorkspace(clientName: string): Promise<{id: string, slug: string}> {
-    const masterName = 'SOW Generator';
-    const masterSlug = 'sow-generator'; // Use the workspace we just created
+    const masterName = 'SOW Master Dashboard';
+    const masterSlug = 'sow-master-dashboard'; // Match UI expectation
 
     try {
       // Check if master workspace exists by slug first, then by name
