@@ -32,9 +32,9 @@ This is a test SOW document.
   `.trim();
   
   const embedded = await service.embedSOWInBothWorkspaces(
-    workspace.slug,
     sowTitle,
-    sowContent
+    sowContent,
+    clientName
   );
   
   if (!embedded) {

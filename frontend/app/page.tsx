@@ -1895,8 +1895,8 @@ Ask me questions to get business insights, such as:
   const handleNewFolder = async (name: string) => {
     const newId = `folder-${Date.now()}`;
     try {
-      // 🏢 Create AnythingLLM workspace for this folder
-      const workspace = await anythingLLM.createOrGetClientWorkspace(name);
+      // 🏢 Access master SOW workspace for this folder
+      const workspace = await anythingLLM.getMasterSOWWorkspace(name);
       const embedId = await anythingLLM.getOrCreateEmbedId(workspace.slug);
       
       // 💾 Save folder to DATABASE
@@ -2025,7 +2025,7 @@ Ask me questions to get business insights, such as:
       
       // 🏢 STEP 1: Get/ensure master 'gen' workspace exists
       console.log('🏢 Getting/ensuring master SOW generation workspace...');
-      const workspace = await anythingLLM.createOrGetClientWorkspace(workspaceName);
+      const workspace = await anythingLLM.getMasterSOWWorkspace(workspaceName);
       const embedId = await anythingLLM.getOrCreateEmbedId(workspace.slug);
       console.log('✅ Master SOW workspace ready:', workspace.slug);
       
@@ -2481,7 +2481,7 @@ Ask me questions to get business insights, such as:
       console.log('🚀 Starting embed process for:', currentDoc.title);
 
       // Create or get workspace (this is fast)
-      const workspaceSlug = await anythingLLM.createOrGetClientWorkspace(clientName);
+      const workspaceSlug = await anythingLLM.getMasterSOWWorkspace(clientName);
       console.log('✅ Workspace ready:', workspaceSlug);
 
       // Get HTML content
@@ -3641,7 +3641,7 @@ Ask me questions to get business insights, such as:
           
           // ARCHITECTURAL SIMPLIFICATION: Use master 'gen' workspace for all SOW generation
           try {
-            const masterWorkspace = await anythingLLM.createOrGetClientWorkspace(clientName);
+            const masterWorkspace = await anythingLLM.getMasterSOWWorkspace(clientName);
             clientWorkspaceSlug = masterWorkspace.slug;
             console.log(`✅ Using master SOW generation workspace: ${clientWorkspaceSlug}`);
           } catch (wsError) {

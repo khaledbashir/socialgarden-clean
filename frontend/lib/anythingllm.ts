@@ -111,16 +111,15 @@ export class AnythingLLMService {
    * ARCHITECTURAL SIMPLIFICATION: One workspace to rule them all
    */
   async getMasterSOWWorkspace(clientName: string): Promise<{id: string, slug: string}> {
-    const masterSlug = 'gen-the-architect';
     const masterName = 'SOW Generation Factory';
 
     try {
-      // Check if master 'gen-the-architect' workspace exists
+      // Check if master workspace exists (by name, since slug might not be respected by API)
       const workspaces = await this.listWorkspaces();
-      const existing = workspaces.find((w: any) => w.slug === masterSlug);
+      const existing = workspaces.find((w: any) => w.name === masterName);
       
       if (existing) {
-        console.log(`✅ Using existing master SOW generation workspace: ${masterSlug}`);
+        console.log(`✅ Using existing master SOW generation workspace: ${existing.slug}`);
         console.log(`   (Client context: ${clientName})`);
         // Ensure the correct Architect prompt is applied (idempotent refresh)
         await this.setWorkspacePrompt(existing.slug, clientName, true);
@@ -132,14 +131,13 @@ export class AnythingLLMService {
         return { id: existing.id, slug: existing.slug };
       }
 
-      // Create master 'gen-the-architect' workspace
-      console.log(`🆕 Creating master SOW generation workspace: ${masterSlug}`);
+      // Create master workspace (let API generate slug since it may not respect custom slugs)
+      console.log(`🆕 Creating master SOW generation workspace`);
       const response = await fetch(`${this.baseUrl}/api/v1/workspace/new`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
           name: masterName,
-          slug: masterSlug,
         }),
       });
 
