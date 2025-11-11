@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
-import { NewSOWModal } from "./new-sow-modal";
 import { toast } from "sonner";
 import {
   ChevronDown,
@@ -61,11 +60,11 @@ interface Workspace {
 interface SidebarNavProps {
   currentView: "dashboard" | "editor" | "ai-management";
   onViewChange: (view: "dashboard" | "editor" | "ai-management") => void;
-  
+
   workspaces: Workspace[];
   currentWorkspaceId: string;
   currentSOWId: string | null;
-  
+
   onSelectWorkspace: (id: string) => void;
   onSelectSOW: (id: string) => void;
   onCreateWorkspace: (name: string, type?: "sow" | "client" | "generic") => void;
@@ -77,7 +76,7 @@ interface SidebarNavProps {
   onToggleSidebar?: () => void;
   onReorderWorkspaces?: (workspaces: Workspace[]) => void;
   onReorderSOWs?: (workspaceId: string, sows: SOW[]) => void;
-  
+
   // 🎯 Phase 1C: Dashboard filter support
   dashboardFilter?: {
     type: 'vertical' | 'serviceLine' | null;
@@ -157,24 +156,23 @@ export default function SidebarNav({
   const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [newWorkspaceType, setNewWorkspaceType] = useState<"sow" | "client" | "generic">("sow"); // 🎯 Workspace type selector
-  const [showNewSOWModal, setShowNewSOWModal] = useState(false);
-  const [newSOWWorkspaceId, setNewSOWWorkspaceId] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [localWorkspaces, setLocalWorkspaces] = useState(workspaces);
-  
+
   // 🗑️ Multi-select deletion states
   const [selectedWorkspaces, setSelectedWorkspaces] = useState<Set<string>>(new Set());
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
-  
+
   // Get deletable workspaces (not protected) - calculate inside useMemo to avoid initialization issues
   const { deletableWorkspaces, areAllSelected } = (() => {
     const deletable = workspaces.filter(w => !isProtectedWorkspace(w));
     const allSelected = deletable.length > 0 && deletable.every(w => selectedWorkspaces.has(w.id));
     return { deletableWorkspaces: deletable, areAllSelected: allSelected };
   })();
-  
+
   // Select/deselect all handler
   const handleSelectAll = () => {
     if (areAllSelected) {
@@ -184,7 +182,7 @@ export default function SidebarNav({
       setSelectedWorkspaces(allDeletableIds);
     }
   };
-  
+
   // Category expansion states
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     // Default: show Clients only to avoid confusion about protected counts
@@ -210,13 +208,13 @@ export default function SidebarNav({
   // 🗑️ Handle bulk delete
   const handleBulkDelete = async () => {
     const selectedWorkspacesList = Array.from(selectedWorkspaces);
-    
+
     if (selectedWorkspacesList.length === 0) {
       toast.error('No workspaces selected');
       return;
     }
 
-    const protectedCount = selectedWorkspacesList.filter(id => 
+    const protectedCount = selectedWorkspacesList.filter(id =>
       isProtectedWorkspace(localWorkspaces.find(w => w.id === id)!)
     ).length;
 
@@ -315,16 +313,16 @@ export default function SidebarNav({
       // Reordering SOWs within a workspace
       const activeSOW = localWorkspaces.flatMap(w => w.sows).find(s => s.id === active.id);
       const overSOW = localWorkspaces.flatMap(w => w.sows).find(s => s.id === over.id);
-      
+
       if (activeSOW && overSOW && activeSOW.workspaceId === overSOW.workspaceId) {
         const workspaceId = activeSOW.workspaceId;
         const workspace = localWorkspaces.find(w => w.id === workspaceId);
-        
+
         if (workspace) {
           const oldIndex = workspace.sows.findIndex(s => s.id === active.id);
           const newIndex = workspace.sows.findIndex(s => s.id === over.id);
           const reorderedSOWs = arrayMove(workspace.sows, oldIndex, newIndex);
-          
+
           const updatedWorkspaces = localWorkspaces.map(w =>
             w.id === workspaceId ? { ...w, sows: reorderedSOWs } : w
           );
@@ -412,8 +410,8 @@ export default function SidebarNav({
                   onSelectWorkspace(workspace.id);
                 }}
                 className={`w-full text-left px-2 py-1 text-sm transition-colors ${
-                  currentWorkspaceId === workspace.id 
-                    ? 'text-[#1CBF79] font-medium' 
+                  currentWorkspaceId === workspace.id
+                    ? 'text-[#1CBF79] font-medium'
                     : 'text-gray-300 hover:text-white'
                 }`}
                 title={workspace.name}
@@ -426,20 +424,7 @@ export default function SidebarNav({
           {/* Action Buttons - ALWAYS VISIBLE with guaranteed space */}
           <div className="flex gap-1.5 flex-shrink-0 ml-2">
             {/* Add New Doc */}
-            {!isDeleteMode && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setNewSOWWorkspaceId(workspace.id);
-                  setShowNewSOWModal(true);
-                }}
-                className="p-1.5 bg-gray-700/50 hover:bg-[#1CBF79]/30 rounded text-[#1CBF79] hover:text-white transition-all"
-                title={`New SOW in "${workspace.name}"`}
-                aria-label={`Create new SOW in "${workspace.name}"`}
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            )}
+            {/* New SOW creation moved to global button in header */}
 
             {/* Rename */}
             {!isDeleteMode && (
@@ -663,6 +648,25 @@ export default function SidebarNav({
           </button>
         )}
 
+        {/* Primary New SOW CTA */}
+        <div className="px-4 pb-3">
+          <button
+            onClick={() => {
+              const targetId = currentWorkspaceId || (workspaces && workspaces.length > 0 ? workspaces[0].id : null);
+              if (targetId) {
+                onCreateSOW(targetId, 'Untitled SOW');
+              } else {
+                toast.error('Please create a client workspace first');
+              }
+            }}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New SOW
+          </button>
+        </div>
+
+
         {/* Requirements link hidden per request */}
       </div>
 
@@ -677,7 +681,7 @@ export default function SidebarNav({
             className="h-8 text-xs bg-gray-900 border-gray-700 text-gray-300 placeholder:text-gray-600"
           />
         </div>
-        
+
         {/* Workspaces Header */}
         <div className="flex-shrink-0 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Workspaces</h3>
@@ -704,7 +708,7 @@ export default function SidebarNav({
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                
+
                 {/* Select All checkbox */}
                 <label className="flex items-center gap-1.5 px-2 py-1 cursor-pointer hover:bg-gray-800/50 rounded transition-colors">
                   <input
@@ -715,7 +719,7 @@ export default function SidebarNav({
                   />
                   <span className="text-xs text-gray-400">Select All</span>
                 </label>
-                
+
                 {selectedWorkspaces.size > 0 && (
                   <>
                     <span className="text-xs text-gray-400 mx-1">
@@ -746,16 +750,16 @@ export default function SidebarNav({
             >
               {/* CLIENT WORKSPACES CATEGORY */}
               {(() => {
-                const clientWorkspaces = localWorkspaces.filter(w => 
+                const clientWorkspaces = localWorkspaces.filter(w =>
                   !isAgentWorkspace(w) && !isSystemWorkspace(w) &&
                   (w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                    w.sows.some(sow => sow.name.toLowerCase().includes(searchQuery.toLowerCase())))
                 );
-                
+
                 if (clientWorkspaces.length === 0 && searchQuery === '') {
                   return null;
                 }
-                
+
                 return (
                   <div className="space-y-1">
                     <button
@@ -771,18 +775,18 @@ export default function SidebarNav({
                       <span>CLIENT WORKSPACES</span>
                       <span className="ml-auto text-xs text-gray-500">({clientWorkspaces.length})</span>
                     </button>
-                    
+
                     {expandedCategories.has('clients') && (
                       <div className="ml-2 space-y-0.5">
-                        <SortableContext 
-                          items={clientWorkspaces.map(w => w.id)} 
+                        <SortableContext
+                          items={clientWorkspaces.map(w => w.id)}
                           strategy={verticalListSortingStrategy}
                         >
                           {clientWorkspaces.map((workspace) => (
                             <SortableWorkspaceItem key={workspace.id} workspace={workspace} />
                           ))}
                         </SortableContext>
-                        
+
                         {clientWorkspaces.length === 0 && (
                           <div className="px-4 py-4 text-center">
                             <p className="text-xs text-gray-600">No client workspaces yet</p>
@@ -797,15 +801,15 @@ export default function SidebarNav({
 
               {/* AI AGENTS CATEGORY */}
               {(() => {
-                const agentWorkspaces = localWorkspaces.filter(w => 
+                const agentWorkspaces = localWorkspaces.filter(w =>
                   isAgentWorkspace(w) &&
                   w.name.toLowerCase().includes(searchQuery.toLowerCase())
                 );
-                
+
                 if (agentWorkspaces.length === 0) {
                   return null;
                 }
-                
+
                 return (
                   <div className="space-y-1">
                     <button
@@ -821,7 +825,7 @@ export default function SidebarNav({
                       <span>AI AGENTS</span>
                       <span className="ml-auto text-xs text-gray-500">({agentWorkspaces.length})</span>
                     </button>
-                    
+
                     {expandedCategories.has('agents') && (
                       <div className="ml-2 space-y-0.5">
                         {agentWorkspaces.map((workspace) => (
@@ -829,8 +833,8 @@ export default function SidebarNav({
                             <button
                               onClick={() => onSelectWorkspace(workspace.id)}
                               className={`flex-1 text-left text-xs transition-colors truncate ${
-                                currentWorkspaceId === workspace.id 
-                                  ? 'text-purple-400 font-medium' 
+                                currentWorkspaceId === workspace.id
+                                  ? 'text-purple-400 font-medium'
                                   : 'text-gray-400 hover:text-white'
                               }`}
                               title={workspace.name}
@@ -847,15 +851,15 @@ export default function SidebarNav({
 
               {/* SYSTEM TOOLS CATEGORY */}
               {(() => {
-                const systemWorkspaces = localWorkspaces.filter(w => 
+                const systemWorkspaces = localWorkspaces.filter(w =>
                   isSystemWorkspace(w) &&
                   w.name.toLowerCase().includes(searchQuery.toLowerCase())
                 );
-                
+
                 if (systemWorkspaces.length === 0) {
                   return null;
                 }
-                
+
                 return (
                   <div className="space-y-1">
                     <button
@@ -871,7 +875,7 @@ export default function SidebarNav({
                       <span>SYSTEM TOOLS</span>
                       <span className="ml-auto text-xs text-gray-500">({systemWorkspaces.length})</span>
                     </button>
-                    
+
                     {expandedCategories.has('system') && (
                       <div className="ml-2 space-y-0.5">
                         {systemWorkspaces.map((workspace) => (
@@ -879,8 +883,8 @@ export default function SidebarNav({
                             <button
                               onClick={() => onSelectWorkspace(workspace.id)}
                               className={`flex-1 text-left text-xs transition-colors truncate ${
-                                currentWorkspaceId === workspace.id 
-                                  ? 'text-blue-400 font-medium' 
+                                currentWorkspaceId === workspace.id
+                                  ? 'text-blue-400 font-medium'
                                   : 'text-gray-400 hover:text-white'
                               }`}
                               title={workspace.name}
@@ -921,23 +925,6 @@ export default function SidebarNav({
         </ScrollArea>
       </div>
 
-      {/* New SOW Modal */}
-      <NewSOWModal
-        isOpen={showNewSOWModal}
-        onOpenChange={setShowNewSOWModal}
-        onCreateSOW={(name, instructions) => {
-          if (newSOWWorkspaceId) {
-            onCreateSOW(newSOWWorkspaceId, name);
-            // If instructions provided, store them for the Generation AI to use
-            if (instructions && typeof window !== 'undefined') {
-              sessionStorage.setItem(`sow-generation-instructions-${newSOWWorkspaceId}`, instructions);
-            }
-            setShowNewSOWModal(false);
-            setNewSOWWorkspaceId(null);
-          }
-        }}
-        workspaceName={workspaces.find(w => w.id === newSOWWorkspaceId)?.name}
-      />
 
       {/* Confirmation Dialog - No "localhost:3001 says" */}
       <Dialog open={confirmDialog?.open || false} onOpenChange={(open) => {
