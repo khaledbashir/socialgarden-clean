@@ -382,7 +382,8 @@ export default function DashboardChat({
               onClick={handleNewThread}
               className="bg-[#15a366] hover:bg-[#10a35a] text-white text-xs h-6 px-2 flex-shrink-0"
               size="sm"
-              title="New chat thread"
+              title="New analytics chat thread (Master Dashboard)"
+              aria-label="New analytics chat thread (Master Dashboard)"
             >
               <Plus className="h-3 w-3" />
             </Button>
@@ -432,7 +433,7 @@ export default function DashboardChat({
           <div className="p-2 space-y-1">
             {threads.length === 0 ? (
               <div className="text-xs text-gray-300 px-2 py-3">
-                No threads yet. Click "New Chat" to create one.
+                No threads yet. Click the "+" to create one.
               </div>
             ) : threads.map(thread => (
               <div

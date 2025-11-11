@@ -487,7 +487,8 @@ export default function WorkspaceChat({
               onClick={handleNewThread}
               className="bg-[#15a366] hover:bg-[#10a35a] text-white text-xs h-6 px-2 flex-shrink-0"
               size="sm"
-              title="New chat thread"
+              title="New chat thread for this SOW (does not create a new SOW)"
+              aria-label="New chat thread for this SOW (does not create a new SOW)"
             >
               <Plus className="h-3 w-3" />
             </Button>

@@ -59,7 +59,7 @@ export function NewSOWModal({
       <DialogContent className="bg-gray-900 border-gray-700 max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-white">
-            {showInstructions ? "Generation Instructions" : "New Doc"}
+            {showInstructions ? "SOW Generation Instructions" : "New SOW"}
           </DialogTitle>
         </DialogHeader>
         
@@ -67,9 +67,9 @@ export function NewSOWModal({
           // Step 1: Name the SOW
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm text-gray-300">Document Name</label>
+              <label className="text-sm text-gray-300">SOW Name</label>
               <Input
-                placeholder="e.g., Q3 Marketing Campaign Plan"
+                placeholder="e.g., Q3 Marketing Plan SOW"
                 className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
                 value={sowName}
                 onChange={(e) => setSowName(e.target.value)}
@@ -100,7 +100,7 @@ export function NewSOWModal({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm text-gray-300">
-                How should we generate the initial content?
+                Optional: How should we generate the initial SOW content?
               </label>
               <p className="text-xs text-gray-500">
                 Provide specific instructions for the Generation AI to follow. Leave blank to start with a template.
@@ -131,7 +131,7 @@ export function NewSOWModal({
                 disabled={isSubmitting}
                 className="bg-[#1CBF79] hover:bg-[#15a366] text-white"
               >
-                {isSubmitting ? "Creating..." : "Create & Generate"}
+                {isSubmitting ? "Creating..." : "Create SOW & Generate"}
               </Button>
             </div>
           </div>

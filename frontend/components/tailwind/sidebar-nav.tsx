@@ -434,7 +434,8 @@ export default function SidebarNav({
                   setShowNewSOWModal(true);
                 }}
                 className="p-1.5 bg-gray-700/50 hover:bg-[#1CBF79]/30 rounded text-[#1CBF79] hover:text-white transition-all"
-                title="New Doc"
+                title={`New SOW in "${workspace.name}"`}
+                aria-label={`Create new SOW in "${workspace.name}"`}
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -897,7 +898,7 @@ export default function SidebarNav({
 
             {localWorkspaces.length === 0 && (
               <div className="px-4 py-8 text-center">
-                <p className="text-xs text-gray-600">No workspaces yet</p>
+                <p className="text-xs text-gray-600">No workspaces yet. Create one, then click the + next to it to create a New SOW.</p>
 
               </div>
             )}
@@ -905,7 +906,7 @@ export default function SidebarNav({
         </ScrollArea>
       </div>
 
-      {/* New Doc Modal */}
+      {/* New SOW Modal */}
       <NewSOWModal
         isOpen={showNewSOWModal}
         onOpenChange={setShowNewSOWModal}
