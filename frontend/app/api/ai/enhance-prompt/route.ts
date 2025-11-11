@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
       mode,
     });
 
-    // Route to the utility-prompt-enhancer workspace via stream-chat
-    const endpoint = `${anythingLLMURL.replace(/\/$/, '')}/api/v1/workspace/utility-prompt-enhancer/stream-chat`;
+    // Route to the gen-the-architect workspace via stream-chat (main SOW generation workspace)
+    const endpoint = `${anythingLLMURL.replace(/\/$/, '')}/api/v1/workspace/gen-the-architect/stream-chat`;
     
     const response = await fetch(endpoint, {
       method: 'POST',
