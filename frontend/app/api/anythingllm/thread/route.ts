@@ -55,13 +55,16 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    // ARCHITECTURAL SIMPLIFICATION: Default to master 'gen-the-architect' workspace
-    const workspace = (body?.workspace || '').toString() || 'gen-the-architect';
+    // CRITICAL FIX: Use the workspace from request body, don't override with default
+    // This allows creating threads in different workspaces (sow-generation-factory, gen-the-architect, etc.)
+    const workspace = (body?.workspace || '').toString();
     const name = body?.name ? String(body.name) : undefined;
     
     if (!workspace) {
       return NextResponse.json({ error: 'Missing required field: workspace' }, { status: 400 });
     }
+
+    console.log(`[thread-route] Creating thread in workspace: ${workspace}`);
 
     const url = `${baseUrl}/api/v1/workspace/${encodeURIComponent(workspace)}/thread/new`;
     const upstream = await fetch(url, {
@@ -75,12 +78,21 @@ export async function POST(req: NextRequest) {
 
     const contentType = upstream.headers.get('content-type') || '';
     const responseBody = contentType.includes('application/json') ? await upstream.json() : await upstream.text();
+    
     if (!upstream.ok) {
+      console.error(`[thread-route] Thread creation failed:`, {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        workspace,
+        responseBody,
+      });
       return NextResponse.json({ error: 'Failed to create thread', details: responseBody }, { status: upstream.status });
     }
 
+    console.log(`[thread-route] Thread created successfully:`, responseBody);
     return NextResponse.json(responseBody, { status: 200 });
   } catch (err: any) {
+    console.error(`[thread-route] Thread creation exception:`, err);
     return NextResponse.json({ error: 'Thread creation error', details: err?.message || String(err) }, { status: 500 });
   }
 }
@@ -93,12 +105,16 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    // ARCHITECTURAL SIMPLIFICATION: Default to master 'gen-the-architect' workspace
-    const workspace = (searchParams.get('workspace') || '').toString() || 'gen-the-architect';
+    // CRITICAL FIX: Use the workspace from query params, don't override with default
+    // This allows loading threads from different workspaces (sow-generation-factory, gen-the-architect, etc.)
+    const workspace = (searchParams.get('workspace') || '').toString();
     const thread = (searchParams.get('thread') || '').toString();
+    
     if (!workspace || !thread) {
       return NextResponse.json({ error: 'Missing query params: workspace and thread are required' }, { status: 400 });
     }
+
+    console.log(`[thread-route] Loading thread history from workspace: ${workspace}, thread: ${thread}`);
 
     const url = `${baseUrl}/api/v1/workspace/${encodeURIComponent(workspace)}/thread/${encodeURIComponent(thread)}/chats`;
     const upstream = await fetchWithTimeoutRetry(
@@ -116,12 +132,27 @@ export async function GET(req: NextRequest) {
 
     const contentType = upstream.headers.get('content-type') || '';
     const responseBody = contentType.includes('application/json') ? await upstream.json() : await upstream.text();
+    
     if (!upstream.ok || !contentType.includes('application/json')) {
+      console.error(`[thread-route] Thread history failed:`, {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        workspace,
+        thread,
+        responseBody,
+      });
       return NextResponse.json({ error: 'Failed to load thread chats', details: responseBody }, { status: upstream.status || 502 });
     }
 
+    console.log(`[thread-route] Thread history loaded successfully:`, {
+      workspace,
+      thread,
+      messageCount: responseBody?.history?.length || 0,
+    });
+    
     return NextResponse.json(responseBody, { status: 200 });
   } catch (err: any) {
+    console.error(`[thread-route] Thread history exception:`, err);
     return NextResponse.json({ error: 'Thread history error', details: err?.message || String(err) }, { status: 500 });
   }
 }

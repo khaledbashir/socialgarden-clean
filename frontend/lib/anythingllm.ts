@@ -111,12 +111,14 @@ export class AnythingLLMService {
    * ARCHITECTURAL SIMPLIFICATION: One workspace to rule them all
    */
   async getMasterSOWWorkspace(clientName: string): Promise<{id: string, slug: string}> {
-    const masterName = 'SOW Generation Factory';
+    const masterName = 'SOW Generator';
+    const masterSlug = 'sow-generator'; // Use the workspace we just created
 
     try {
-      // Check if master workspace exists (by name, since slug might not be respected by API)
+      // Check if master workspace exists by slug first, then by name
       const workspaces = await this.listWorkspaces();
-      const existing = workspaces.find((w: any) => w.name === masterName);
+      const existing = workspaces.find((w: any) => w.slug === masterSlug) || 
+                      workspaces.find((w: any) => w.name === masterName);
       
       if (existing) {
         console.log(`✅ Using existing master SOW generation workspace: ${existing.slug}`);
@@ -131,7 +133,7 @@ export class AnythingLLMService {
         return { id: existing.id, slug: existing.slug };
       }
 
-      // Create master workspace (let API generate slug since it may not respect custom slugs)
+      // Create master workspace with specific name
       console.log(`🆕 Creating master SOW generation workspace`);
       const response = await fetch(`${this.baseUrl}/api/v1/workspace/new`, {
         method: 'POST',
@@ -1234,7 +1236,7 @@ When asked for analytics, provide clear, actionable insights with specific numbe
     clientContext?: string
   ): Promise<boolean> {
     try {
-      const masterWorkspaceSlug = 'gen-the-architect';
+      const masterWorkspaceSlug = 'sow-generator';
       const masterDashboardSlug = await this.getOrCreateMasterDashboard();
       
       console.log(`📊 Embedding SOW in workspaces...`);
@@ -1296,7 +1298,7 @@ When asked for analytics, provide clear, actionable insights with specific numbe
     metadata: Record<string, any> = {}
   ): Promise<boolean> {
     try {
-      const masterWorkspaceSlug = 'gen-the-architect';
+      const masterWorkspaceSlug = 'sow-generator';
       const masterDashboardSlug = await this.getOrCreateMasterDashboard();
       
       const versionedMeta = {

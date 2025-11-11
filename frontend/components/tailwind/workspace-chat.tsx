@@ -201,13 +201,20 @@ export default function WorkspaceChat({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create thread');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Thread creation failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+        });
+        throw new Error(`Failed to create thread: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
       const newThreadSlug = data.thread?.slug;
       
       if (!newThreadSlug) {
+        console.error('❌ No thread slug in response:', data);
         throw new Error('No thread slug returned from server');
       }
 
@@ -232,7 +239,7 @@ export default function WorkspaceChat({
       return newThreadSlug;
     } catch (error) {
       console.error('❌ Failed to create thread:', error);
-      toast.error('Failed to create new chat thread');
+      toast.error(`Failed to create thread: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return null;
     } finally {
       setLoadingThreads(false);

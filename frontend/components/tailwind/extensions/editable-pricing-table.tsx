@@ -24,6 +24,8 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     }))
   );
   const [discount, setDiscount] = useState(node.attrs.discount || 0);
+  const scopeName: string = node.attrs.scopeName || '';
+  const scopeDescription: string = node.attrs.scopeDescription || '';
   const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
@@ -162,8 +164,12 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
       <div className="border border-border rounded-lg p-4 bg-background dark:bg-gray-900/50">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h3 className="text-lg font-bold text-foreground dark:text-gray-100">Project Pricing</h3>
-            <p className="text-xs text-gray-500 mt-0.5">💡 Tip: Drag rows to reorder</p>
+            <h3 className="text-lg font-bold text-foreground dark:text-gray-100">{scopeName || 'Project Pricing'}</h3>
+            {scopeDescription ? (
+              <p className="text-xs text-gray-400 mt-0.5">{scopeDescription}</p>
+            ) : (
+              <p className="text-xs text-gray-500 mt-0.5">💡 Tip: Drag rows to reorder</p>
+            )}
           </div>
           <button
             onClick={addRow}
@@ -323,6 +329,12 @@ export const EditablePricingTable = Node.create({
       discount: {
         default: 0,
       },
+      scopeName: {
+        default: ''
+      },
+      scopeDescription: {
+        default: ''
+      },
     };
   },
 
@@ -379,6 +391,15 @@ export const EditablePricingTable = Node.create({
       ]
     ];
     
+    // Optional scope header for PDF/HTML export
+    const scopeHeader: any[] = [];
+    if (node.attrs.scopeName) {
+      scopeHeader.push(['div', { style: 'margin-bottom:0.5rem;'}, ['h4', { style: 'margin:0; font-size:1rem; color:#0e2e33; font-weight:700;' }, node.attrs.scopeName]]);
+      if (node.attrs.scopeDescription) {
+        scopeHeader.push(['div', { style: 'margin-bottom:0.75rem; color:#374151;' }, node.attrs.scopeDescription]);
+      }
+    }
+
     const totalsSection: any[] = [
       'div',
       { style: 'margin-top:1.5rem; padding-top:1rem; border-top:2px solid #0e2e33;' },
@@ -413,6 +434,7 @@ export const EditablePricingTable = Node.create({
     return [
       'div',
       mergeAttributes(HTMLAttributes, { 'data-type': 'editable-pricing-table' }),
+      ...scopeHeader,
       tableContent,
       totalsSection
     ];
