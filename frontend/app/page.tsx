@@ -1310,46 +1310,19 @@ Ask me questions to get business insights, such as:
       const hasCompletedSetup = undefined;
       
       try {
-        // 🚀 PERFORMANCE OPTIMIZATION: Add caching for workspace loading
-        const cacheKey = 'sow-workspace-cache';
-        const cachedData = localStorage.getItem(cacheKey);
-        const cacheTimestamp = localStorage.getItem(`${cacheKey}-timestamp`);
+        // 🔒 SECURITY FIX: Remove localStorage caching for sensitive data
+        // Always fetch from database to ensure data security and consistency
         
-        // Use cache if less than 5 minutes old
-        const isCacheValid = cachedData && cacheTimestamp &&
-          (Date.now() - parseInt(cacheTimestamp)) < 5 * 60 * 1000;
+        // LOAD FOLDERS FROM DATABASE
+        const foldersResponse = await fetch('/api/folders', { signal: abortController.signal });
+        const foldersData = await foldersResponse.json();
+        console.log('✅ Loaded folders from database:', foldersData.length);
         
-        let foldersData: any[];
-        let dbSOWs: any[];
-        
-        if (isCacheValid) {
-          const cached = JSON.parse(cachedData);
-          foldersData = cached.folders;
-          dbSOWs = cached.sows;
-          console.log('📦 Using cached workspace data:', { folders: foldersData.length, sows: dbSOWs.length });
-        } else {
-          // LOAD FOLDERS FROM DATABASE
-          const foldersResponse = await fetch('/api/folders', { signal: abortController.signal });
-          foldersData = await foldersResponse.json();
-          console.log('✅ Loaded folders from database:', foldersData.length);
-          
-          // LOAD SOWS FROM DATABASE
-          const sowsResponse = await fetch('/api/sow/list', { signal: abortController.signal });
-          const { sows } = await sowsResponse.json();
-          dbSOWs = sows;
-          console.log('✅ Loaded SOWs from database:', dbSOWs.length);
-          
-          // Cache the results
-          localStorage.setItem(cacheKey, JSON.stringify({ folders: foldersData, sows: dbSOWs }));
-          localStorage.setItem(`${cacheKey}-timestamp`, Date.now().toString());
-          
-          // 🔄 Cache invalidation helper function
-          window.clearWorkspaceCache = () => {
-            localStorage.removeItem(cacheKey);
-            localStorage.removeItem(`${cacheKey}-timestamp`);
-            console.log('🗑️ Workspace cache cleared');
-          };
-        }
+        // LOAD SOWS FROM DATABASE
+        const sowsResponse = await fetch('/api/sow/list', { signal: abortController.signal });
+        const { sows } = await sowsResponse.json();
+        const dbSOWs = sows;
+        console.log('✅ Loaded SOWs from database:', dbSOWs.length);
         
         const workspacesWithSOWs: Workspace[] = [];
         const documentsFromDB: Document[] = [];
