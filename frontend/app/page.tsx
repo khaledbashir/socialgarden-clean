@@ -962,6 +962,30 @@ interface Workspace {
 
 // 🎯 Extract SOW work type from AI response
 // The Architect classifies SOWs into 3 types: Standard Project, Audit/Strategy, or Retainer
+const extractDocTitle = (content: string): string | null => {
+  if (!content) return null;
+
+  // Extract title from markdown headers
+  const titleMatch = content.match(/^#\s+(.+)$/m);
+  if (titleMatch) {
+    return titleMatch[1];
+  }
+
+  // Extract from scope patterns
+  const scopeMatch = content.match(/Scope of Work:\s+(.+)/);
+  if (scopeMatch) {
+    return scopeMatch[1];
+  }
+
+  // Extract client information
+  const clientMatch = content.match(/\*\*Client:\*\*\s+(.+)$/m);
+  if (clientMatch) {
+    return `SOW - ${clientMatch[1]}`;
+  }
+
+  return null;
+};
+
 const extractWorkType = (content: string): 'project' | 'audit' | 'retainer' => {
   if (!content) return 'project';
 
@@ -4428,6 +4452,61 @@ Ask me questions to get business insights, such as:
             }
           } catch {}
 
+          // 🚀 AUTOMATIC CONTENT INSERTION: Convert AI content and insert into editor
+          if (viewMode === 'editor' && currentDocId) {
+            console.log('🚀 Starting automatic content insertion into SOW editor...');
+            
+            try {
+              // Extract SOW structured JSON from the AI response
+              const structured = extractSOWStructuredJson(accumulatedContent);
+              let contentForEditor: any = null;
+              let docTitle = "New SOW";
+
+              if (structured?.scopeItems?.length) {
+                // Use structured data from Architect response
+                console.log(`✅ Using structured SOW data with ${structured.scopeItems.length} scope items`);
+                const suggestedRoles = buildSuggestedRolesFromArchitectSOW(structured);
+                
+                // 🔒 Apply Account Management guardrail
+                const sanitized = sanitizeAccountManagementRoles(suggestedRoles);
+                const cleanedContent = accumulatedContent.replace(/\[PRICING_JSON\].*?\[\/PRICING_JSON\]/gs, '');
+                
+                contentForEditor = convertMarkdownToNovelJSON(cleanedContent, sanitized);
+                docTitle = structured.title || `SOW - ${structured.client || 'Untitled Client'}`;
+              } else {
+                // Fallback: convert markdown content without structured pricing
+                console.log('⚠️ No structured data found, converting markdown content only');
+                const cleanedContent = accumulatedContent.replace(/\[PRICING_JSON\].*?\[\/PRICING_JSON\]/gs, '');
+                
+                contentForEditor = convertMarkdownToNovelJSON(cleanedContent);
+                docTitle = extractDocTitle(cleanedContent) || "New SOW";
+              }
+
+              // Update the document in state
+              setDocuments(prev =>
+                prev.map(doc =>
+                  doc.id === currentDocId
+                    ? { 
+                        ...doc, 
+                        content: contentForEditor,
+                        title: docTitle,
+                        lastModified: Date.now()
+                      }
+                    : doc
+                )
+              );
+
+              console.log('✅ Automatic content insertion complete:', contentForEditor?.content?.length || 0, 'characters');
+              toast.success('✅ Content automatically inserted into SOW editor');
+
+            } catch (error) {
+              console.error('❌ Error during automatic content insertion:', error);
+              toast.error('⚠️ Content generated but failed to insert into editor');
+            }
+          } else {
+            console.log('ℹ️ Not in editor mode or no document selected - skipping automatic insertion');
+          }
+
           // ⚠️ REMOVED TWO-STEP AUTO-CORRECT LOGIC
           // The AI should now return complete SOW narrative + JSON in a single response
           // No follow-up prompt is needed if the initial prompt is clear enough
@@ -4502,6 +4581,61 @@ Ask me questions to get business insights, such as:
               console.log('✅ Captured structured SOW JSON for Excel export');
             }
           } catch {}
+
+          // 🚀 AUTOMATIC CONTENT INSERTION for non-streaming mode
+          if (viewMode === 'editor' && currentDocId && aiMessage.content) {
+            console.log('🚀 Starting automatic content insertion into SOW editor (non-streaming mode)...');
+            
+            try {
+              // Extract SOW structured JSON from the AI response
+              const structured = extractSOWStructuredJson(aiMessage.content);
+              let contentForEditor: any = null;
+              let docTitle = "New SOW";
+
+              if (structured?.scopeItems?.length) {
+                // Use structured data from Architect response
+                console.log(`✅ Using structured SOW data with ${structured.scopeItems.length} scope items`);
+                const suggestedRoles = buildSuggestedRolesFromArchitectSOW(structured);
+                
+                // 🔒 Apply Account Management guardrail
+                const sanitized = sanitizeAccountManagementRoles(suggestedRoles);
+                const cleanedContent = aiMessage.content.replace(/\[PRICING_JSON\].*?\[\/PRICING_JSON\]/gs, '');
+                
+                contentForEditor = convertMarkdownToNovelJSON(cleanedContent, sanitized);
+                docTitle = structured.title || `SOW - ${structured.client || 'Untitled Client'}`;
+              } else {
+                // Fallback: convert markdown content without structured pricing
+                console.log('⚠️ No structured data found, converting markdown content only');
+                const cleanedContent = aiMessage.content.replace(/\[PRICING_JSON\].*?\[\/PRICING_JSON\]/gs, '');
+                
+                contentForEditor = convertMarkdownToNovelJSON(cleanedContent);
+                docTitle = extractDocTitle(cleanedContent) || "New SOW";
+              }
+
+              // Update the document in state
+              setDocuments(prev =>
+                prev.map(doc =>
+                  doc.id === currentDocId
+                    ? { 
+                        ...doc, 
+                        content: contentForEditor,
+                        title: docTitle,
+                        lastModified: Date.now()
+                      }
+                    : doc
+                )
+              );
+
+              console.log('✅ Automatic content insertion complete (non-streaming):', contentForEditor?.content?.length || 0, 'characters');
+              toast.success('✅ Content automatically inserted into SOW editor');
+
+            } catch (error) {
+              console.error('❌ Error during automatic content insertion (non-streaming):', error);
+              toast.error('⚠️ Content generated but failed to insert into editor');
+            }
+          } else {
+            console.log('ℹ️ Not in editor mode or no document selected - skipping automatic insertion (non-streaming)');
+          }
         }
       } catch (error) {
         console.error("❌ Chat API error:", error);
