@@ -2520,6 +2520,8 @@ Ask me questions to get business insights, such as:
 
   const handleReorderWorkspaces = (reorderedWorkspaces: Workspace[]) => {
     setWorkspaces(reorderedWorkspaces);
+    // Persist ordering to database (no localStorage). TODO: implement server persistence.
+  };
 
   // Move SOW across workspaces (folders) with optional target index
   const handleMoveSOW = async (
@@ -2565,9 +2567,6 @@ Ask me questions to get business insights, such as:
       console.error('❌ Failed to move SOW:', error);
       toast.error('Failed to move SOW');
     }
-  };
-
-    // Persist ordering to database (no localStorage). TODO: implement server persistence.
   };
 
   const handleReorderSOWs = (workspaceId: string, reorderedSOWs: SOW[]) => {
