@@ -298,20 +298,30 @@ export async function POST(request: NextRequest) {
           totalChunks++;
           totalBytes += value.length;
 
-          // Decode the chunk
-          buffer += decoder.decode(value, { stream: true });
+          // Decode the chunk with better error handling
+          let chunk;
+          try {
+            chunk = decoder.decode(value, { stream: true });
+          } catch (decodeError) {
+            console.warn('⚠️ [STREAM] Decode error, using replacement:', decodeError);
+            chunk = decoder.decode(value, { stream: false });
+          }
 
-          // Split by newlines to handle SSE format
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
+          // Add to buffer
+          buffer += chunk;
 
-          for (const line of lines) {
+          // Process complete SSE lines (more efficient than splitting)
+          let lineEndIndex;
+          while ((lineEndIndex = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.substring(0, lineEndIndex);
+            buffer = buffer.substring(lineEndIndex + 1);
+
             if (line.trim()) {
               // Log first few chunks for debugging
               if (totalChunks <= 3) {
                 console.log(`📦 [STREAM] Chunk ${totalChunks}: ${line.substring(0, 100)}...`);
               }
-              // Forward the SSE line to the client
+              // Forward SSE line to client immediately (no batching)
               await writer.write(encoder.encode(line + '\n'));
             }
           }

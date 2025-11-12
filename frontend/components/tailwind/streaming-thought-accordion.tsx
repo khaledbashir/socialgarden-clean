@@ -321,10 +321,33 @@ export function StreamingThoughtAccordion({
               // Code blocks
               code: ({node, className, children, ...props}: any) => {
                 const isInline = !className?.includes('language-');
+                const isJsonBlock = className?.includes('language-json');
+                
                 return isInline ? (
                   <code className="bg-[#0a0a0a] text-[#20e28f] px-2 py-1 rounded text-xs font-mono" {...props}>{children}</code>
                 ) : (
-                  <code className="bg-[#0a0a0a] text-[#20e28f] block p-3 rounded text-xs font-mono overflow-x-auto mb-2 border border-[#1b5e5e]" {...props}>{children}</code>
+                  <div className="relative group">
+                    <code className={`bg-[#0a0a0a] text-[#20e28f] block p-3 rounded text-xs font-mono ${
+                      isJsonBlock 
+                        ? 'overflow-x-auto pr-20 mb-2 border border-[#1b5e5e]' 
+                        : 'overflow-x-auto mb-2 border border-[#1b5e5e]'
+                    }`} {...props}>
+                      {children}
+                    </code>
+                    {isJsonBlock && (
+                      <Button
+                        onClick={() => {
+                          // Extract JSON content and trigger insert
+                          const jsonContent = String(children).trim();
+                          onInsertClick?.(jsonContent);
+                        }}
+                        className="absolute top-2 right-2 bg-[#20e28f] hover:bg-[#1db876] text-black text-xs font-semibold py-1.5 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        size="sm"
+                      >
+                        📋 Insert
+                      </Button>
+                    )}
+                  </div>
                 );
               },
               pre: ({node, ...props}) => <pre className="mb-2" {...props} />,

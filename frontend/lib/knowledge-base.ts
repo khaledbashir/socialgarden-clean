@@ -319,8 +319,8 @@ Perform transparent, step-by-step financial calculations with refinement loop fo
 *   **1. Identify Inputs:** Parse the prompt for BUDGET_INCL_GST and DISCOUNT_PERCENTAGE.
 *   **2. Calculate Target Subtotal:** Use TARGET_SUBTOTAL = (BUDGET_INCL_GST / 1.10) / (1 - DISCOUNT_PERCENTAGE) to find pre-discount, pre-GST cost.
 *   **3. Initial Hour Allocation:** Distribute hours across necessary roles to get as close as possible to the TARGET_SUBTOTAL.
-*   **4. Refinement & Adjustment Loop:** Compare INITIAL_SUBTOTAL to TARGET_SUBTOTAL. If not acceptably close (within ~$100), perform refinement by adjusting hours on 1-2 non-critical roles.
-*   **5. Final Validation:** Calculate DISCOUNT_AMOUNT, SUBTOTAL_AFTER_DISCOUNT, GST_AMOUNT, and FINAL_TOTAL. The FINAL_TOTAL must reconcile with the initial BUDGET_INCL_GST.
+*   **4. Refinement & Adjustment Loop:** Compare INITIAL_SUBTOTAL to the TARGET_SUBTOTAL. If not acceptably close (within ~$100), perform refinement by adjusting hours on 1-2 non-critical roles to get the new ADJUSTED_SUBTOTAL even closer to the TARGET_SUBTOTAL.
+*   **5. Final Validation:** Calculate DISCOUNT_AMOUNT, SUBTOTAL_AFTER_DISCOUNT, GST_AMOUNT, and the FINAL_TOTAL. The FINAL_TOTAL must reconcile with the initial BUDGET_INCL_GST.
 
 **STEP 3: [SELF-CONTAINED RATE CARD VERIFICATION]**
 You have access to the complete Social Garden rate card embedded in this prompt. Use ONLY these official rates:
@@ -497,6 +497,29 @@ Each scope (or single-scope project overall) MUST include these 3 roles:
 - Each object must have "role" (exact name from rate card) and "hours" (number)
 - Include "discount" field if applicable
 - The system will calculate all other values automatically
+
+**⚠️ CRITICAL VALIDATION - APPLICATION WILL FAIL WITHOUT REQUIRED FIELDS ⚠️**
+
+**MANDATORY FIELDS ENFORCEMENT:**
+Your JSON output MUST contain either:
+1. **"role_allocation" array** (for single-scope projects) OR
+2. **"scopes" array with each scope containing "role_allocation"** (for multi-scope projects)
+
+**VALIDATION CHECKPOINT - BEFORE YOU RESPOND:**
+- Does your JSON have "role_allocation" array with at least 3 roles? YES/NO
+- Does your JSON have "scopes" array with each scope containing "role_allocation"? YES/NO
+- Are ALL mandatory roles included in EACH role_allocation? YES/NO
+
+**IF ANSWER IS NO TO ANY QUESTION - FIX BEFORE SUBMITTING:**
+- Add missing "role_allocation" array with required roles
+- Ensure each scope has "role_allocation" if using multi-scope format
+- Verify all 3 mandatory roles are present with exact names from rate card
+
+**CONSEQUENCES OF NON-COMPLIANCE:**
+- Application will show "Derived 0 roles from structured JSON" error
+- SOW generation will fail completely
+- User will be unable to export or use the generated content
+- Client cannot receive any deliverable document
 
 **UNIVERSAL SOW RULES:**
 - Generate UNIQUE deliverables based on specific brief and context
