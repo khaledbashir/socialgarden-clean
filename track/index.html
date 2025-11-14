@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 KANSESSION - Task Management Board</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1 class="app-title">🚀 KANSESSION</h1>
+                    <span class="app-subtitle">Task Management & Organization System</span>
+                </div>
+                <div class="header-right">
+                    <div class="search-container">
+                        <input type="text" id="searchInput" placeholder="Search tasks..." class="search-input">
+                        <i class="fas fa-search search-icon"></i>
+                    </div>
+                    <button id="themeToggle" class="theme-toggle" title="Toggle dark/light mode">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button id="sowChecklistBtn" class="sow-checklist-btn" title="Sam's SOW Quality Checklist">
+                        <i class="fas fa-clipboard-check"></i> SOW Checklist
+                    </button>
+                    <button id="addTaskBtn" class="add-task-btn">
+                        <i class="fas fa-plus"></i> Add Task
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-left">
+                <select id="priorityFilter" class="filter-select">
+                    <option value="">All Priorities</option>
+                    <option value="high">🔴 High Priority</option>
+                    <option value="medium">🟡 Medium Priority</option>
+                    <option value="low">🟢 Low Priority</option>
+                </select>
+                <select id="typeFilter" class="filter-select">
+                    <option value="">All Types</option>
+                    <option value="feature">🎨 Feature</option>
+                    <option value="enhancement">⚡ Enhancement</option>
+                    <option value="bug">🐛 Bug</option>
+                    <option value="documentation">📄 Documentation</option>
+                    <option value="maintenance">🔧 Maintenance</option>
+                    <option value="analysis">📊 Analysis</option>
+                    <option value="deployment">🚀 Deployment</option>
+                </select>
+                <select id="assigneeFilter" class="filter-select">
+                    <option value="">All Assignees</option>
+                    <option value="AI Assistant">AI Assistant</option>
+                    <option value="TBD">TBD</option>
+                    <option value="System">System</option>
+                </select>
+            </div>
+            <div class="filter-right">
+                <button id="collapseAllBtn" class="collapse-btn">
+                    <i class="fas fa-compress"></i> Collapse All
+                </button>
+                <button id="expandAllBtn" class="collapse-btn">
+                    <i class="fas fa-expand"></i> Expand All
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="kanban-board" id="kanbanBoard">
+                <!-- Backlog Column -->
+                <div class="kanban-column" data-column="backlog">
+                    <div class="column-header">
+                        <h2 class="column-title">📋 Backlog</h2>
+                        <div class="column-controls">
+                            <span class="task-count">0</span>
+                            <button class="column-collapse-btn">
+                                <i class="fas fa-chevron-up"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="column-subtitle">🔮 Future tasks and potential improvements</div>
+                    <div class="tasks-container" data-column="backlog">
+                        <!-- Tasks will be dynamically added here -->
+                    </div>
+                    <button class="add-task-to-column" data-column="backlog">
+                        <i class="fas fa-plus"></i> Add Task
+                    </button>
+                </div>
+
+                <!-- In Progress Column -->
+                <div class="kanban-column" data-column="inprogress">
+                    <div class="column-header">
+                        <h2 class="column-title">⚡ In Progress</h2>
+                        <div class="column-controls">
+                            <span class="task-count">0</span>
+                            <button class="column-collapse-btn">
+                                <i class="fas fa-chevron-up"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="column-subtitle">🔥 Currently active tasks and ongoing work</div>
+                    <div class="tasks-container" data-column="inprogress">
+                        <!-- Tasks will be dynamically added here -->
+                    </div>
+                    <button class="add-task-to-column" data-column="inprogress">
+                        <i class="fas fa-plus"></i> Add Task
+                    </button>
+                </div>
+
+                <!-- Review Column -->
+                <div class="kanban-column" data-column="review">
+                    <div class="column-header">
+                        <h2 class="column-title">👀 Review</h2>
+                        <div class="column-controls">
+                            <span class="task-count">0</span>
+                            <button class="column-collapse-btn">
+                                <i class="fas fa-chevron-up"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="column-subtitle">🔍 Tasks pending review and approval</div>
+                    <div class="tasks-container" data-column="review">
+                        <!-- Tasks will be dynamically added here -->
+                    </div>
+                    <button class="add-task-to-column" data-column="review">
+                        <i class="fas fa-plus"></i> Add Task
+                    </button>
+                </div>
+
+                <!-- Done Column -->
+                <div class="kanban-column" data-column="done">
+                    <div class="column-header">
+                        <h2 class="column-title">✅ Done</h2>
+                        <div class="column-controls">
+                            <span class="task-count">0</span>
+                            <button class="column-collapse-btn">
+                                <i class="fas fa-chevron-up"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="column-subtitle">🎉 Completed tasks and implemented features</div>
+                    <div class="tasks-container" data-column="done">
+                        <!-- Tasks will be dynamically added here -->
+                    </div>
+                    <button class="add-task-to-column" data-column="done">
+                        <i class="fas fa-plus"></i> Add Task
+                    </button>
+                </div>
+
+                <!-- Blocked Column -->
+                <div class="kanban-column" data-column="blocked">
+                    <div class="column-header">
+                        <h2 class="column-title">🚫 Blocked</h2>
+                        <div class="column-controls">
+                            <span class="task-count">0</span>
+                            <button class="column-collapse-btn">
+                                <i class="fas fa-chevron-up"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="column-subtitle">⛔ Tasks that cannot proceed due to dependencies</div>
+                    <div class="tasks-container" data-column="blocked">
+                        <!-- Tasks will be dynamically added here -->
+                    </div>
+                    <button class="add-task-to-column" data-column="blocked">
+                        <i class="fas fa-plus"></i> Add Task
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Task Modal -->
+        <div id="taskModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modalTitle">Add New Task</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <form id="taskForm" class="task-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="taskTitle">Task Title *</label>
+                            <input type="text" id="taskTitle" name="title" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="taskType">Type</label>
+                            <select id="taskType" name="type">
+                                <option value="feature">🎨 Feature</option>
+                                <option value="enhancement">⚡ Enhancement</option>
+                                <option value="bug">🐛 Bug</option>
+                                <option value="documentation">📄 Documentation</option>
+                                <option value="maintenance">🔧 Maintenance</option>
+                                <option value="analysis">📊 Analysis</option>
+                                <option value="deployment">🚀 Deployment</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="taskPriority">Priority</label>
+                            <select id="taskPriority" name="priority">
+                                <option value="low">🟢 Low</option>
+                                <option value="medium">🟡 Medium</option>
+                                <option value="high">🔴 High</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="taskAssignee">Assignee</label>
+                            <input type="text" id="taskAssignee" name="assignee" placeholder="Enter assignee name">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="taskDue">Due Date</label>
+                            <input type="date" id="taskDue" name="due">
+                        </div>
+                        <div class="form-group">
+                            <label for="taskTags">Tags (comma separated)</label>
+                            <input type="text" id="taskTags" name="tags" placeholder="tag1, tag2, tag3">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="taskDescription">Description</label>
+                        <textarea id="taskDescription" name="description" rows="3" placeholder="Enter task description..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="taskNotes">Notes</label>
+                        <textarea id="taskNotes" name="notes" rows="5" placeholder="Add detailed notes, ideas, or reference materials..."></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Task</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Task Details Modal -->
+        <div id="taskDetailsModal" class="modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2 id="detailsModalTitle">Task Details</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="task-details-content">
+                    <!-- Task details will be dynamically inserted here -->
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="closeDetailsBtn">Close</button>
+                    <button type="button" class="btn btn-primary" id="editTaskBtn">Edit Task</button>
+                    <button type="button" class="btn btn-danger" id="deleteTaskBtn">Delete Task</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Action Button for Notes -->
+        <button id="notesFab" class="fab" title="Quick Notes">
+            <i class="fas fa-sticky-note"></i>
+        </button>
+
+        <!-- Quick Notes Modal -->
+        <div id="quickNotesModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Quick Notes</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="quick-notes-content">
+                    <textarea id="quickNotesText" placeholder="Enter your quick notes here..." rows="10"></textarea>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelQuickNotesBtn">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="saveQuickNotesBtn">Save Notes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SOW Quality Checklist Modal -->
+        <div id="sowChecklistModal" class="modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>📋 Sam's Expected SOW Output Checklist</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="sow-checklist-content">
+                    <div class="checklist-intro">
+                        <p>Use this comprehensive checklist to ensure your Statement of Work (SOW) meets all quality standards and requirements.</p>
+                        <div class="checklist-progress">
+                            <div class="progress-bar">
+                                <div id="checklistProgress" class="progress-fill"></div>
+                            </div>
+                            <span id="progressText">0% Complete</span>
+                        </div>
+                    </div>
+
+                    <div class="checklist-section">
+                        <h3>🏗️ Structure</h3>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="mgmtLayers" class="checklist-checkbox">
+                            <label for="mgmtLayers">
+                                <strong>Management Layers:</strong> Must include realistic management layers (e.g., Project Manager, Senior Consultant, etc.) - not just "CEO" or "Director"
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="roleDistribution" class="checklist-checkbox">
+                            <label for="roleDistribution">
+                                <strong>Role Distribution:</strong> Should have appropriate distribution of roles across different seniority levels
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="realisticHours" class="checklist-checkbox">
+                            <label for="realisticHours">
+                                <strong>Realistic Hours:</strong> Total hours should be realistic for the project scope (not excessive or minimal)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="checklist-section">
+                        <h3>📝 Content</h3>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="projectOverview" class="checklist-checkbox">
+                            <label for="projectOverview">
+                                <strong>Project Overview:</strong> Clear, concise project description with specific deliverables
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="scopeOfWork" class="checklist-checkbox">
+                            <label for="scopeOfWork">
+                                <strong>Scope of Work:</strong> Detailed breakdown of tasks and responsibilities
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="timeline" class="checklist-checkbox">
+                            <label for="timeline">
+                                <strong>Timeline:</strong> Realistic project timeline with milestones
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="assumptions" class="checklist-checkbox">
+                            <label for="assumptions">
+                                <strong>Assumptions:</strong> Clear statement of project assumptions and dependencies
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="checklist-section">
+                        <h3>💰 Pricing</h3>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="rateJustification" class="checklist-checkbox">
+                            <label for="rateJustification">
+                                <strong>Rate Justification:</strong> Rates should be justified based on role seniority and market standards
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="totalCalculation" class="checklist-checkbox">
+                            <label for="totalCalculation">
+                                <strong>Total Calculation:</strong> Subtotal, GST, and grand total should calculate correctly
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="discountLogic" class="checklist-checkbox">
+                            <label for="discountLogic">
+                                <strong>Discount Logic:</strong> If discount applied, should be clearly shown in pricing table
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="currency" class="checklist-checkbox">
+                            <label for="currency">
+                                <strong>Currency:</strong> All amounts in AUD with proper formatting
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="checklist-section">
+                        <h3>✨ Output Quality</h3>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="professionalFormatting" class="checklist-checkbox">
+                            <label for="professionalFormatting">
+                                <strong>Professional Formatting:</strong> Clean, professional document formatting
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="grammarSpelling" class="checklist-checkbox">
+                            <label for="grammarSpelling">
+                                <strong>Grammar & Spelling:</strong> No grammatical errors or spelling mistakes
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="consistency" class="checklist-checkbox">
+                            <label for="consistency">
+                                <strong>Consistency:</strong> Consistent terminology and formatting throughout
+                            </label>
+                        </div>
+                        <div class="checklist-item">
+                            <input type="checkbox" id="completeness" class="checklist-checkbox">
+                            <label for="completeness">
+                                <strong>Completeness:</strong> All required sections present and properly filled
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="checklist-actions">
+                        <button type="button" class="btn btn-secondary" id="resetChecklistBtn">Reset Checklist</button>
+                        <button type="button" class="btn btn-primary" id="saveChecklistBtn">Save Progress</button>
+                        <button type="button" class="btn btn-success" id="exportChecklistBtn">Export Results</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

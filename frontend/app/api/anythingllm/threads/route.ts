@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   
   // Handle cases where env vars are set to 'undefined' string
   const baseUrl = (baseUrlRaw && baseUrlRaw !== 'undefined') ? baseUrlRaw : 'https://ahmad-anything-llm.840tjq.easypanel.host';
-  const apiKey = (apiKeyRaw && apiKeyRaw !== 'undefined') ? apiKeyRaw : '0G0WTZ3-6ZX4D20-H35VBRG-9059WPA';
+  const apiKey = (apiKeyRaw && apiKeyRaw !== 'undefined') ? apiKeyRaw : 'process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY';
 
   console.log('[/api/anythingllm/threads] Configuration check:', {
     hasBaseUrl: !!baseUrl,

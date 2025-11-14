@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
 const ANYTHINGLLM_URL = process.env.ANYTHINGLLM_URL || 'https://ahmad-anything-llm.840tjq.easypanel.host';
-const ANYTHINGLLM_API_KEY = process.env.ANYTHINGLLM_API_KEY || '0G0WTZ3-6ZX4D20-H35VBRG-9059WPA';
+const ANYTHINGLLM_API_KEY = process.env.ANYTHINGLLM_API_KEY || 'process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY';
 
 /**
  * GET /api/folders/[id]

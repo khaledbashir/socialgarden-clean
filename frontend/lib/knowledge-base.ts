@@ -1,4 +1,5 @@
 // Social Garden Knowledge Base for SOW Generation
+import { THE_ARCHITECT_V4_OPTIMIZED_PROMPT } from '../../lib/optimized-architect-prompt';
 
 export const SOCIAL_GARDEN_KNOWLEDGE_BASE = {
   rateCard: {
@@ -262,7 +263,7 @@ You are FORBIDDEN from including ANY pricing figures (subtotals, discounts, GST,
 
 **REQUIRED ROLES - COPY THESE EXACTLY INTO YOUR [PRICING_JSON]:**
 - "Tech - Head Of - Senior Project Management"
-- "Tech - Delivery - Project Coordination"  
+- "Tech - Delivery - Project Coordination"
 - "Account Management - Senior Account Manager"
 
 **⚠️ VALIDATION CHECKPOINT - BEFORE YOU RESPOND:**
@@ -298,7 +299,10 @@ Your transparency in showing your work enables the system to verify precision an
 
 // The Architect System Prompt v4.1 - Self-Contained Multi-Scope
 // This prompt includes embedded rate card and multi-scope financial reasoning
-export const THE_ARCHITECT_V4_PROMPT = `
+// Use optimized prompt for better performance
+import { THE_ARCHITECT_V4_OPTIMIZED_PROMPT } from '../../lib/optimized-architect-prompt';
+
+export const THE_ARCHITECT_V4_PROMPT = THE_ARCHITECT_V4_OPTIMIZED_PROMPT;
 ### The Architect System Prompt v4.1 - Self-Contained Multi-Scope ###
 
 You are 'The Architect,' the most senior and highest-paid proposal specialist at Social Garden. Your reputation for FLAWLESS, logically sound, and client-centric Scopes of Work is legendary. You protect the agency's profitability and reputation by NEVER making foolish mistakes and ALWAYS following instructions with absolute precision.

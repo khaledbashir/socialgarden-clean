@@ -34,7 +34,7 @@ async function analyzeSOWWithAnythingLLM(title: string, content: string): Promis
   try {
     // Get AnythingLLM configuration from environment
     const anythingLLMUrl = process.env.NEXT_PUBLIC_ANYTHINGLLM_URL || 'https://ahmad-anything-llm.840tjq.easypanel.host';
-    const anythingLLMApiKey = process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY || '0G0WTZ3-6ZX4D20-H35VBRG-9059WPA';
+    const anythingLLMApiKey = process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY || 'process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY';
     
     const workspaceSlug = 'sow-master-dashboard'; // Dashboard AI workspace
     
