@@ -2,7 +2,7 @@
 // Handles workspace creation, document embedding, and chat integration
 
 import SOCIAL_GARDEN_KNOWLEDGE_BASE from "./social-garden-knowledge-base";
-import { THE_ARCHITECT_V4_PROMPT } from "./knowledge-base";
+
 import { ROLES } from "./rateCard";
 
 // Get AnythingLLM URL from environment (NEXT_PUBLIC_ANYTHINGLLM_URL must be set in .env)
@@ -778,34 +778,18 @@ Metadata:
         clientName?: string,
         isSOWWorkspace: boolean = true,
     ): Promise<boolean> {
-        // For SOW workspaces: Use The Architect V4.1 prompt with embedded rate card
-        // For other workspaces: Use client-facing prompt for Q&A
-        const prompt = isSOWWorkspace
-            ? THE_ARCHITECT_V4_PROMPT
-            : this.getClientFacingPrompt(clientName);
+        // The SOW prompt is now managed directly in the AnythingLLM workspace.
+        // This function will NOT overwrite the SOW prompt.
+        // It will only set the prompt for other workspace types (e.g., client-facing Q&A).
+        if (isSOWWorkspace) {
+            console.log(
+                `✅ INFO: Skipping prompt overwrite for SOW workspace '${workspaceSlug}'. The prompt is managed in the AnythingLLM UI.`,
+            );
+            return true;
+        }
 
-        // 🎯 STRATEGIC LOGGING: Prove V4.1 prompt injection is working
-        console.log(`\n${"=".repeat(80)}`);
-        console.log(`🎯 [PROMPT INJECTION VERIFICATION]`);
-        console.log(`   Workspace: ${workspaceSlug}`);
-        console.log(`   Client: ${clientName || "N/A"}`);
-        console.log(
-            `   Type: ${isSOWWorkspace ? "SOW (The Architect V4.1)" : "Client Q&A"}`,
-        );
-        console.log(`   Prompt Length: ${prompt.length} characters`);
-        console.log(
-            `   Contains "v4.1 - Self-Contained Multi-Scope": ${prompt.includes("v4.1 - Self-Contained Multi-Scope")}`,
-        );
-        console.log(
-            `   Contains "[FINANCIAL_REASONING]": ${prompt.includes("[FINANCIAL_REASONING]")}`,
-        );
-        console.log(
-            `   Contains "[OFFICIAL_RATE_CARD]": ${prompt.includes("[OFFICIAL_RATE_CARD]")}`,
-        );
-        console.log(
-            `   Contains "Tech - Head Of - Senior Project Management": ${prompt.includes("Tech - Head Of - Senior Project Management")}`,
-        );
-        console.log(`${"=".repeat(80)}\n`);
+        console.log(`Setting up client-facing prompt for ${workspaceSlug}`);
+        const prompt = this.getClientFacingPrompt(clientName);
 
         try {
             const response = await fetch(

@@ -204,10 +204,6 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Pass the user's message through without adding or appending extra instructions.
-        // The workspace's system prompt governs behavior; do not inject per-message rails here.
-        // EXCEPTION: For gen-the-architect workspace, inject the latest THE_ARCHITECT_V4_PROMPT
-        // to ensure it uses the most current version
         let messageToSend: string =
             typeof lastMessage.content === "string" ? lastMessage.content : "";
 
@@ -218,15 +214,6 @@ export async function POST(request: NextRequest) {
                 headers: { "Content-Type": "application/json" },
             });
         }
-
-        // 🎯 REMOVED: For sow-generator workspace, previously injected THE_ARCHITECT_V4_PROMPT
-        // Now relies solely on the native workspace prompt set in AnythingLLM
-        // if (effectiveWorkspaceSlug === 'sow-generator') {
-        //   const { THE_ARCHITECT_V4_PROMPT } = await import('@/lib/knowledge-base');
-        //   messageToSend = `${THE_ARCHITECT_V4_PROMPT}\n\nUser Request: ${messageToSend}`;
-        //   console.log('🎯 [SOW-GENERATOR] Injected THE_ARCHITECT_V4_PROMPT into message');
-        //   console.log(`   Prompt length: ${THE_ARCHITECT_V4_PROMPT.length} characters`);
-        // }
 
         // 🎯 CRITICAL: For master dashboard workspace, inject live analytics data
         // This ensures the AI has access to the SAME data the UI shows
