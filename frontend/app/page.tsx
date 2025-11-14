@@ -4254,8 +4254,8 @@ Ask me questions to get business insights, such as:
                 "",
             );
 
-            // 1) Extract ALL JSON code blocks and build per-table roles queue.
-            //    Replace each JSON block with a [editablePricingTable] placeholder to preserve placement.
+            // 1) Extract ONLY the FINAL JSON code block (clean output, not AI thought stream).
+            //    Replace it with a [editablePricingTable] placeholder to preserve placement.
             let markdownPart = filteredContent;
             const tablesRolesQueue: any[][] = [];
             const tablesDiscountsQueue: number[] = [];
@@ -4263,119 +4263,137 @@ Ask me questions to get business insights, such as:
             let hasValidSuggestedRoles = false;
             let extractedDiscount: number | undefined;
 
-            const jsonBlocks = Array.from(
-                filteredContent.matchAll(/```json\s*([\s\S]*?)\s*```/gi),
-            );
-            console.log(
-                `🔍 [JSON Extraction] Found ${jsonBlocks.length} JSON blocks in content`,
-            );
-            if (jsonBlocks.length > 0) {
-                // Rebuild markdown by replacing only qualifying pricing JSON blocks with placeholders
-                let rebuilt = "";
-                let lastIndex = 0;
-                for (const m of jsonBlocks) {
-                    const full = m[0];
-                    const body = m[1];
-                    const start = m.index || 0;
-                    const end = start + full.length;
-                    // Append text before this block
-                    rebuilt += filteredContent.slice(lastIndex, start);
-                    lastIndex = end;
-                    try {
-                        const obj = JSON.parse(body);
-                        console.log("📦 [JSON Block] Parsed object:", {
-                            hasRoles: Array.isArray(obj?.roles),
-                            hasSuggestedRoles: Array.isArray(
-                                obj?.suggestedRoles,
-                            ),
-                            hasScopeItems: Array.isArray(obj?.scopeItems),
-                            hasRoleAllocation: Array.isArray(
-                                obj?.role_allocation,
-                            ),
-                            rolesLength: obj?.roles?.length,
-                            suggestedRolesLength: obj?.suggestedRoles?.length,
-                            scopeItemsLength: obj?.scopeItems?.length,
-                            roleAllocationLength: obj?.role_allocation?.length,
-                            keys: Object.keys(obj),
-                        });
-                        let rolesArr: any[] = [];
-                        let discountVal: number | undefined = undefined;
+            // 🎯 CRITICAL FIX: Extract ONLY the final JSON block using the robust regex
+            const regex = /```json\s*([\s\S]*?)\s*```/g;
+            const allMatches = Array.from(filteredContent.matchAll(regex));
 
-                        // Check for role_allocation (new [PRICING_JSON] format)
-                        if (Array.isArray(obj?.role_allocation)) {
-                            rolesArr = obj.role_allocation;
-                            console.log(
-                                `✅ Using ${rolesArr.length} roles from obj.role_allocation ([PRICING_JSON] format)`,
-                            );
-                        } else if (Array.isArray(obj?.roles)) {
-                            rolesArr = obj.roles;
-                            console.log(
-                                `✅ Using ${rolesArr.length} roles from obj.roles`,
-                            );
-                        } else if (Array.isArray(obj?.suggestedRoles)) {
-                            rolesArr = obj.suggestedRoles;
-                            console.log(
-                                `✅ Using ${rolesArr.length} roles from obj.suggestedRoles`,
-                            );
-                        } else if (Array.isArray(obj?.scopeItems)) {
-                            const derived = buildSuggestedRolesFromArchitectSOW(
-                                obj as ArchitectSOW,
-                            );
-                            rolesArr = derived;
-                            console.log(
-                                `✅ Derived ${rolesArr.length} roles from obj.scopeItems`,
-                            );
-                        } else {
-                            console.warn(
-                                "⚠️ JSON block has no roles, suggestedRoles, scopeItems, or role_allocation arrays",
-                            );
-                        }
+            if (allMatches.length === 0) {
+                console.warn(
+                    "❌ No valid final JSON block found in the AI response. Proceeding with markdown-only content.",
+                );
+                // Continue without JSON data; just use the markdown narrative
+            } else {
+                // 🎯 Get the content of the VERY LAST match (the final, clean JSON output)
+                const finalMatch = allMatches[allMatches.length - 1];
+                const finalJsonString = finalMatch[1];
+                const finalFullBlock = finalMatch[0];
 
-                        // Check for discount in various formats
-                        if (typeof obj?.discount === "number") {
-                            discountVal = obj.discount;
-                        } else if (
-                            typeof obj?.discount_percentage === "number"
-                        ) {
-                            discountVal = obj.discount_percentage;
-                        } else if (
-                            typeof obj?.project_details?.discount_percentage ===
-                            "number"
-                        ) {
-                            discountVal =
-                                obj.project_details.discount_percentage;
-                        }
-                        if (rolesArr.length > 0) {
-                            console.log(
-                                `✅ Adding ${rolesArr.length} roles to queue`,
-                            );
-                            tablesRolesQueue.push(rolesArr);
-                            tablesDiscountsQueue.push(discountVal ?? 0);
-                            // Insert placeholder where the JSON block was
-                            rebuilt += "\n[editablePricingTable]\n";
-                        } else {
-                            // Not a pricing JSON; keep original content
-                            console.warn(
-                                `⚠️ JSON block found but rolesArr is empty - keeping original JSON in content`,
-                            );
-                            rebuilt += full;
-                        }
-                    } catch (e) {
-                        // Not valid JSON; keep original content
-                        console.error("❌ Failed to parse JSON block:", e);
-                        rebuilt += full;
+                console.log(
+                    `🔍 [JSON Extraction] Found ${allMatches.length} JSON block(s); extracting the FINAL one for parsing.`,
+                );
+
+                try {
+                    const obj = JSON.parse(finalJsonString);
+                    console.log("📦 [Final JSON Block] Parsed object:", {
+                        hasRoles: Array.isArray(obj?.roles),
+                        hasSuggestedRoles: Array.isArray(obj?.suggestedRoles),
+                        hasScopeItems: Array.isArray(obj?.scopeItems),
+                        hasRoleAllocation: Array.isArray(obj?.role_allocation),
+                        rolesLength: obj?.roles?.length,
+                        suggestedRolesLength: obj?.suggestedRoles?.length,
+                        scopeItemsLength: obj?.scopeItems?.length,
+                        roleAllocationLength: obj?.role_allocation?.length,
+                        keys: Object.keys(obj),
+                    });
+                    let rolesArr: any[] = [];
+                    let discountVal: number | undefined = undefined;
+
+                    // Check for role_allocation (new [PRICING_JSON] format)
+                    if (Array.isArray(obj?.role_allocation)) {
+                        rolesArr = obj.role_allocation;
+                        console.log(
+                            `✅ Using ${rolesArr.length} roles from obj.role_allocation ([PRICING_JSON] format)`,
+                        );
+                    } else if (Array.isArray(obj?.roles)) {
+                        rolesArr = obj.roles;
+                        console.log(
+                            `✅ Using ${rolesArr.length} roles from obj.roles`,
+                        );
+                    } else if (Array.isArray(obj?.suggestedRoles)) {
+                        rolesArr = obj.suggestedRoles;
+                        console.log(
+                            `✅ Using ${rolesArr.length} roles from obj.suggestedRoles`,
+                        );
+                    } else if (Array.isArray(obj?.scopeItems)) {
+                        const derived = buildSuggestedRolesFromArchitectSOW(
+                            obj as ArchitectSOW,
+                        );
+                        rolesArr = derived;
+                        console.log(
+                            `✅ Derived ${rolesArr.length} roles from obj.scopeItems`,
+                        );
+                    } else {
+                        console.warn(
+                            "⚠️ Final JSON block has no roles, suggestedRoles, scopeItems, or role_allocation arrays",
+                        );
                     }
-                }
-                // Append the rest
-                rebuilt += filteredContent.slice(lastIndex);
-                markdownPart = rebuilt.trim();
-                hasValidSuggestedRoles = tablesRolesQueue.length > 0;
-                if (hasValidSuggestedRoles) {
-                    console.log(
-                        `✅ Detected ${tablesRolesQueue.length} pricing JSON block(s); will insert same number of pricing tables.`,
+
+                    // Check for discount in various formats
+                    if (typeof obj?.discount === "number") {
+                        discountVal = obj.discount;
+                    } else if (typeof obj?.discount_percentage === "number") {
+                        discountVal = obj.discount_percentage;
+                    } else if (
+                        typeof obj?.project_details?.discount_percentage ===
+                        "number"
+                    ) {
+                        discountVal = obj.project_details.discount_percentage;
+                    }
+
+                    if (rolesArr.length > 0) {
+                        console.log(
+                            `✅ Adding ${rolesArr.length} roles to queue`,
+                        );
+                        tablesRolesQueue.push(rolesArr);
+                        tablesDiscountsQueue.push(discountVal ?? 0);
+
+                        // Replace the final JSON block with placeholder
+                        const blockIndex =
+                            filteredContent.lastIndexOf(finalFullBlock);
+                        if (blockIndex !== -1) {
+                            markdownPart =
+                                filteredContent.substring(0, blockIndex) +
+                                "\n[editablePricingTable]\n" +
+                                filteredContent.substring(
+                                    blockIndex + finalFullBlock.length,
+                                );
+                        }
+                        hasValidSuggestedRoles = true;
+                        console.log(
+                            `✅ Detected 1 final pricing JSON block; will insert 1 pricing table.`,
+                        );
+                    } else {
+                        console.warn(
+                            `⚠️ Final JSON block parsed but rolesArr is empty - proceeding with markdown only`,
+                        );
+                        markdownPart = filteredContent.trim();
+                    }
+
+                    // 🎯 V4.1 Multi-Scope Data Storage
+                    if (obj.scopes && Array.isArray(obj.scopes)) {
+                        console.log(
+                            `✅ Storing V4.1 multi-scope data: ${obj.scopes.length} scopes`,
+                        );
+                        setMultiScopePricingData({
+                            scopes: obj.scopes,
+                            discount: discountVal ?? 0,
+                            extractedAt: Date.now(),
+                        });
+                    }
+                } catch (error) {
+                    console.error(
+                        "❌ Failed to parse the final JSON block:",
+                        error,
+                    );
+                    // MUST return here or handle gracefully without crashing
+                    markdownPart = filteredContent.trim();
+                    console.warn(
+                        "⚠️ Proceeding with markdown content only due to JSON parse error.",
                     );
                 }
-            } else {
+            }
+
+            if (!hasValidSuggestedRoles && suggestedRoles.length === 0) {
                 // Backward compatibility: single-block helpers
                 const single = extractPricingJSON(filteredContent);
                 if (single && single.roles && single.roles.length > 0) {
