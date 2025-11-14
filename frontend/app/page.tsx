@@ -105,21 +105,8 @@ const extractBudgetAndDiscount = (prompt: string): { budget: number; discount: n
     }
   }
 
-  // Extract discount percentage
-  const discountPatterns = [
-    /(\d+(?:\.\d+)?)\s*%\s*(?:goodwill\s+)?discount/i,
-    /discount\s*(?:of\s+)?(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s*%\s*off/i,
-  ];
-
-  for (const re of discountPatterns) {
-    const m = prompt.match(re);
-    if (m && m[1]) {
-      discount = parseFloat(m[1]);
-      console.log(`🎯 Discount extracted from user prompt: ${discount}%`);
-      break;
-    }
-  }
+  // Discount removed - system defaults to 0%
+  discount = 0;
 
   return { budget, discount };
 };
