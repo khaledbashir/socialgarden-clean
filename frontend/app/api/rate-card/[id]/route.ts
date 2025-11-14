@@ -7,21 +7,25 @@ import { query } from "@/lib/db";
  */
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> },
 ) {
+    const { id } = await params;
     try {
-        const { id } = params;
         const body = await request.json();
         const { roleName, hourlyRate } = body;
 
         // Validation
-        if (!roleName || typeof roleName !== "string" || roleName.trim() === "") {
+        if (
+            !roleName ||
+            typeof roleName !== "string" ||
+            roleName.trim() === ""
+        ) {
             return NextResponse.json(
                 {
                     success: false,
                     error: "Role name is required and must be a non-empty string",
                 },
-                { status: 400 }
+                { status: 400 },
             );
         }
 
@@ -31,14 +35,14 @@ export async function PUT(
                     success: false,
                     error: "Hourly rate must be a positive number",
                 },
-                { status: 400 }
+                { status: 400 },
             );
         }
 
         // Check if role exists
         const existing = await query(
             "SELECT id FROM rate_card_roles WHERE id = ?",
-            [id]
+            [id],
         );
 
         if (existing.length === 0) {
@@ -47,14 +51,14 @@ export async function PUT(
                     success: false,
                     error: "Rate card role not found",
                 },
-                { status: 404 }
+                { status: 404 },
             );
         }
 
         // Check for duplicate role name (excluding current role)
         const duplicate = await query(
             "SELECT id FROM rate_card_roles WHERE role_name = ? AND id != ?",
-            [roleName.trim(), id]
+            [roleName.trim(), id],
         );
 
         if (duplicate.length > 0) {
@@ -63,7 +67,7 @@ export async function PUT(
                     success: false,
                     error: "A role with this name already exists",
                 },
-                { status: 409 }
+                { status: 409 },
             );
         }
 
@@ -72,7 +76,7 @@ export async function PUT(
             `UPDATE rate_card_roles
              SET role_name = ?, hourly_rate = ?, updated_at = CURRENT_TIMESTAMP
              WHERE id = ?`,
-            [roleName.trim(), hourlyRate, id]
+            [roleName.trim(), hourlyRate, id],
         );
 
         // Fetch the updated role
@@ -80,7 +84,7 @@ export async function PUT(
             `SELECT id, role_name as roleName, hourly_rate as hourlyRate, is_active as isActive, created_at as createdAt, updated_at as updatedAt
              FROM rate_card_roles
              WHERE id = ?`,
-            [id]
+            [id],
         );
 
         return NextResponse.json({
@@ -96,7 +100,7 @@ export async function PUT(
                 error: "Failed to update rate card role",
                 message: error.message,
             },
-            { status: 500 }
+            { status: 500 },
         );
     }
 }
@@ -107,15 +111,14 @@ export async function PUT(
  */
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> },
 ) {
+    const { id } = await params;
     try {
-        const { id } = params;
-
         // Check if role exists
         const existing = await query(
             "SELECT id FROM rate_card_roles WHERE id = ?",
-            [id]
+            [id],
         );
 
         if (existing.length === 0) {
@@ -124,7 +127,7 @@ export async function DELETE(
                     success: false,
                     error: "Rate card role not found",
                 },
-                { status: 404 }
+                { status: 404 },
             );
         }
 
@@ -133,7 +136,7 @@ export async function DELETE(
             `UPDATE rate_card_roles
              SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
              WHERE id = ?`,
-            [id]
+            [id],
         );
 
         return NextResponse.json({
@@ -148,7 +151,7 @@ export async function DELETE(
                 error: "Failed to delete rate card role",
                 message: error.message,
             },
-            { status: 500 }
+            { status: 500 },
         );
     }
 }

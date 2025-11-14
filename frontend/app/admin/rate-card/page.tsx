@@ -374,7 +374,7 @@ export default function RateCardManagementPage() {
                                                 {role.roleName}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-slate-900 text-right font-mono">
-                                                ${role.hourlyRate.toFixed(2)}
+                                                {Number(role.hourlyRate).toFixed(2)}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
