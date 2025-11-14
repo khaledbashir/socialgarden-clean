@@ -4278,7 +4278,7 @@ Ask me questions to get business insights, such as:
           }
 
           // Smart mode selection for Master Dashboard: use 'chat' for greetings/non-analytic prompts
-          // Always use 'chat' mode to ensure messages persist to thread history
+          // Always use 'chat' mode to mirror AnythingLLM direct chat behavior
           const resolvedMode = 'chat';
 
           const response = await fetch(streamEndpoint, {

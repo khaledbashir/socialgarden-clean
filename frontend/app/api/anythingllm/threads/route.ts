@@ -42,13 +42,18 @@ export async function GET(req: NextRequest) {
   }
 
   // Prefer secure server-side env vars; avoid relying on NEXT_PUBLIC values here
-  const baseUrl = process.env.ANYTHINGLLM_URL || process.env.NEXT_PUBLIC_ANYTHINGLLM_URL;
-  const apiKey = process.env.ANYTHINGLLM_API_KEY || process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY;
+  const baseUrlRaw = process.env.ANYTHINGLLM_URL || process.env.NEXT_PUBLIC_ANYTHINGLLM_URL;
+  const apiKeyRaw = process.env.ANYTHINGLLM_API_KEY || process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY;
+  
+  // Handle cases where env vars are set to 'undefined' string
+  const baseUrl = (baseUrlRaw && baseUrlRaw !== 'undefined') ? baseUrlRaw : 'https://ahmad-anything-llm.840tjq.easypanel.host';
+  const apiKey = (apiKeyRaw && apiKeyRaw !== 'undefined') ? apiKeyRaw : '0G0WTZ3-6ZX4D20-H35VBRG-9059WPA';
 
   console.log('[/api/anythingllm/threads] Configuration check:', {
     hasBaseUrl: !!baseUrl,
     baseUrl: baseUrl?.substring(0, 30) + '...',
     hasApiKey: !!apiKey,
+    apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'none',
     workspace,
   });
 

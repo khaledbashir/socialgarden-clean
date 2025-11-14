@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 
 // Prefer secure server-side env vars; fallback to NEXT_PUBLIC for flexibility in current deployments
-const ANYTHINGLLM_URL = process.env.ANYTHINGLLM_URL || process.env.NEXT_PUBLIC_ANYTHINGLLM_URL;
-const ANYTHINGLLM_API_KEY = process.env.ANYTHINGLLM_API_KEY || process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY;
+    const ANYTHINGLLM_URL = effectiveBaseUrl;
+    const ANYTHINGLLM_API_KEY = effectiveApiKey;
 
 /**
  * Fetch live analytics data for the Analytics Assistant
@@ -58,7 +58,14 @@ ${data.all_clients.map((c: any) =>
 export async function POST(request: NextRequest) {
   try {
     // Require server-side configuration only
-    if (!ANYTHINGLLM_URL || !ANYTHINGLLM_API_KEY) {
+    // Use same logic as AnythingLLMService for consistency
+    const baseUrl = process.env.ANYTHINGLLM_URL || process.env.NEXT_PUBLIC_ANYTHINGLLM_URL;
+    const apiKey = process.env.ANYTHINGLLM_API_KEY || process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY;
+    
+    // Handle cases where env vars are set to 'undefined' string
+    const effectiveBaseUrl = (baseUrl && baseUrl !== 'undefined') ? baseUrl : 'https://ahmad-anything-llm.840tjq.easypanel.host';
+    const effectiveApiKey = (apiKey && apiKey !== 'undefined') ? apiKey : '0G0WTZ3-6ZX4D20-H35VBRG-9059WPA';
+    if (!effectiveBaseUrl || !effectiveApiKey) {
       return new Response(
         JSON.stringify({ error: 'AnythingLLM is not configured on the server. Set ANYTHINGLLM_URL and ANYTHINGLLM_API_KEY.' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -161,14 +168,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🎯 CRITICAL: For sow-generator workspace, inject THE_ARCHITECT_V4_PROMPT
-    // This ensures the AI always uses the latest prompt version, even if workspace settings are stale
-    if (effectiveWorkspaceSlug === 'sow-generator') {
-      const { THE_ARCHITECT_V4_PROMPT } = await import('@/lib/knowledge-base');
-      messageToSend = `${THE_ARCHITECT_V4_PROMPT}\n\nUser Request: ${messageToSend}`;
-      console.log('🎯 [SOW-GENERATOR] Injected THE_ARCHITECT_V4_PROMPT into message');
-      console.log(`   Prompt length: ${THE_ARCHITECT_V4_PROMPT.length} characters`);
-    }
+    // 🎯 REMOVED: For sow-generator workspace, previously injected THE_ARCHITECT_V4_PROMPT
+    // Now relies solely on the native workspace prompt set in AnythingLLM
+    // if (effectiveWorkspaceSlug === 'sow-generator') {
+    //   const { THE_ARCHITECT_V4_PROMPT } = await import('@/lib/knowledge-base');
+    //   messageToSend = `${THE_ARCHITECT_V4_PROMPT}\n\nUser Request: ${messageToSend}`;
+    //   console.log('🎯 [SOW-GENERATOR] Injected THE_ARCHITECT_V4_PROMPT into message');
+    //   console.log(`   Prompt length: ${THE_ARCHITECT_V4_PROMPT.length} characters`);
+    // }
 
     // 🎯 CRITICAL: For master dashboard workspace, inject live analytics data
     // This ensures the AI has access to the SAME data the UI shows
