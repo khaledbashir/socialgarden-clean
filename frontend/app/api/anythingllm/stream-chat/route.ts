@@ -1,8 +1,15 @@
 import { NextRequest } from 'next/server';
 
 // Prefer secure server-side env vars; fallback to NEXT_PUBLIC for flexibility in current deployments
-    const ANYTHINGLLM_URL = effectiveBaseUrl;
-    const ANYTHINGLLM_API_KEY = effectiveApiKey;
+const baseUrl = process.env.ANYTHINGLLM_URL || process.env.NEXT_PUBLIC_ANYTHINGLLM_URL;
+const apiKey = process.env.ANYTHINGLLM_API_KEY || process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY;
+
+// Handle cases where env vars are set to 'undefined' string
+const effectiveBaseUrl = (baseUrl && baseUrl !== 'undefined') ? baseUrl : 'https://ahmad-anything-llm.840tjq.easypanel.host';
+const effectiveApiKey = (apiKey && apiKey !== 'undefined') ? apiKey : '0G0WTZ3-6ZX4D20-H35VBRG-9059WPA';
+
+const ANYTHINGLLM_URL = effectiveBaseUrl;
+const ANYTHINGLLM_API_KEY = effectiveApiKey;
 
 /**
  * Fetch live analytics data for the Analytics Assistant
@@ -57,20 +64,7 @@ ${data.all_clients.map((c: any) =>
 
 export async function POST(request: NextRequest) {
   try {
-    // Require server-side configuration only
-    // Use same logic as AnythingLLMService for consistency
-    const baseUrl = process.env.ANYTHINGLLM_URL || process.env.NEXT_PUBLIC_ANYTHINGLLM_URL;
-    const apiKey = process.env.ANYTHINGLLM_API_KEY || process.env.NEXT_PUBLIC_ANYTHINGLLM_API_KEY;
-    
-    // Handle cases where env vars are set to 'undefined' string
-    const effectiveBaseUrl = (baseUrl && baseUrl !== 'undefined') ? baseUrl : 'https://ahmad-anything-llm.840tjq.easypanel.host';
-    const effectiveApiKey = (apiKey && apiKey !== 'undefined') ? apiKey : '0G0WTZ3-6ZX4D20-H35VBRG-9059WPA';
-    if (!effectiveBaseUrl || !effectiveApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'AnythingLLM is not configured on the server. Set ANYTHINGLLM_URL and ANYTHINGLLM_API_KEY.' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    // Configuration is now handled at module level above
     // ============================================================================
     // CRITICAL DEBUG: INCOMING /stream-chat PAYLOAD
     // ============================================================================
