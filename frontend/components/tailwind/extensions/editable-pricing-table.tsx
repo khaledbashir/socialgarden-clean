@@ -3,14 +3,12 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import React, { useState, useEffect, useRef } from "react";
-import {
-    ROLES as RATE_ROLES,
-    RATE_CARD_MAP,
-    getRateForRole,
-} from "@/lib/rateCard";
 
-// Use single source of truth for roles/rates
-const ROLES = RATE_ROLES;
+// Dynamic roles from API - no more hardcoded imports!
+interface RoleRate {
+    roleName: string;
+    hourlyRate: number;
+}
 
 interface PricingRow {
     id: string;
@@ -37,6 +35,32 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
     const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
+    // 🎯 Fetch roles dynamically from API (Single Source of Truth)
+    const [roles, setRoles] = useState<RoleRate[]>([]);
+    const [rolesLoading, setRolesLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchRoles = async () => {
+            try {
+                const response = await fetch("/api/rate-card");
+                const result = await response.json();
+                if (result.success) {
+                    setRoles(result.data);
+                } else {
+                    console.error(
+                        "Failed to fetch rate card roles:",
+                        result.error,
+                    );
+                }
+            } catch (error) {
+                console.error("Error fetching rate card roles:", error);
+            } finally {
+                setRolesLoading(false);
+            }
+        };
+        fetchRoles();
+    }, []);
+
     useEffect(() => {
         // Defer updateAttributes to a microtask to avoid flushSync errors
         // This prevents calling updateAttributes from within a React lifecycle
@@ -54,7 +78,9 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
             prev.map((row) => {
                 if (row.id !== id) return row;
                 if (field === "role") {
-                    const rate = getRateForRole(value as string) || row.rate;
+                    // Find rate from dynamically loaded roles
+                    const roleData = roles.find((r) => r.roleName === value);
+                    const rate = roleData?.hourlyRate || row.rate;
                     return { ...row, role: value as string, rate };
                 }
                 return { ...row, [field]: value };
@@ -275,16 +301,18 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                                     className="bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200"
                                                     value=""
                                                 >
-                                                    Select role...
+                                                    {rolesLoading
+                                                        ? "Loading roles..."
+                                                        : "Select role..."}
                                                 </option>
-                                                {ROLES.map((role) => (
+                                                {roles.map((role) => (
                                                     <option
-                                                        key={role.name}
-                                                        value={role.name}
+                                                        key={role.roleName}
+                                                        value={role.roleName}
                                                         className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                                                     >
-                                                        {role.name} - $
-                                                        {role.rate}/hr
+                                                        {role.roleName} - $
+                                                        {role.hourlyRate}/hr
                                                     </option>
                                                 ))}
                                             </select>

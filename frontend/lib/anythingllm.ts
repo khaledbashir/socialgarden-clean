@@ -3,8 +3,6 @@
 
 import SOCIAL_GARDEN_KNOWLEDGE_BASE from "./social-garden-knowledge-base";
 
-import { ROLES } from "./rateCard";
-
 // Get AnythingLLM URL from environment (NEXT_PUBLIC_ANYTHINGLLM_URL must be set in .env)
 // Falls back to Ahmad's instance for local development
 const ANYTHINGLLM_BASE_URL =
@@ -246,20 +244,39 @@ export class AnythingLLMService {
     /**
      * Build markdown for the authoritative Social Garden rate card
      */
-    private buildRateCardMarkdown(): string {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, "0");
-        const dd = String(today.getDate()).padStart(2, "0");
-        const version = `${yyyy}-${mm}-${dd}`;
-        const header = `# Social Garden - Official Rate Card (AUD/hour)\n\n`;
-        const intro = `This document is the single source of truth for hourly rates across roles.\n\n`;
-        const tableHeader = `| Role | Rate (AUD/hr) |\n|---|---:|\n`;
-        const rows = ROLES.map(
-            (r) => `| ${r.name} | ${r.rate.toFixed(2)} |`,
-        ).join("\n");
-        const guidance = `\n\n> Version: v${version}\n\n## Pricing Guidance\n- Rates are exclusive of GST.\n- Use these rates for project pricing and retainers unless client-approved custom rates apply.\n- "Head Of", "Project Coordination", and "Account Management" roles are required governance roles for delivery.\n\n## Retainer Notes\n- Show monthly breakdowns and annualized totals.\n- Define overflow: hours beyond monthly budget billed at these standard rates.\n- Typical options: Essential (lean), Standard (recommended), Premium (full team).\n`;
-        return header + intro + tableHeader + rows + guidance;
+    /**
+     * Fetches the rate card markdown from the API
+     * This ensures we always use the latest data from the database (single source of truth)
+     */
+    private async buildRateCardMarkdown(): Promise<string> {
+        try {
+            // Determine the base URL for the API call
+            const baseUrl =
+                typeof window !== "undefined"
+                    ? window.location.origin
+                    : process.env.NEXT_PUBLIC_APP_URL ||
+                      "http://localhost:3000";
+
+            const response = await fetch(`${baseUrl}/api/rate-card/markdown`);
+            const result = await response.json();
+
+            if (result.success) {
+                console.log(
+                    `✅ Fetched rate card markdown (${result.roleCount} roles, v${result.version})`,
+                );
+                return result.markdown;
+            } else {
+                console.error(
+                    "❌ Failed to fetch rate card markdown:",
+                    result.error,
+                );
+                // Return a fallback message
+                return `# Social Garden - Official Rate Card\n\nError: Unable to fetch rate card data. Please contact support.`;
+            }
+        } catch (error) {
+            console.error("❌ Error fetching rate card markdown:", error);
+            return `# Social Garden - Official Rate Card\n\nError: Unable to fetch rate card data. Please contact support.`;
+        }
     }
 
     /**
@@ -332,7 +349,7 @@ export class AnythingLLMService {
             const dd = String(today.getDate()).padStart(2, "0");
             const version = `${yyyy}-${mm}-${dd}`;
             const title = `Social Garden - Official Rate Card (AUD/hour) (v${version})`;
-            const textContent = this.buildRateCardMarkdown();
+            const textContent = await this.buildRateCardMarkdown();
 
             // Process document
             const rawTextResponse = await fetch(

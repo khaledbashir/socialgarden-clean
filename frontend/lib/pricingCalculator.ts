@@ -13,9 +13,58 @@ const norm = (s: string) => (s || '')
   .replace(/\s+/g, ' ')
   .trim();
 
+// Levenshtein distance implementation for fuzzy string matching
+const levenshteinDistance = (a: string = '', b: string = ''): number => {
+  const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+  for (let i = 0; i <= a.length; i += 1) {
+    matrix[0][i] = i;
+  }
+  for (let j = 0; j <= b.length; j += 1) {
+    matrix[j][0] = j;
+  }
+  for (let j = 1; j <= b.length; j += 1) {
+    for (let i = 1; i <= a.length; i += 1) {
+      const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1, // deletion
+        matrix[j - 1][i] + 1, // insertion
+        matrix[j - 1][i - 1] + indicator, // substitution
+      );
+    }
+  }
+  return matrix[b.length][a.length];
+};
+
 const findCanon = (name: string) => {
-  const n = norm(name);
-  return ROLES.find(r => norm(r.name) === n) || null;
+  if (!name || typeof name !== 'string') return null;
+
+  let bestMatch: string | null = null;
+  let minDistance = Infinity;
+  
+  // A threshold of 3 is a good balance for catching typos
+  // without causing false positives for short strings.
+  const SIMILARITY_THRESHOLD = 3;
+
+  for (const canonRole of ROLES) {
+    const distance = levenshteinDistance(name.toLowerCase(), canonRole.name.toLowerCase());
+
+    // Perfect match is always the best
+    if (distance === 0) {
+        return canonRole;
+    }
+
+    if (distance < minDistance) {
+      minDistance = distance;
+      bestMatch = canonRole.name;
+    }
+  }
+
+  // If the closest match is within our acceptable threshold, return it.
+  if (bestMatch && minDistance <= SIMILARITY_THRESHOLD) {
+    return ROLES.find(r => r.name === bestMatch);
+  }
+
+  return null;
 };
 
 const PM_HEAD_OF = 'Tech - Head Of- Senior Project Management'; // exact from rate card
