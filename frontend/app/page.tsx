@@ -153,13 +153,55 @@ const extractPricingJSON = (
         try {
             const parsedJson = JSON.parse(pricingJsonMatch[1]);
 
-            // 🎯 V4.1 Multi-Scope Format Detection
+            // 🎯 V4.1 Multi-Scope Format Detection (with backward compatibility)
+            let scopesArray = null;
+
+            // Check for new format: scopes with role_allocation
             if (parsedJson.scopes && Array.isArray(parsedJson.scopes)) {
+                scopesArray = parsedJson.scopes;
                 console.log(
                     "🎯 [V4.1 MULTI-SCOPE] Found",
                     parsedJson.scopes.length,
-                    "scopes",
+                    "scopes (NEW FORMAT)",
                 );
+            }
+            // Check for old format: scopeItems with roles
+            else if (
+                parsedJson.scopeItems &&
+                Array.isArray(parsedJson.scopeItems)
+            ) {
+                console.log(
+                    "🎯 [V4.1 MULTI-SCOPE] Found",
+                    parsedJson.scopeItems.length,
+                    "scopeItems (OLD FORMAT) - converting to new format",
+                );
+
+                // Convert old scopeItems format to new scopes format
+                scopesArray = parsedJson.scopeItems.map((item: any) => ({
+                    scope_name: item.scope_name || "Unnamed Scope",
+                    scope_description: item.scope_description || "",
+                    deliverables: item.deliverables || [],
+                    assumptions: item.assumptions || [],
+                    role_allocation: (
+                        item.roles ||
+                        item.role_allocation ||
+                        []
+                    ).map((role: any) => ({
+                        role: role.role,
+                        description: role.description || "",
+                        hours: role.hours || 0,
+                        rate: role.rate || 0,
+                        cost: role.cost || role.hours * role.rate,
+                    })),
+                    discount: item.discount || 0,
+                }));
+
+                console.log(
+                    "✅ Converted old scopeItems format to new scopes format",
+                );
+            }
+
+            if (scopesArray && scopesArray.length > 0) {
                 console.log(
                     "📊 [PRICING_JSON] Block Detected - V4.1 Multi-Scope Format",
                 );
@@ -169,7 +211,7 @@ const extractPricingJSON = (
                 console.log(`🎁 Discount extracted from V4.1: ${discount}%`);
 
                 // Log scope details
-                parsedJson.scopes.forEach((scope: any, index: number) => {
+                scopesArray.forEach((scope: any, index: number) => {
                     console.log(`  📋 Scope ${index + 1}: ${scope.scope_name}`);
                     console.log(
                         `    Description: ${scope.scope_description?.substring(0, 100)}...`,
@@ -184,7 +226,7 @@ const extractPricingJSON = (
 
                 // Transform all role allocations to suggestedRoles format for backward compatibility
                 const allRoles: any[] = [];
-                parsedJson.scopes.forEach((scope: any) => {
+                scopesArray.forEach((scope: any) => {
                     if (
                         scope.role_allocation &&
                         Array.isArray(scope.role_allocation)
@@ -204,7 +246,7 @@ const extractPricingJSON = (
                     roles: allRoles,
                     discount,
                     multiScopeData: {
-                        scopes: parsedJson.scopes,
+                        scopes: scopesArray,
                         discount,
                     },
                 };
