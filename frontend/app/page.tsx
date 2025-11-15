@@ -4547,7 +4547,14 @@ Ask me questions to get business insights, such as:
                             `✅ Storing V4.1 multi-scope data: ${obj.scopes.length} scopes`,
                         );
                         localMultiScopeData = {
-                            scopes: obj.scopes,
+                            scopes: obj.scopes.map((scope: any) => ({
+                                scope_name: scope.scope_name || "Unnamed Scope",
+                                scope_description:
+                                    scope.scope_description || "",
+                                deliverables: scope.deliverables || [],
+                                assumptions: scope.assumptions || [],
+                                role_allocation: scope.role_allocation || [],
+                            })),
                             discount: discountVal ?? 0,
                             extractedAt: Date.now(),
                         };
@@ -4597,7 +4604,19 @@ Ask me questions to get business insights, such as:
                             `✅ Storing V4.1 multi-scope data: ${single.multiScopeData.scopes.length} scopes`,
                         );
                         localMultiScopeData = {
-                            ...single.multiScopeData,
+                            scopes: single.multiScopeData.scopes.map(
+                                (scope: any) => ({
+                                    scope_name:
+                                        scope.scope_name || "Unnamed Scope",
+                                    scope_description:
+                                        scope.scope_description || "",
+                                    deliverables: scope.deliverables || [],
+                                    assumptions: scope.assumptions || [],
+                                    role_allocation:
+                                        scope.role_allocation || [],
+                                }),
+                            ),
+                            discount: single.multiScopeData.discount || 0,
                             extractedAt: Date.now(),
                         };
                         setMultiScopePricingData(localMultiScopeData);
@@ -5135,7 +5154,24 @@ Ask me questions to get business insights, such as:
                                     `✅ Storing V4.1 multi-scope data: ${pricingJsonData.multiScopeData.scopes.length} scopes`,
                                 );
                                 const multiScopeDataLocal = {
-                                    ...pricingJsonData.multiScopeData,
+                                    scopes: pricingJsonData.multiScopeData.scopes.map(
+                                        (scope: any) => ({
+                                            scope_name:
+                                                scope.scope_name ||
+                                                "Unnamed Scope",
+                                            scope_description:
+                                                scope.scope_description || "",
+                                            deliverables:
+                                                scope.deliverables || [],
+                                            assumptions:
+                                                scope.assumptions || [],
+                                            role_allocation:
+                                                scope.role_allocation || [],
+                                        }),
+                                    ),
+                                    discount:
+                                        pricingJsonData.multiScopeData
+                                            .discount || 0,
                                     extractedAt: Date.now(),
                                 };
                                 setMultiScopePricingData(multiScopeDataLocal);
