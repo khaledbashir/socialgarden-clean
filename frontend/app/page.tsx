@@ -518,11 +518,18 @@ type ConvertOptions = {
         scopes: Array<{
             scope_name: string;
             scope_description?: string;
-            role_allocation: any[];
-            discount?: number;
+            deliverables?: string[];
+            assumptions?: string[];
+            role_allocation: Array<{
+                role: string;
+                hours: number;
+                rate?: number;
+                cost?: number;
+            }>;
         }>;
         discount?: number;
         extractedAt?: number;
+        authoritativeTotal?: number;
     };
 };
 
@@ -1642,9 +1649,9 @@ export default function Page() {
     const [multiScopePricingData, setMultiScopePricingData] = useState<{
         scopes: Array<{
             scope_name: string;
-            scope_description: string;
-            deliverables: string[];
-            assumptions: string[];
+            scope_description?: string;
+            deliverables?: string[];
+            assumptions?: string[];
             role_allocation: Array<{
                 role: string;
                 hours: number;
@@ -1652,7 +1659,7 @@ export default function Page() {
                 cost?: number;
             }>;
         }>;
-        discount: number;
+        discount?: number;
         extractedAt?: number;
         authoritativeTotal?: number; // 🎯 AI-calculated authoritative total
     } | null>(null);
