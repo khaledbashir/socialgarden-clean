@@ -4566,8 +4566,6 @@ Ask me questions to get business insights, such as:
                             extractedAt: Date.now(),
                         };
                         setMultiScopePricingData(localMultiScopeData);
-                        convertOptions.multiScopePricingData =
-                            localMultiScopeData;
                     }
                 } catch (error) {
                     console.error(
@@ -4627,8 +4625,6 @@ Ask me questions to get business insights, such as:
                             extractedAt: Date.now(),
                         };
                         setMultiScopePricingData(localMultiScopeData);
-                        convertOptions.multiScopePricingData =
-                            localMultiScopeData;
                     }
                 } else {
                     // Legacy: attempt to parse first JSON block for roles/scopeItems
@@ -5182,8 +5178,6 @@ Ask me questions to get business insights, such as:
                                     extractedAt: Date.now(),
                                 };
                                 setMultiScopePricingData(multiScopeDataLocal);
-                                convertOptions.multiScopePricingData =
-                                    multiScopeDataLocal;
                             }
 
                             if (legacyMatch)
