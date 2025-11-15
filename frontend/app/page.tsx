@@ -472,6 +472,16 @@ type ConvertOptions = {
     // NEW: Support multiple pricing tables insertion in a single document
     tablesRoles?: any[][]; // Queue of roles arrays, one per [PRICING_JSON] block
     tablesDiscounts?: number[]; // Optional per-table discounts aligned with tablesRoles
+    multiScopePricingData?: {
+        scopes: Array<{
+            scope_name: string;
+            scope_description?: string;
+            role_allocation: any[];
+            discount?: number;
+        }>;
+        discount?: number;
+        extractedAt?: number;
+    };
 };
 
 // Build suggestedRoles[] from Architect structured JSON (scopeItems[].roles)
@@ -536,6 +546,7 @@ const convertMarkdownToNovelJSON = (
     const discountQueue: number[] = Array.isArray(options.tablesDiscounts)
         ? [...options.tablesDiscounts]
         : [];
+    const multiScopePricingData = options.multiScopePricingData;
 
     // 🎯 SMART DISCOUNT FEATURE: Priority cascade for discount extraction
     // Priority 1: JSON discount from [PRICING_JSON] block (most authoritative)
@@ -4347,6 +4358,15 @@ Ask me questions to get business insights, such as:
                 );
 
                 try {
+                    // Add validation before parsing
+                    if (
+                        !finalJsonString ||
+                        finalJsonString.trim().length === 0
+                    ) {
+                        console.warn("⚠️ Empty JSON string, skipping parse");
+                        markdownPart = filteredContent.trim();
+                        throw new Error("Empty JSON string");
+                    }
                     const obj = JSON.parse(finalJsonString);
                     console.log("📦 [Final JSON Block] Parsed object:", {
                         hasRoles: Array.isArray(obj?.roles),
@@ -4438,18 +4458,25 @@ Ask me questions to get business insights, such as:
                         console.log(
                             `✅ Storing V4.1 multi-scope data: ${obj.scopes.length} scopes`,
                         );
-                        setMultiScopePricingData({
+                        localMultiScopeData = {
                             scopes: obj.scopes,
                             discount: discountVal ?? 0,
                             extractedAt: Date.now(),
-                        });
+                        };
+                        setMultiScopePricingData(localMultiScopeData);
+                        convertOptions.multiScopePricingData =
+                            localMultiScopeData;
                     }
                 } catch (error) {
                     console.error(
                         "❌ Failed to parse the final JSON block:",
                         error,
                     );
-                    // MUST return here or handle gracefully without crashing
+                    console.error(
+                        "📋 JSON string that failed to parse (first 500 chars):",
+                        finalJsonString?.substring(0, 500) || "N/A",
+                    );
+                    // MUST handle gracefully without crashing
                     markdownPart = filteredContent.trim();
                     console.warn(
                         "⚠️ Proceeding with markdown content only due to JSON parse error.",
@@ -4481,10 +4508,13 @@ Ask me questions to get business insights, such as:
                         console.log(
                             `✅ Storing V4.1 multi-scope data: ${single.multiScopeData.scopes.length} scopes`,
                         );
-                        setMultiScopePricingData({
+                        localMultiScopeData = {
                             ...single.multiScopeData,
                             extractedAt: Date.now(),
-                        });
+                        };
+                        setMultiScopePricingData(localMultiScopeData);
+                        convertOptions.multiScopePricingData =
+                            localMultiScopeData;
                     }
                 } else {
                     // Legacy: attempt to parse first JSON block for roles/scopeItems
@@ -4600,6 +4630,11 @@ Ask me questions to get business insights, such as:
             // 🎯 Extract budget and discount from last user prompt for financial calculations
             const { budget: userPromptBudget, discount: userPromptDiscount } =
                 extractBudgetAndDiscount(lastUserPrompt);
+
+            // 🎯 Capture multiScopePricingData locally to pass through convertOptions
+            let localMultiScopeData: ConvertOptions["multiScopePricingData"] =
+                undefined;
+
             const convertOptions: ConvertOptions = {
                 strictRoles: false,
                 userPromptBudget,
@@ -4607,6 +4642,7 @@ Ask me questions to get business insights, such as:
                 jsonDiscount: extractedDiscount, // Discount from [PRICING_JSON] takes priority
                 tablesRoles: tablesRolesQueue,
                 tablesDiscounts: tablesDiscountsQueue,
+                multiScopePricingData: localMultiScopeData, // Will be set below if found
             };
 
             // CRITICAL: If no suggestedRoles provided from JSON, try extracting Architect structured JSON from the message body
@@ -5008,15 +5044,19 @@ Ask me questions to get business insights, such as:
                             // 🎯 V4.1 Multi-Scope Data Storage
                             if (
                                 pricingJsonData.multiScopeData &&
-                                pricingJsonData.multiScopeData.scopes
+                                pricingJsonData.multiScopeData.scopes &&
+                                pricingJsonData.multiScopeData.scopes.length > 0
                             ) {
                                 console.log(
                                     `✅ Storing V4.1 multi-scope data: ${pricingJsonData.multiScopeData.scopes.length} scopes`,
                                 );
-                                setMultiScopePricingData({
+                                const multiScopeDataLocal = {
                                     ...pricingJsonData.multiScopeData,
                                     extractedAt: Date.now(),
-                                });
+                                };
+                                setMultiScopePricingData(multiScopeDataLocal);
+                                convertOptions.multiScopePricingData =
+                                    multiScopeDataLocal;
                             }
 
                             if (legacyMatch)
@@ -5844,6 +5884,10 @@ Ask me questions to get business insights, such as:
                                 contentForEditor = convertMarkdownToNovelJSON(
                                     cleanedContent,
                                     sanitized,
+                                    {
+                                        multiScopePricingData:
+                                            structured.multiScopeData,
+                                    },
                                 );
                                 docTitle =
                                     structured.title ||
@@ -5859,8 +5903,11 @@ Ask me questions to get business insights, such as:
                                         "",
                                     );
 
-                                contentForEditor =
-                                    convertMarkdownToNovelJSON(cleanedContent);
+                                contentForEditor = convertMarkdownToNovelJSON(
+                                    cleanedContent,
+                                    [],
+                                    {},
+                                );
                                 docTitle =
                                     extractDocTitle(cleanedContent) ||
                                     "New SOW";
@@ -6064,8 +6111,11 @@ Ask me questions to get business insights, such as:
                                         "",
                                     );
 
-                                contentForEditor =
-                                    convertMarkdownToNovelJSON(cleanedContent);
+                                contentForEditor = convertMarkdownToNovelJSON(
+                                    cleanedContent,
+                                    [],
+                                    {},
+                                );
                                 docTitle =
                                     extractDocTitle(cleanedContent) ||
                                     "New SOW";
