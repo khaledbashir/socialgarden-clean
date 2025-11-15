@@ -77,6 +77,55 @@ function normalizeRoleName(name: string): string {
 }
 
 /**
+ * Check if a role is a management/oversight role that should be at the bottom
+ * Includes: Account Management, Project Management (oversight), Directors, etc.
+ */
+function isManagementOversightRole(roleName: string): boolean {
+    const lowerRole = roleName.toLowerCase();
+
+    // Check for explicit management/oversight indicators
+    const oversightKeywords = [
+        "account management",
+        "account director",
+        "account manager",
+        "account coordinator",
+        "project management",
+        "program management",
+        "client director",
+        "client manager",
+        "relationship manager",
+        "engagement manager",
+        "portfolio manager",
+    ];
+
+    // Check if role contains any oversight keywords
+    for (const keyword of oversightKeywords) {
+        if (lowerRole.includes(keyword)) {
+            return true;
+        }
+    }
+
+    // Special case: "Director" or "Manager" in non-technical context
+    // (but exclude "Tech - Head Of" which should be at top)
+    if (lowerRole.includes("head of")) {
+        return false; // Head Of roles go at the TOP
+    }
+
+    // Check for director/manager roles (but be careful with technical roles)
+    if (
+        (lowerRole.includes("director") || lowerRole.includes("manager")) &&
+        !lowerRole.includes("tech") &&
+        !lowerRole.includes("technical") &&
+        !lowerRole.includes("developer") &&
+        !lowerRole.includes("engineer")
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * Check if a role name matches a mandatory role (fuzzy matching)
  */
 function isMandatoryRole(roleName: string): MandatoryRoleDefinition | null {
@@ -199,8 +248,10 @@ export function enforceMandatoryRoles(
         topRoles.push(createMandatoryRow(deliveryRole));
     }
 
-    // STEP 3: ADD OTHER AI-SUGGESTED ROLES (excluding mandatory roles and Account Management)
-    let additionalRolesAdded = 0;
+    // STEP 3: ADD OTHER AI-SUGGESTED ROLES
+    // Route them to either middle (technical) or bottom (management/oversight)
+    let technicalRolesAdded = 0;
+    let oversightRolesAdded = 0;
 
     for (const aiRole of aiSuggestedRoles) {
         const normalizedAiRole = normalizeRoleName(aiRole.role);
@@ -237,14 +288,26 @@ export function enforceMandatoryRoles(
             rate: rateCardEntry.hourlyRate, // ALWAYS use official rate (NEVER trust AI rate)
         };
 
-        middleRoles.push(additionalRow);
-        processedRoles.add(normalizedAiRole);
-        additionalRolesAdded++;
+        // CRITICAL: Detect if this is a management/oversight role
+        if (isManagementOversightRole(rateCardEntry.roleName)) {
+            // Management/oversight roles go to the BOTTOM
+            bottomRoles.push(additionalRow);
+            oversightRolesAdded++;
+            console.log(
+                `📊 [Enforcer] Management/Oversight role (bottom): ${rateCardEntry.roleName} ` +
+                    `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
+            );
+        } else {
+            // Technical/delivery roles go in the MIDDLE
+            middleRoles.push(additionalRow);
+            technicalRolesAdded++;
+            console.log(
+                `➕ [Enforcer] Technical role (middle): ${rateCardEntry.roleName} ` +
+                    `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
+            );
+        }
 
-        console.log(
-            `➕ [Enforcer] Additional role: ${rateCardEntry.roleName} ` +
-                `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
-        );
+        processedRoles.add(normalizedAiRole);
     }
 
     // STEP 4: INJECT "Account Management" at the BOTTOM
@@ -260,7 +323,7 @@ export function enforceMandatoryRoles(
 
     console.log(
         `🎯 [Enforcer] Enforcement complete: ` +
-            `${topRoles.length} top roles + ${middleRoles.length} middle roles + ${bottomRoles.length} bottom roles = ${result.length} total`,
+            `${topRoles.length} top (leadership) + ${middleRoles.length} middle (technical) + ${bottomRoles.length} bottom (management/oversight) = ${result.length} total`,
     );
 
     return result;

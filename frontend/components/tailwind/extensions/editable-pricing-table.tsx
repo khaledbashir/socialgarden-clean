@@ -21,15 +21,20 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     const [rolesLoading, setRolesLoading] = useState(true);
     const [isInitializing, setIsInitializing] = useState(true);
 
-    // Initialize rows from node attrs, but don't render until enforcement is applied
-    const initialRows = (
-        node.attrs.rows || [{ role: "", description: "", hours: 0, rate: 0 }]
-    ).map((row: any, idx: number) => ({
-        ...row,
-        id: row.id || `row-${idx}-${Date.now()}`,
-    }));
+    // Store raw data but DO NOT put it in state yet (prevents premature render)
+    const initialRowsRef = React.useRef(
+        (
+            node.attrs.rows || [
+                { role: "", description: "", hours: 0, rate: 0 },
+            ]
+        ).map((row: any, idx: number) => ({
+            ...row,
+            id: row.id || `row-${idx}-${Date.now()}`,
+        })),
+    );
 
-    const [rows, setRows] = useState<PricingRow[]>(initialRows);
+    // Initialize with EMPTY array - will be populated after enforcement
+    const [rows, setRows] = useState<PricingRow[]>([]);
     const [discount, setDiscount] = useState(node.attrs.discount || 0);
 
     // Drag and drop state
@@ -75,8 +80,11 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
             );
 
             try {
-                // Enforce mandatory roles programmatically BEFORE rendering
-                const compliantRows = enforceMandatoryRoles(initialRows, roles);
+                // Enforce mandatory roles programmatically using ref data (not state)
+                const compliantRows = enforceMandatoryRoles(
+                    initialRowsRef.current,
+                    roles,
+                );
 
                 console.log(
                     "✅ [Pricing Table] Mandatory role enforcement complete",
@@ -96,7 +104,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                     );
                 }
 
-                // Update state with compliant rows and mark as ready to render
+                // NOW set state with compliant rows for FIRST render
                 setRows(compliantRows);
                 setIsInitializing(false);
             } catch (error) {
@@ -244,8 +252,9 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     const calculateGST = () => financialBreakdown.gst;
     const calculateTotal = () => financialBreakdown.grandTotal;
 
-    // Don't render until enforcement is complete to prevent flicker
-    if (isInitializing || rolesLoading) {
+    // Don't render table until enforcement is complete to prevent flicker
+    // This ensures users NEVER see raw, non-compliant AI data
+    if (isInitializing || rolesLoading || rows.length === 0) {
         return (
             <NodeViewWrapper className="editable-pricing-table my-6">
                 <div className="border border-border rounded-lg p-8 bg-background dark:bg-gray-900/50 text-center">
