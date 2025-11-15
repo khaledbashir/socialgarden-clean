@@ -6,13 +6,24 @@ import { query } from "@/lib/db";
  * Returns the rate card formatted as markdown for AI prompt injection
  */
 export async function GET() {
+    console.log("📋 [Rate Card API] Request received");
+    console.log("📋 [Rate Card API] Environment check:");
+    console.log("   DB_HOST:", process.env.DB_HOST || "NOT SET");
+    console.log("   DB_PORT:", process.env.DB_PORT || "NOT SET");
+    console.log("   DB_NAME:", process.env.DB_NAME || "NOT SET");
+    console.log("   DB_USER:", process.env.DB_USER || "NOT SET");
+    console.log("   DB_PASSWORD:", process.env.DB_PASSWORD ? "***SET***" : "NOT SET");
+
     try {
+        console.log("📋 [Rate Card API] Attempting database query...");
         const roles = await query(
             `SELECT role_name as roleName, hourly_rate as hourlyRate
              FROM rate_card_roles
              WHERE is_active = TRUE
              ORDER BY role_name ASC`
         );
+        console.log("📋 [Rate Card API] Query successful, roles found:", roles?.length || 0);
+</parameter>
 
         // Build markdown table
         const today = new Date();
@@ -31,6 +42,10 @@ export async function GET() {
 
         const markdown = header + intro + tableHeader + rows + guidance;
 
+        console.log("📋 [Rate Card API] Markdown generated successfully");
+        console.log("   Total roles:", roles.length);
+        console.log("   Markdown length:", markdown.length);
+
         return NextResponse.json({
             success: true,
             markdown,
@@ -38,12 +53,26 @@ export async function GET() {
             roleCount: roles.length,
         });
     } catch (error: any) {
-        console.error("❌ Error generating rate card markdown:", error);
+        console.error("❌ [Rate Card API] CRITICAL ERROR:", error);
+        console.error("❌ [Rate Card API] Error message:", error.message);
+        console.error("❌ [Rate Card API] Error code:", error.code);
+        console.error("❌ [Rate Card API] Error stack:", error.stack);
+        console.error("❌ [Rate Card API] Full error object:", JSON.stringify(error, null, 2));
+
+        // Provide detailed error response for debugging
         return NextResponse.json(
             {
                 success: false,
                 error: "Failed to generate rate card markdown",
                 message: error.message,
+                code: error.code,
+                details: {
+                    db_host: process.env.DB_HOST || "NOT SET",
+                    db_port: process.env.DB_PORT || "NOT SET",
+                    db_name: process.env.DB_NAME || "NOT SET",
+                    db_user: process.env.DB_USER || "NOT SET",
+                    timestamp: new Date().toISOString(),
+                }
             },
             { status: 500 }
         );
