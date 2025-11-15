@@ -24,10 +24,19 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
             node.attrs.rows || [
                 { role: "", description: "", hours: 0, rate: 0 },
             ]
-        ).map((row: any, idx: number) => ({
-            ...row,
-            id: row.id || `row-${idx}-${Date.now()}`,
-        })),
+        ).map((row: any, idx: number) => {
+            // Ensure role names are canonical from rate card to prevent abbreviations
+            let canonicalRoleName = row.role;
+            if (row.role && roles.length > 0) {
+                const roleData = roles.find((r) => r.roleName === row.role);
+                canonicalRoleName = roleData?.roleName || row.role;
+            }
+            return {
+                ...row,
+                role: canonicalRoleName,
+                id: row.id || `row-${idx}-${Date.now()}`,
+            };
+        }),
     );
     const [discount, setDiscount] = useState(node.attrs.discount || 0);
     const scopeName: string = node.attrs.scopeName || "";
@@ -83,7 +92,9 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                     // Find rate from dynamically loaded roles
                     const roleData = roles.find((r) => r.roleName === value);
                     const rate = roleData?.hourlyRate || row.rate;
-                    return { ...row, role: value as string, rate };
+                    // Always use the full canonical role name from rate card to prevent abbreviations
+                    const canonicalRoleName = roleData?.roleName || value;
+                    return { ...row, role: canonicalRoleName, rate };
                 }
                 return { ...row, [field]: value };
             }),
@@ -181,7 +192,9 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     };
 
     const calculateTotal = () => {
-        return calculateSubtotalAfterDiscount() + calculateGST();
+        const rawTotal = calculateSubtotalAfterDiscount() + calculateGST();
+        // Commercial rounding: round to nearest $100
+        return Math.round(rawTotal / 100) * 100;
     };
 
     return (
@@ -390,7 +403,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                         className="border border-border px-3 py-2 text-right text-sm font-semibold"
                                         style={{ width: "15%" }}
                                     >
-                                        ${(row.hours * row.rate).toFixed(2)}
+                                        ${(row.hours * row.rate).toFixed(2)} +GST
                                     </td>
                                     <td
                                         className="border border-border p-2 text-center"
@@ -431,7 +444,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                             <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
                                 <span>Subtotal:</span>
                                 <span className="font-semibold">
-                                    ${calculateSubtotal().toFixed(2)}
+                                    ${calculateSubtotal().toFixed(2)} +GST
                                 </span>
                             </div>
                             {discount > 0 && (
@@ -439,7 +452,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                     <div className="flex justify-between text-sm text-red-600">
                                         <span>Discount ({discount}%):</span>
                                         <span>
-                                            -${calculateDiscount().toFixed(2)}
+                                            -${calculateDiscount().toFixed(2)} +GST
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
@@ -448,7 +461,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                             $
                                             {calculateSubtotalAfterDiscount().toFixed(
                                                 2,
-                                            )}
+                                            )} +GST
                                         </span>
                                     </div>
                                 </>
@@ -460,7 +473,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                             <div className="flex justify-between text-base font-bold text-foreground dark:text-gray-100 border-t border-border pt-2 mt-2">
                                 <span>Total Project Value:</span>
                                 <span className="text-[#0e2e33] dark:text-[#1CBF79]">
-                                    ${calculateTotal().toFixed(2)}
+                                    ${calculateTotal().toFixed(2)} +GST
                                 </span>
                             </div>
                         </div>

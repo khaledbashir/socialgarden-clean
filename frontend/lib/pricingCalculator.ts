@@ -69,6 +69,7 @@ const findCanon = (name: string) => {
 
 const PM_HEAD_OF = 'Tech - Head Of- Senior Project Management'; // exact from rate card
 const PM_DELIVERY = 'Tech - Delivery - Project Management';
+const ROLE_PROJECT_COORDINATION = 'Tech - Delivery - Project Coordination'; // Mandatory role
 const ROLE_ACCOUNT_MANAGER = 'Account Management - (Account Manager)';
 
 export type CalcOptions = {
@@ -131,26 +132,36 @@ export function calculatePricingTable(
   const amRate = RATE_CARD_MAP[amCanon] || 0;
   const amHours = cfg.accountManagementHours;
 
-  // Base mandatory rows
+  // Always include Project Coordination
+  const pcCanon = findCanon(ROLE_PROJECT_COORDINATION)?.name || ROLE_PROJECT_COORDINATION;
+  const pcRate = RATE_CARD_MAP[pcCanon] || 0;
+  const pcHours = 5; // Default hours for Project Coordination
+
+  // Base mandatory rows in correct order: PM first, PC second, AM last
   const rows: PricingRow[] = [
     { role: pmCanon, description: budget > 15000 ? 'Strategic oversight' : 'Project delivery management', hours: pmHours, rate: pmRate },
+    { role: pcCanon, description: 'Project coordination and delivery support', hours: pcHours, rate: pcRate },
     { role: amCanon, description: 'Client comms & governance', hours: amHours, rate: amRate },
   ];
 
-  // Remove governance roles from the pool (PM and AM only)
+  // Remove governance roles from the pool (PM, PC, and AM)
   const filtered = canonicalNames.filter(name => {
     const n = norm(name);
     if (n.includes('head-of') || n.includes('head of')) return false;
     if (n.includes('project-management')) return false; // PM
+    if (n.includes('project-coordination') || n.includes('project coordination')) return false; // PC
     if (n.includes('account management')) return false; // AM
     return true;
   });
 
-  // Exclude AM if already handled
-  const rolePool = filtered.filter(name => norm(name) !== norm(amCanon));
+  // Exclude AM and PC if already handled
+  const rolePool = filtered.filter(name => {
+    const n = norm(name);
+    return n !== norm(amCanon) && n !== norm(pcCanon);
+  });
 
-  // Compute remaining budget after mandatory governance
-  const baseCost = pmHours * pmRate + amHours * amRate;
+  // Compute remaining budget after mandatory governance (PM, PC, AM)
+  const baseCost = pmHours * pmRate + pcHours * pcRate + amHours * amRate;
   const remaining = Math.max(0, budget - baseCost);
 
   // Fallback: if no roles to distribute to, pick a sensible default basket
@@ -186,7 +197,7 @@ export function calculatePricingTable(
   // Tighten to budget target: adjust non-governance hours to stay within budget and approach target
   const isGov = (r: PricingRow) => {
     const n = norm(r.role);
-    return n.includes('head-of') || n.includes('head of') || n.includes('project-management') || n.includes('account management');
+    return n.includes('head-of') || n.includes('head of') || n.includes('project-management') || n.includes('project-coordination') || n.includes('project coordination') || n.includes('account management');
   };
   const g = cfg.hourGranularity;
   const totalCost = (list: PricingRow[]) => list.reduce((s, r) => s + (r.hours * r.rate), 0);
@@ -217,7 +228,7 @@ export function calculatePricingTable(
     // Scale up non-governance to hit target
     const nonGov = rows.filter(r => !isGov(r));
     const nonGovCost = totalCost(nonGov);
-    const targetNonGov = Math.max(0, budget - (pmHours * pmRate + amHours * amRate));
+   const targetNonGov = Math.max(0, budget - (pmHours * pmRate + pcHours * pcRate + amHours * amRate));
 
     if (nonGov.length > 0 && nonGovCost > 0 && targetNonGov > 0) {
       const scale = targetNonGov / nonGovCost;
@@ -252,4 +263,11 @@ export function calculatePricingTable(
   }
 
   return rows;
+}
+
+/**
+ * Apply commercial rounding to a total value (rounds to nearest $100)
+ */
+export function applyCommercialRounding(value: number): number {
+  return Math.round(value / 100) * 100;
 }

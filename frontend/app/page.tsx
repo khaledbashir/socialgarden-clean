@@ -952,6 +952,22 @@ const convertMarkdownToNovelJSON = (
         // Deterministic PM selection is handled by calculatePricingTable when a budget is provided.
         // No frontend auto-insertion of Head Of or Project Coordination here.
 
+        // Ensure Project Coordination role exists (mandatory)
+        const hasProjectCoordination = pricingRows.some((r) =>
+            norm(r.role).includes("project coordination") || norm(r.role).includes("project-coordination"),
+        );
+        if (!hasProjectCoordination) {
+            const pc = findCanon("Tech - Delivery - Project Coordination");
+            // Insert after PM (index 1) but before other roles
+            const insertIndex = 1;
+            pricingRows.splice(insertIndex, 0, {
+                role: pc?.name || "Tech - Delivery - Project Coordination",
+                description: "Project coordination and delivery support",
+                hours: 5,
+                rate: pc?.rate || 110,
+            });
+        }
+
         // Ensure Account Management role exists and is LAST
         const hasAccountManagement = pricingRows.some((r) =>
             norm(r.role).includes("account management"),
@@ -978,6 +994,20 @@ const convertMarkdownToNovelJSON = (
                     rate: amCanon?.rate || amRow.rate,
                 });
             }
+        }
+
+        // Ensure PM role is FIRST
+        const pmIndex = pricingRows.findIndex((r) =>
+            norm(r.role).includes("head-of") || norm(r.role).includes("head of") || norm(r.role).includes("project-management")
+        );
+        if (pmIndex !== -1 && pmIndex !== 0) {
+            const [pmRow] = pricingRows.splice(pmIndex, 1);
+            const pmCanon = findCanon(pmRow.role);
+            pricingRows.unshift({
+                ...pmRow,
+                role: pmCanon?.name || pmRow.role,
+                rate: pmCanon?.rate || pmRow.rate,
+            });
         }
 
         console.log(
