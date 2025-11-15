@@ -6,6 +6,7 @@ import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import { toast } from "sonner";
+import { UNFILED_FOLDER_ID } from "@/lib/ensure-unfiled-folder";
 import {
     ChevronDown,
     ChevronRight,
@@ -834,29 +835,19 @@ export default function SidebarNav({
                         onClick={async () => {
                             if (isCreatingSOW) return; // Prevent duplicate clicks
 
-                            const targetId =
-                                currentWorkspaceId ||
-                                (workspaces && workspaces.length > 0
-                                    ? workspaces[0].id
-                                    : null);
-                            console.log("🆕 New SOW button clicked", {
-                                targetId,
-                                currentWorkspaceId,
-                                foldersCount: workspaces?.length,
-                            });
-                            if (targetId) {
-                                console.log("📝 Calling onCreateSOW with:", {
-                                    targetId,
-                                    name: "Untitled SOW",
-                                });
-                                setIsCreatingSOW(true);
-                                try {
-                                    await onCreateSOW(targetId, "Untitled SOW");
-                                } finally {
-                                    setIsCreatingSOW(false);
-                                }
-                            } else {
-                                toast.error("Please create a folder first");
+                            // 🎯 ALWAYS CREATE IN UNFILED - No folder selection needed!
+                            console.log(
+                                "🆕 New SOW button clicked - creating in Unfiled",
+                            );
+
+                            setIsCreatingSOW(true);
+                            try {
+                                await onCreateSOW(
+                                    UNFILED_FOLDER_ID,
+                                    "Untitled SOW",
+                                );
+                            } finally {
+                                setIsCreatingSOW(false);
                             }
                         }}
                         disabled={isCreatingSOW}
@@ -960,10 +951,64 @@ export default function SidebarNav({
                             onDragStart={handleDragStart}
                             onDragEnd={handleDragEnd}
                         >
+                            {/* 🎯 UNFILED SECTION - Always at top, always expanded */}
+                            {(() => {
+                                const unfiledFolder = localWorkspaces.find(
+                                    (w) => w.id === UNFILED_FOLDER_ID,
+                                );
+
+                                if (!unfiledFolder) return null;
+
+                                return (
+                                    <div className="space-y-1 mb-4 pb-3 border-b border-gray-800">
+                                        <div className="w-full flex items-center gap-2 px-2 py-1.5">
+                                            <div className="flex-1 flex items-center gap-2 text-sm font-medium text-gray-400">
+                                                <FileText className="w-4 h-4 text-orange-400" />
+                                                <span>UNFILED</span>
+                                                <span className="ml-auto text-xs text-gray-500">
+                                                    ({unfiledFolder.sows.length}
+                                                    )
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {unfiledFolder.sows.length > 0 ? (
+                                            <div className="ml-2 space-y-0.5">
+                                                <SortableContext
+                                                    items={unfiledFolder.sows.map(
+                                                        (s) => s.id,
+                                                    )}
+                                                    strategy={
+                                                        verticalListSortingStrategy
+                                                    }
+                                                >
+                                                    {unfiledFolder.sows.map(
+                                                        (sow) => (
+                                                            <SortableSOWItem
+                                                                key={sow.id}
+                                                                sow={sow}
+                                                            />
+                                                        ),
+                                                    )}
+                                                </SortableContext>
+                                            </div>
+                                        ) : (
+                                            <div className="px-4 py-3 text-center">
+                                                <p className="text-xs text-gray-600">
+                                                    Click "New SOW" to get
+                                                    started
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+
                             {/* CLIENT FOLDERS CATEGORY */}
                             {(() => {
                                 const clientWorkspaces = localWorkspaces.filter(
                                     (w) =>
+                                        w.id !== UNFILED_FOLDER_ID &&
                                         !isAgentWorkspace(w) &&
                                         !isSystemWorkspace(w) &&
                                         (w.name

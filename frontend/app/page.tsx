@@ -41,6 +41,11 @@ import { ROLES } from "@/lib/rateCard";
 import { calculatePricingTable } from "@/lib/pricingCalculator";
 import { getWorkspaceForAgent, WORKSPACE_CONFIG } from "@/lib/workspace-config";
 import { prepareSOWForNewPDF } from "@/lib/sow-pdf-utils";
+import {
+    ensureUnfiledFolder,
+    UNFILED_FOLDER_ID,
+    UNFILED_FOLDER_NAME,
+} from "@/lib/ensure-unfiled-folder";
 
 // Dynamically import PDF components to avoid SSR issues
 const SOWPdfExportWrapper = dynamic(
@@ -1835,6 +1840,10 @@ Ask me questions to get business insights, such as:
 
         const loadData = async () => {
             console.log("📂 Loading folders and SOWs from database...");
+
+            // 🎯 STEP 1: Ensure "Unfiled" folder exists first
+            await ensureUnfiledFolder();
+
             // No localStorage: read initial doc from URL query
             const urlParams = new URLSearchParams(window.location.search);
             const initialDocId = urlParams.get("docId");
@@ -2420,19 +2429,20 @@ Ask me questions to get business insights, such as:
 
     const handleNewDoc = async (folderId?: string) => {
         const newId = `doc${Date.now()}`;
-        const title = "New SOW";
+        const title = "Untitled SOW";
+
+        // 🎯 DEFAULT TO UNFILED: If no folder specified, use Unfiled folder
+        const targetFolderId = folderId || UNFILED_FOLDER_ID;
 
         // Find workspace slug from the folder this SOW belongs to
-        const parentFolder = folderId
-            ? folders.find((f) => f.id === folderId)
-            : null;
+        const parentFolder = folders.find((f) => f.id === targetFolderId);
         const workspaceSlug = parentFolder?.workspaceSlug;
 
         let newDoc: Document = {
             id: newId,
             title,
             content: defaultEditorContent,
-            folderId,
+            folderId: targetFolderId,
             workspaceSlug,
         };
 
@@ -2462,9 +2472,11 @@ Ask me questions to get business insights, such as:
                         clientContext,
                     );
 
-                    toast.success(
-                        `✅ SOW created with chat thread in ${parentFolder?.name || "workspace"}`,
-                    );
+                    const folderName =
+                        parentFolder?.name === UNFILED_FOLDER_NAME
+                            ? "Unfiled (organize later)"
+                            : parentFolder?.name || "workspace";
+                    toast.success(`✅ SOW created in ${folderName}`);
                 } else {
                     console.warn(
                         "⚠️ Thread creation failed - SOW created without thread",
@@ -2474,9 +2486,9 @@ Ask me questions to get business insights, such as:
                     );
                 }
             } else {
-                console.log("ℹ️ No workspace found - creating standalone SOW");
-                toast.info(
-                    "ℹ️ SOW created outside a folder. Create a folder first to enable AI chat.",
+                console.log("ℹ️ No workspace found - creating SOW in Unfiled");
+                toast.success(
+                    `✅ SOW created in Unfiled (organize into folders later)`,
                 );
             }
         } catch (error) {
