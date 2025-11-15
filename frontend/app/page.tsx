@@ -949,9 +949,12 @@ const convertMarkdownToNovelJSON = (
             const scopeRoles = currentScope.role_allocation || [];
 
             console.log(
-                `🎯 [Multi-Scope] Creating pricing table for scope: ${currentScope.scope_name}`,
+                `🎯 [Multi-Scope] Creating pricing table ${scopeIndex + 1}/${multiScopePricingData.scopes.length} for scope: ${currentScope.scope_name}`,
             );
-            console.log(`📊 Scope roles:`, scopeRoles);
+            console.log(
+                `📊 Scope ${scopeIndex + 1} roles (${scopeRoles.length}):`,
+                scopeRoles,
+            );
 
             // Convert scope roles to pricing rows format
             const scopePricingRows = scopeRoles.map((role: any) => {
@@ -964,6 +967,9 @@ const convertMarkdownToNovelJSON = (
                 };
             });
 
+            console.log(
+                `✅ [Multi-Scope] Inserting table ${scopeIndex + 1} with ${scopePricingRows.length} roles`,
+            );
             content.push({
                 type: "editablePricingTable",
                 attrs: {
@@ -1006,7 +1012,7 @@ const convertMarkdownToNovelJSON = (
                 multiScopePricingData.scopes.length > 0
             ) {
                 console.log(
-                    `🎯 [Multi-Scope] Inserting ${multiScopePricingData.scopes.length} separate scope tables`,
+                    `🎯 [Multi-Scope Placeholder] Inserting ${multiScopePricingData.scopes.length} separate scope tables at [pricing_table] marker`,
                 );
                 // Insert a pricing table for each scope
                 for (
@@ -1014,8 +1020,14 @@ const convertMarkdownToNovelJSON = (
                     scopeIdx < multiScopePricingData.scopes.length;
                     scopeIdx++
                 ) {
+                    console.log(
+                        `🔄 [Multi-Scope Placeholder] Inserting table ${scopeIdx + 1}/${multiScopePricingData.scopes.length}`,
+                    );
                     insertPricingTable([], scopeIdx);
                 }
+                console.log(
+                    `✅ [Multi-Scope Placeholder] Completed insertion of ${multiScopePricingData.scopes.length} tables`,
+                );
             } else {
                 insertPricingTable();
             }
@@ -1176,10 +1188,13 @@ const convertMarkdownToNovelJSON = (
     if (pricingTablesInsertedCount === 0) {
         if (
             (tablesQueue.length > 0 && tablesQueue[0]?.length > 0) ||
-            suggestedRoles.length > 0
+            suggestedRoles.length > 0 ||
+            (multiScopePricingData &&
+                multiScopePricingData.scopes &&
+                multiScopePricingData.scopes.length > 0)
         ) {
             console.log(
-                "⚠️ Pricing table not auto-inserted earlier, inserting NOW at end of content (from suggestedRoles).",
+                "⚠️ Pricing table not auto-inserted earlier, inserting NOW at end of content.",
             );
             content.push({ type: "horizontalRule" });
             content.push({
@@ -1187,7 +1202,34 @@ const convertMarkdownToNovelJSON = (
                 attrs: { level: 2 },
                 content: [{ type: "text", text: "Investment Breakdown" }],
             });
-            insertPricingTable();
+
+            // 🎯 MULTI-SCOPE SUPPORT: Insert separate table for each scope
+            if (
+                multiScopePricingData &&
+                multiScopePricingData.scopes &&
+                multiScopePricingData.scopes.length > 0
+            ) {
+                console.log(
+                    `🎯 [Multi-Scope Auto-Insert] Inserting ${multiScopePricingData.scopes.length} separate scope tables at end of document`,
+                );
+                // Insert a pricing table for each scope
+                for (
+                    let scopeIdx = 0;
+                    scopeIdx < multiScopePricingData.scopes.length;
+                    scopeIdx++
+                ) {
+                    console.log(
+                        `🔄 [Multi-Scope Auto-Insert] Inserting table ${scopeIdx + 1}/${multiScopePricingData.scopes.length}`,
+                    );
+                    insertPricingTable([], scopeIdx);
+                }
+                console.log(
+                    `✅ [Multi-Scope Auto-Insert] Completed insertion of ${multiScopePricingData.scopes.length} tables`,
+                );
+            } else {
+                // Single table insertion (original logic)
+                insertPricingTable();
+            }
         } else {
             console.warn(
                 "⚠️ No pricing table inserted and no suggestedRoles provided. User will need to add pricing manually.",
@@ -5865,30 +5907,56 @@ Ask me questions to get business insights, such as:
                                 console.log(
                                     `✅ Using structured SOW data with ${structured.scopeItems.length} scope items`,
                                 );
-                                const suggestedRoles =
-                                    buildSuggestedRolesFromArchitectSOW(
-                                        structured,
-                                    );
 
-                                // 🔒 Apply Account Management guardrail
-                                const sanitized =
-                                    sanitizeAccountManagementRoles(
-                                        suggestedRoles,
-                                    );
                                 const cleanedContent =
                                     accumulatedContent.replace(
                                         /\[PRICING_JSON\].*?\[\/PRICING_JSON\]/gs,
                                         "",
                                     );
 
-                                contentForEditor = convertMarkdownToNovelJSON(
-                                    cleanedContent,
-                                    sanitized,
-                                    {
-                                        multiScopePricingData:
-                                            structured.multiScopeData,
-                                    },
-                                );
+                                // 🎯 Check if we have multi-scope data
+                                if (
+                                    structured.multiScopeData &&
+                                    structured.multiScopeData.scopes &&
+                                    structured.multiScopeData.scopes.length > 0
+                                ) {
+                                    console.log(
+                                        `✅ Using multi-scope data with ${structured.multiScopeData.scopes.length} scopes`,
+                                    );
+                                    // For multi-scope, don't flatten roles - let multiScopePricingData handle it
+                                    contentForEditor =
+                                        convertMarkdownToNovelJSON(
+                                            cleanedContent,
+                                            [], // Empty suggestedRoles - multi-scope data takes precedence
+                                            {
+                                                multiScopePricingData:
+                                                    structured.multiScopeData,
+                                            },
+                                        );
+                                } else {
+                                    console.log(
+                                        `✅ Using flat roles structure from ${structured.scopeItems.length} scope items`,
+                                    );
+                                    // For single scope or legacy format, flatten roles
+                                    const suggestedRoles =
+                                        buildSuggestedRolesFromArchitectSOW(
+                                            structured,
+                                        );
+
+                                    // 🔒 Apply Account Management guardrail
+                                    const sanitized =
+                                        sanitizeAccountManagementRoles(
+                                            suggestedRoles,
+                                        );
+
+                                    contentForEditor =
+                                        convertMarkdownToNovelJSON(
+                                            cleanedContent,
+                                            sanitized,
+                                            {},
+                                        );
+                                }
+
                                 docTitle =
                                     structured.title ||
                                     `SOW - ${structured.client || "Untitled Client"}`;
@@ -6077,26 +6145,56 @@ Ask me questions to get business insights, such as:
                                 console.log(
                                     `✅ Using structured SOW data with ${structured.scopeItems.length} scope items`,
                                 );
-                                const suggestedRoles =
-                                    buildSuggestedRolesFromArchitectSOW(
-                                        structured,
-                                    );
 
-                                // 🔒 Apply Account Management guardrail
-                                const sanitized =
-                                    sanitizeAccountManagementRoles(
-                                        suggestedRoles,
-                                    );
                                 const cleanedContent =
                                     aiMessage.content.replace(
                                         /\[PRICING_JSON\].*?\[\/PRICING_JSON\]/gs,
                                         "",
                                     );
 
-                                contentForEditor = convertMarkdownToNovelJSON(
-                                    cleanedContent,
-                                    sanitized,
-                                );
+                                // 🎯 Check if we have multi-scope data
+                                if (
+                                    structured.multiScopeData &&
+                                    structured.multiScopeData.scopes &&
+                                    structured.multiScopeData.scopes.length > 0
+                                ) {
+                                    console.log(
+                                        `✅ Using multi-scope data with ${structured.multiScopeData.scopes.length} scopes (non-streaming)`,
+                                    );
+                                    // For multi-scope, don't flatten roles - let multiScopePricingData handle it
+                                    contentForEditor =
+                                        convertMarkdownToNovelJSON(
+                                            cleanedContent,
+                                            [], // Empty suggestedRoles - multi-scope data takes precedence
+                                            {
+                                                multiScopePricingData:
+                                                    structured.multiScopeData,
+                                            },
+                                        );
+                                } else {
+                                    console.log(
+                                        `✅ Using flat roles structure from ${structured.scopeItems.length} scope items (non-streaming)`,
+                                    );
+                                    // For single scope or legacy format, flatten roles
+                                    const suggestedRoles =
+                                        buildSuggestedRolesFromArchitectSOW(
+                                            structured,
+                                        );
+
+                                    // 🔒 Apply Account Management guardrail
+                                    const sanitized =
+                                        sanitizeAccountManagementRoles(
+                                            suggestedRoles,
+                                        );
+
+                                    contentForEditor =
+                                        convertMarkdownToNovelJSON(
+                                            cleanedContent,
+                                            sanitized,
+                                            {},
+                                        );
+                                }
+
                                 docTitle =
                                     structured.title ||
                                     `SOW - ${structured.client || "Untitled Client"}`;
