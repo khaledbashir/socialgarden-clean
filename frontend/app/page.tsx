@@ -4413,6 +4413,24 @@ Ask me questions to get business insights, such as:
             // 🧹 Filter out internal reasoning sections before processing
             let filteredContent = content;
 
+            // CRITICAL: Strip thinking tags first (these are internal AI reasoning)
+            filteredContent = filteredContent.replace(
+                /<thinking>([\s\S]*?)<\/thinking>/gi,
+                "",
+            );
+            filteredContent = filteredContent.replace(
+                /<think>([\s\S]*?)<\/think>/gi,
+                "",
+            );
+            filteredContent = filteredContent.replace(
+                /<AI_THINK>([\s\S]*?)<\/AI_THINK>/gi,
+                "",
+            );
+            filteredContent = filteredContent.replace(
+                /<tool_call>[\s\S]*?<\/tool_call>/gi,
+                "",
+            );
+
             // Remove known internal sections (keep narrative clean)
             filteredContent = filteredContent.replace(
                 /\[FINANCIAL[\*_\s-]*REASONING[\*_\s-]*\][\s\S]*?(?=\n\s*\[|\n\s*##|\n\s*###|$)/gi,
@@ -4807,10 +4825,10 @@ Ask me questions to get business insights, such as:
                         convertOptions,
                     );
                 } else {
-                    console.error(
-                        "❌ CRITICAL ERROR: AI did not provide suggestedRoles JSON or scopeItems. The application requires one of these.",
+                    console.warn(
+                        "⚠️ No structured JSON found, attempting fallback to markdown table extraction...",
                     );
-                    console.error("📊 Debug info:", {
+                    console.log("📊 Debug info:", {
                         hasValidSuggestedRoles,
                         tablesRolesQueueLength: tablesRolesQueue.length,
                         parsedStructured: !!parsedStructured,
@@ -4818,15 +4836,45 @@ Ask me questions to get business insights, such as:
                         derivedLength: derived?.length || 0,
                         structuredSow: !!structuredSow,
                     });
-                    const blockedMessage: ChatMessage = {
-                        id: `msg${Date.now()}`,
-                        role: "assistant",
-                        content:
-                            "❌ Insertion blocked: Missing structured pricing data. Please regenerate with a JSON block that includes either `suggestedRoles` or `scopeItems` (with role names and estimated hours).",
-                        timestamp: Date.now(),
-                    };
-                    setChatMessages((prev) => [...prev, blockedMessage]);
-                    return; // Strictly abort insertion when no pricing data is available
+
+                    // 🎯 FALLBACK: Let convertMarkdownToNovelJSON try to extract from markdown tables
+                    // This mirrors the logic used in automatic insertion during streaming
+                    console.log(
+                        "🔄 Attempting conversion with empty roles array (will trigger markdown table fallback)...",
+                    );
+                    convertedContent = convertMarkdownToNovelJSON(
+                        cleanedContent,
+                        [], // Empty array triggers markdown table extraction fallback
+                        convertOptions,
+                    );
+
+                    // Check if the conversion actually found pricing tables
+                    const hasPricingTables = convertedContent?.content?.some(
+                        (node: any) => node.type === "editablePricingTable",
+                    );
+
+                    if (!hasPricingTables) {
+                        console.error(
+                            "❌ CRITICAL ERROR: No pricing data found in JSON blocks or markdown tables.",
+                        );
+                        const blockedMessage: ChatMessage = {
+                            id: `msg${Date.now()}`,
+                            role: "assistant",
+                            content:
+                                "❌ Insertion blocked: No pricing data found.\n\n" +
+                                "The AI response must include either:\n" +
+                                "1. A `[PRICING_JSON]` block with `role_allocation` array, OR\n" +
+                                "2. A markdown table with role names and hours\n\n" +
+                                "Please regenerate the SOW with proper pricing information.",
+                            timestamp: Date.now(),
+                        };
+                        setChatMessages((prev) => [...prev, blockedMessage]);
+                        return;
+                    }
+
+                    console.log(
+                        "✅ Successfully extracted pricing data from markdown tables",
+                    );
                 }
             } else {
                 // 🔒 AM Guardrail: sanitize Account Management variants
@@ -5096,7 +5144,7 @@ Ask me questions to get business insights, such as:
                         for (const m of jsonBlocks) {
                             const full = m[0];
                             const body = m[1];
-                            const start = m.index || 0;
+                            const start = (m as RegExpMatchArray).index || 0;
                             const end = start + full.length;
                             rebuilt += markdownPart.slice(lastIndex, start);
                             lastIndex = end;

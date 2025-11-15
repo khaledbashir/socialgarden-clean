@@ -741,11 +741,14 @@ export default function WorkspaceChat({
                                                         streamingMessageId ===
                                                         msg.id
                                                     }
-                                                    onInsertClick={(content) =>
+                                                    onInsertClick={(
+                                                        content,
+                                                    ) => {
+                                                        // Content already cleaned by StreamingThoughtAccordion's buildInsertPayload
                                                         onInsertToEditor(
                                                             content,
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
                                                 />
                                             </div>
                                         )}
@@ -795,9 +798,27 @@ export default function WorkspaceChat({
                                 variant="outline"
                                 className="h-8 px-4 text-xs font-medium border-[#1CBF79] text-[#1CBF79] hover:text-white hover:bg-[#1CBF79] transition-all duration-200"
                                 title="Insert the latest AI response into your SOW editor"
-                                onClick={() =>
-                                    onInsertToEditor(lastAssistant.content)
-                                }
+                                onClick={() => {
+                                    // Strip thinking tags before inserting
+                                    let cleaned = lastAssistant.content;
+                                    cleaned = cleaned.replace(
+                                        /<thinking>([\s\S]*?)<\/thinking>/gi,
+                                        "",
+                                    );
+                                    cleaned = cleaned.replace(
+                                        /<think>([\s\S]*?)<\/think>/gi,
+                                        "",
+                                    );
+                                    cleaned = cleaned.replace(
+                                        /<AI_THINK>([\s\S]*?)<\/AI_THINK>/gi,
+                                        "",
+                                    );
+                                    cleaned = cleaned.replace(
+                                        /<tool_call>[\s\S]*?<\/tool_call>/gi,
+                                        "",
+                                    );
+                                    onInsertToEditor(cleaned.trim());
+                                }}
                             >
                                 <svg
                                     className="w-3 h-3 mr-1.5"
