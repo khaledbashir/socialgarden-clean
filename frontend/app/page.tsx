@@ -712,7 +712,10 @@ const convertMarkdownToNovelJSON = (
     // Helper function to insert pricing table
     // Removed default zero-hours fallback: enterprise policy prohibits pricing fallbacks
 
-    const insertPricingTable = (rolesFromMarkdown: any[] = []) => {
+    const insertPricingTable = (
+        rolesFromMarkdown: any[] = [],
+        scopeIndex: number = 0,
+    ) => {
         // Pull the next roles set from queue if provided via options (multi-table support)
         let rolesSource: any[] = [];
         if (tablesQueue.length > 0) {
@@ -923,16 +926,58 @@ const convertMarkdownToNovelJSON = (
         // Use per-table discount if provided; otherwise fall back to parsed/global discount
         const tableDiscount =
             discountQueue.length > 0 ? discountQueue.shift() || 0 : undefined;
-        content.push({
-            type: "editablePricingTable",
-            attrs: {
-                rows: pricingRows,
-                discount:
-                    tableDiscount !== undefined && tableDiscount >= 0
-                        ? tableDiscount
-                        : parsedDiscount, // 🎯 Smart Discount hierarchy
-            },
-        });
+        // 🎯 MULTI-SCOPE SUPPORT: Check if we have multi-scope data
+        if (
+            multiScopePricingData &&
+            multiScopePricingData.scopes &&
+            multiScopePricingData.scopes.length > 0 &&
+            scopeIndex < multiScopePricingData.scopes.length
+        ) {
+            // Create a multi-scope pricing table for this specific scope
+            const currentScope = multiScopePricingData.scopes[scopeIndex];
+            const scopeRoles = currentScope.role_allocation || [];
+
+            console.log(
+                `🎯 [Multi-Scope] Creating pricing table for scope: ${currentScope.scope_name}`,
+            );
+            console.log(`📊 Scope roles:`, scopeRoles);
+
+            // Convert scope roles to pricing rows format
+            const scopePricingRows = scopeRoles.map((role: any) => {
+                const matchedRole = findCanon(role.role);
+                return {
+                    role: matchedRole?.name || role.role,
+                    description: role.description || "",
+                    hours: role.hours || 0,
+                    rate: matchedRole?.rate || role.rate || 0,
+                };
+            });
+
+            content.push({
+                type: "editablePricingTable",
+                attrs: {
+                    rows: scopePricingRows,
+                    discount: currentScope.discount || 0,
+                    scopeName: currentScope.scope_name,
+                    scopeDescription: currentScope.scope_description,
+                    scopeIndex: scopeIndex,
+                    isMultiScope: true,
+                    totalScopes: multiScopePricingData.scopes.length,
+                },
+            });
+        } else {
+            // Single scope pricing table (original logic)
+            content.push({
+                type: "editablePricingTable",
+                attrs: {
+                    rows: pricingRows,
+                    discount:
+                        tableDiscount !== undefined && tableDiscount >= 0
+                            ? tableDiscount
+                            : parsedDiscount, // 🎯 Smart Discount hierarchy
+                },
+            });
+        }
     };
 
     while (i < lines.length) {
@@ -943,7 +988,26 @@ const convertMarkdownToNovelJSON = (
             line.trim() === "[pricing_table]" ||
             line.trim() === "[editablePricingTable]"
         ) {
-            insertPricingTable();
+            // 🎯 MULTI-SCOPE SUPPORT: Check if we should insert multiple scope tables
+            if (
+                multiScopePricingData &&
+                multiScopePricingData.scopes &&
+                multiScopePricingData.scopes.length > 0
+            ) {
+                console.log(
+                    `🎯 [Multi-Scope] Inserting ${multiScopePricingData.scopes.length} separate scope tables`,
+                );
+                // Insert a pricing table for each scope
+                for (
+                    let scopeIdx = 0;
+                    scopeIdx < multiScopePricingData.scopes.length;
+                    scopeIdx++
+                ) {
+                    insertPricingTable([], scopeIdx);
+                }
+            } else {
+                insertPricingTable();
+            }
             i++;
             continue;
         }
@@ -5512,11 +5576,23 @@ Ask me questions to get business insights, such as:
 
                     try {
                         let buffer = "";
+                        let eventCount = 0;
+
+                        console.log("🌊 Starting SSE stream processing...", {
+                            workspace: workspaceSlug,
+                            thread: threadSlug,
+                            mode: resolvedMode,
+                            endpoint: streamEndpoint,
+                        });
+
                         while (true) {
                             const { done, value } = await reader.read();
 
                             if (done) {
-                                console.log("✅ Stream complete");
+                                console.log("✅ Stream complete", {
+                                    totalEvents: eventCount,
+                                    contentLength: accumulatedContent.length,
+                                });
                                 setStreamingMessageId(null);
                                 break;
                             }
@@ -5532,6 +5608,22 @@ Ask me questions to get business insights, such as:
                                 try {
                                     const jsonStr = line.substring(6); // Remove 'data: ' prefix
                                     const data = JSON.parse(jsonStr);
+                                    eventCount++;
+
+                                    // Log all received event types for debugging
+                                    console.log(
+                                        `📨 SSE Event #${eventCount}:`,
+                                        {
+                                            type: data.type,
+                                            hasTextResponse:
+                                                !!data.textResponse,
+                                            hasContent: !!data.content,
+                                            keys: Object.keys(data),
+                                            preview: JSON.stringify(
+                                                data,
+                                            ).substring(0, 200),
+                                        },
+                                    );
 
                                     // Handle different message types from AnythingLLM stream
                                     if (
@@ -5572,11 +5664,57 @@ Ask me questions to get business insights, such as:
                                                     : msg,
                                             ),
                                         );
+                                    } else if (data.textResponse) {
+                                        // Fallback: handle any event with textResponse field
+                                        console.log(
+                                            "⚠️ Unhandled event type with textResponse:",
+                                            data.type,
+                                        );
+                                        accumulatedContent += data.textResponse;
+                                        setChatMessages((prev) =>
+                                            prev.map((msg) =>
+                                                msg.id === aiMessageId
+                                                    ? {
+                                                          ...msg,
+                                                          content:
+                                                              accumulatedContent,
+                                                      }
+                                                    : msg,
+                                            ),
+                                        );
+                                    } else if (data.content) {
+                                        // Fallback: handle any event with content field
+                                        console.log(
+                                            "⚠️ Unhandled event type with content:",
+                                            data.type,
+                                        );
+                                        accumulatedContent += data.content;
+                                        setChatMessages((prev) =>
+                                            prev.map((msg) =>
+                                                msg.id === aiMessageId
+                                                    ? {
+                                                          ...msg,
+                                                          content:
+                                                              accumulatedContent,
+                                                      }
+                                                    : msg,
+                                            ),
+                                        );
+                                    } else {
+                                        // Log unhandled event types for debugging
+                                        console.log(
+                                            "ℹ️ Unhandled SSE event type:",
+                                            data.type,
+                                            "Keys:",
+                                            Object.keys(data),
+                                        );
                                     }
                                 } catch (parseError) {
                                     console.error(
                                         "Failed to parse SSE data:",
                                         parseError,
+                                        "Line:",
+                                        line,
                                     );
                                 }
                             }
@@ -5596,13 +5734,41 @@ Ask me questions to get business insights, such as:
                         console.error(
                             "❌ AI returned empty content - possible workspace/thread routing issue",
                         );
+                        console.error("🔍 Debug info:", {
+                            workspaceSlug,
+                            threadSlug,
+                            mode: resolvedMode,
+                            endpoint: streamEndpoint,
+                            messagesCount: requestMessages.length,
+                            lastMessage:
+                                requestMessages[requestMessages.length - 1],
+                        });
+                        console.error(
+                            "💡 Check the SSE event logs above (📨 SSE Event received) to see what events were received",
+                        );
                         setChatMessages((prev) =>
                             prev.map((msg) =>
                                 msg.id === aiMessageId
                                     ? {
                                           ...msg,
                                           content:
-                                              "❌ **Generation Failed**\n\nThe AI returned empty content. This usually means:\n- The workspace routing is incorrect\n- The AI workspace is not properly configured\n- There's an authentication issue with AnythingLLM\n\nPlease check the console for more details and try again.",
+                                              "❌ **Generation Failed**\n\nThe AI returned empty content. This usually means:\n\n" +
+                                              "**Most Common Causes:**\n" +
+                                              "- The workspace routing is incorrect\n" +
+                                              "- The AI workspace is not properly configured or has no LLM set\n" +
+                                              "- Authentication issue with AnythingLLM\n" +
+                                              "- The thread doesn't exist or is inaccessible\n\n" +
+                                              "**Debug Information:**\n" +
+                                              `- Workspace: \`${workspaceSlug || "none"}\`\n` +
+                                              `- Thread: \`${threadSlug || "none"}\`\n` +
+                                              `- Mode: \`${resolvedMode}\`\n` +
+                                              `- Endpoint: \`${streamEndpoint}\`\n\n` +
+                                              "**Next Steps:**\n" +
+                                              "1. Check browser console for SSE event logs (📨 SSE Event received)\n" +
+                                              "2. Verify the workspace exists in AnythingLLM\n" +
+                                              "3. Ensure the workspace has an LLM configured\n" +
+                                              "4. Check AnythingLLM API logs for errors\n" +
+                                              "5. Try a simple message in the workspace directly in AnythingLLM",
                                           role: "assistant",
                                       }
                                     : msg,

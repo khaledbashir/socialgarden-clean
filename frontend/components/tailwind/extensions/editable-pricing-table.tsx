@@ -32,6 +32,8 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     const [discount, setDiscount] = useState(node.attrs.discount || 0);
     const scopeName: string = node.attrs.scopeName || "";
     const scopeDescription: string = node.attrs.scopeDescription || "";
+    const isMultiScope: boolean = node.attrs.isMultiScope || false;
+    const totalScopes: number = node.attrs.totalScopes || 1;
     const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
     const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
@@ -217,7 +219,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                 <div className="flex justify-between items-center mb-4">
                     <div>
                         <h3 className="text-lg font-bold text-foreground dark:text-gray-100">
-                            {scopeName || "Project Pricing"}
+                            {isMultiScope ? scopeName : (scopeName || "Project Pricing")}
                         </h3>
                         {scopeDescription ? (
                             <p className="text-xs text-gray-400 mt-0.5">
@@ -226,6 +228,11 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                         ) : (
                             <p className="text-xs text-gray-500 mt-0.5">
                                 💡 Tip: Drag rows to reorder
+                            </p>
+                        )}
+                        {isMultiScope && (
+                            <p className="text-xs text-blue-600 mt-0.5">
+                                📊 Scope {node.attrs.scopeIndex + 1} of {totalScopes}
                             </p>
                         )}
                     </div>
