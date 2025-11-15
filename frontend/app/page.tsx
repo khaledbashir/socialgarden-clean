@@ -5580,7 +5580,7 @@ Ask me questions to get business insights, such as:
 
                         console.log("🌊 Starting SSE stream processing...", {
                             workspace: workspaceSlug,
-                            thread: threadSlug,
+                            thread: threadSlugToUse,
                             mode: resolvedMode,
                             endpoint: streamEndpoint,
                         });
@@ -5736,7 +5736,7 @@ Ask me questions to get business insights, such as:
                         );
                         console.error("🔍 Debug info:", {
                             workspaceSlug,
-                            threadSlug,
+                            threadSlug: threadSlugToUse,
                             mode: resolvedMode,
                             endpoint: streamEndpoint,
                             messagesCount: requestMessages.length,
@@ -5760,7 +5760,7 @@ Ask me questions to get business insights, such as:
                                               "- The thread doesn't exist or is inaccessible\n\n" +
                                               "**Debug Information:**\n" +
                                               `- Workspace: \`${workspaceSlug || "none"}\`\n` +
-                                              `- Thread: \`${threadSlug || "none"}\`\n` +
+                                              `- Thread: \`${threadSlugToUse || "none"}\`\n` +
                                               `- Mode: \`${resolvedMode}\`\n` +
                                               `- Endpoint: \`${streamEndpoint}\`\n\n` +
                                               "**Next Steps:**\n" +
