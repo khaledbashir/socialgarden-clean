@@ -7,7 +7,7 @@ import TailwindAdvancedEditor from "@/components/tailwind/advanced-editor";
 import SidebarNav from "@/components/tailwind/sidebar-nav";
 import DashboardChat from "@/components/tailwind/dashboard-chat";
 import WorkspaceChat from "@/components/tailwind/workspace-chat";
-import PricingTableBuilder from "@/components/tailwind/pricing-table-builder";
+// import PricingTableBuilder from "@/components/tailwind/pricing-table-builder"; // Commented out - unused import causing build errors
 import Menu from "@/components/tailwind/ui/menu";
 import { Button } from "@/components/tailwind/ui/button";
 import { SendToClientModal } from "@/components/tailwind/send-to-client-modal";
@@ -953,8 +953,10 @@ const convertMarkdownToNovelJSON = (
         // No frontend auto-insertion of Head Of or Project Coordination here.
 
         // Ensure Project Coordination role exists (mandatory)
-        const hasProjectCoordination = pricingRows.some((r) =>
-            norm(r.role).includes("project coordination") || norm(r.role).includes("project-coordination"),
+        const hasProjectCoordination = pricingRows.some(
+            (r) =>
+                norm(r.role).includes("project coordination") ||
+                norm(r.role).includes("project-coordination"),
         );
         if (!hasProjectCoordination) {
             const pc = findCanon("Tech - Delivery - Project Coordination");
@@ -997,8 +999,11 @@ const convertMarkdownToNovelJSON = (
         }
 
         // Ensure PM role is FIRST
-        const pmIndex = pricingRows.findIndex((r) =>
-            norm(r.role).includes("head-of") || norm(r.role).includes("head of") || norm(r.role).includes("project-management")
+        const pmIndex = pricingRows.findIndex(
+            (r) =>
+                norm(r.role).includes("head-of") ||
+                norm(r.role).includes("head of") ||
+                norm(r.role).includes("project-management"),
         );
         if (pmIndex !== -1 && pmIndex !== 0) {
             const [pmRow] = pricingRows.splice(pmIndex, 1);
@@ -4917,7 +4922,9 @@ Ask me questions to get business insights, such as:
                     }
 
                     if (hasErrorMessages) {
-                        console.log("⚠️ AI response contains error messages, inserting as text");
+                        console.log(
+                            "⚠️ AI response contains error messages, inserting as text",
+                        );
                         // Insert the error message as regular text
                         const errorMessage: ChatMessage = {
                             id: `msg${Date.now()}`,

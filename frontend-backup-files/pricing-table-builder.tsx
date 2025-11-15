@@ -191,33 +191,88 @@ function SortableRow({
         opacity: isDragging ? 0.5 : 1,
     };
 
-    return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            className="grid grid-cols-13 gap-3 p-3 bg-muted/30 rounded-lg items-end"
-        >
-            {/* Drag Handle with Row Number */}
-            <div className="col-span-12 md:col-span-1 flex items-center justify-center gap-1">
-                {index === 0 && (
-                    <Label className="text-xs mb-1 block w-full text-center">
-                        Order
-                    </Label>
-                )}
-                <div className="flex items-center gap-1">
-                    <span className="text-xs font-semibold text-muted-foreground min-w-[20px] text-center">
-                        {index + 1}
-                    </span>
-                    <div
-                        {...attributes}
-                        {...listeners}
-                        className="cursor-grab active:cursor-grabbing h-9 w-9 flex items-center justify-center hover:bg-muted rounded p-2"
-                        title="Drag to reorder"
-                    >
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+        // Finally add Account Management role if it exists
+        const accountMgmtRole = nonHeaders.find(
+            (r) => r.role === MANDATORY_ROLES[2].name,
+        );
+        if (accountMgmtRole) {
+            reorderedNonHeaders.push(accountMgmtRole);
+        }
+
+        // 4. Rebuild the full array with headers in their original positions
+        const result: PricingRow[] = [];
+        let nonHeaderIndex = 0;
+
+        rows.forEach((item) => {
+            if (item.isHeader) {
+                result.push(item);
+            } else {
+                result.push(reorderedNonHeaders[nonHeaderIndex]);
+                nonHeaderIndex++;
+            }
+        });
+
+        return result;
+    };
+
+    export default function PricingTableBuilder({
+        onInsertTable,
+    }: PricingTableBuilderProps) {
+        const [rows, setRows] = useState<PricingRow[]>([
+            {
+                id: "1",
+                role: "",
+                description: "",
+                hours: 0,
+                rate: 0,
+                isHeader: false,
+            },
+        ]);
+        const [discount, setDiscount] = useState(0);
+
+        // Apply mandatory role enforcement on initial load only
+        useEffect(() => {
+            setRows(enforceMandatoryRoleOrder(rows));
+        }, []); // Empty dependency array means this runs only once on mount
+
+        // Apply mandatory role enforcement when rows are added or removed
+        useEffect(() => {
+            if (rows.length > 0) {
+                const updatedRows = enforceMandatoryRoleOrder(rows);
+                // Only update if the order has actually changed to prevent infinite loops
+                if (JSON.stringify(updatedRows) !== JSON.stringify(rows)) {
+                    setRows(updatedRows);
+                }
+            }
+        }, [rows.length]);
+
+        return (
+            <div
+                ref={setNodeRef}
+                style={style}
+                className="grid grid-cols-13 gap-3 p-3 bg-muted/30 rounded-lg items-end"
+            >
+                {/* Drag Handle with Row Number */}
+                <div className="col-span-12 md:col-span-1 flex items-center justify-center gap-1">
+                    {index === 0 && (
+                        <Label className="text-xs mb-1 block w-full text-center">
+                            Order
+                        </Label>
+                    )}
+                    <div className="flex items-center gap-1">
+                        <span className="text-xs font-semibold text-muted-foreground min-w-[20px] text-center">
+                            {index + 1}
+                        </span>
+                        <div
+                            {...attributes}
+                            {...listeners}
+                            className="cursor-grab active:cursor-grabbing h-9 w-9 flex items-center justify-center hover:bg-muted rounded p-2"
+                            title="Drag to reorder"
+                        >
+                            <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        </div>
                     </div>
                 </div>
-            </div>
 
             {/* Role Selector */}
             <div className="col-span-12 md:col-span-2">
@@ -241,63 +296,65 @@ function SortableRow({
                 </Select>
             </div>
 
-            {/* Description */}
-            <div className="col-span-12 md:col-span-3">
-                {index === 0 && (
-                    <Label className="text-xs mb-1 block">Description</Label>
-                )}
-                <Input
-                    placeholder="Role description"
-                    value={row.description}
-                    onChange={(e) =>
-                        updateRow(row.id, "description", e.target.value)
-                    }
-                    className="h-9 text-sm"
-                />
-            </div>
+                {/* Description */}
+                <div className="col-span-12 md:col-span-3">
+                    {index === 0 && (
+                        <Label className="text-xs mb-1 block">
+                            Description
+                        </Label>
+                    )}
+                    <Input
+                        placeholder="Role description"
+                        value={row.description}
+                        onChange={(e) =>
+                            updateRow(row.id, "description", e.target.value)
+                        }
+                        className="h-9 text-sm"
+                    />
+                </div>
 
-            {/* Hours */}
-            <div className="col-span-6 md:col-span-2">
-                {index === 0 && (
-                    <Label className="text-xs mb-1 block">Hours</Label>
-                )}
-                <Input
-                    type="number"
-                    placeholder="0"
-                    value={row.hours || ""}
-                    onChange={(e) =>
-                        updateRow(
-                            row.id,
-                            "hours",
-                            parseFloat(e.target.value) || 0,
-                        )
-                    }
-                    className="h-9 text-sm"
-                    min="0"
-                    step="0.5"
-                />
-            </div>
+                {/* Hours */}
+                <div className="col-span-6 md:col-span-2">
+                    {index === 0 && (
+                        <Label className="text-xs mb-1 block">Hours</Label>
+                    )}
+                    <Input
+                        type="number"
+                        placeholder="0"
+                        value={row.hours || ""}
+                        onChange={(e) =>
+                            updateRow(
+                                row.id,
+                                "hours",
+                                parseFloat(e.target.value) || 0,
+                            )
+                        }
+                        className="h-9 text-sm"
+                        min="0"
+                        step="0.5"
+                    />
+                </div>
 
-            {/* Rate */}
-            <div className="col-span-6 md:col-span-2">
-                {index === 0 && (
-                    <Label className="text-xs mb-1 block">Rate ($)</Label>
-                )}
-                <Input
-                    type="number"
-                    placeholder="$0"
-                    value={row.rate || ""}
-                    onChange={(e) =>
-                        updateRow(
-                            row.id,
-                            "rate",
-                            parseFloat(e.target.value) || 0,
-                        )
-                    }
-                    className="h-9 text-sm"
-                    min="0"
-                />
-            </div>
+                {/* Rate */}
+                <div className="col-span-6 md:col-span-2">
+                    {index === 0 && (
+                        <Label className="text-xs mb-1 block">Rate ($)</Label>
+                    )}
+                    <Input
+                        type="number"
+                        placeholder="$0"
+                        value={row.rate || ""}
+                        onChange={(e) =>
+                            updateRow(
+                                row.id,
+                                "rate",
+                                parseFloat(e.target.value) || 0,
+                            )
+                        }
+                        className="h-9 text-sm"
+                        min="0"
+                    />
+                </div>
 
             {/* Cost */}
             <div className="col-span-6 md:col-span-2">
@@ -308,25 +365,8 @@ function SortableRow({
                     ${(row.hours * row.rate).toFixed(2)}
                 </div>
             </div>
-
-            {/* Delete Button */}
-            <div className="col-span-12 md:col-span-1 flex items-center justify-center">
-                {index === 0 && (
-                    <Label className="text-xs mb-1 block w-full">Actions</Label>
-                )}
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeRow(row.id)}
-                    disabled={isOnlyRow}
-                    className="h-9 w-9 p-0"
-                >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-            </div>
-        </div>
-    );
-}
+        );
+    }
 
 export default function PricingTableBuilder({
     onInsertTable,

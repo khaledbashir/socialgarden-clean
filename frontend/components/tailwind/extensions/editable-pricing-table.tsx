@@ -3,25 +3,23 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import React, { useState, useEffect, useRef } from "react";
-
-// Dynamic roles from API - no more hardcoded imports!
-interface RoleRate {
-    roleName: string;
-    hourlyRate: number;
-}
-
-interface PricingRow {
-    id: string;
-    role: string;
-    description: string;
-    hours: number;
-    rate: number;
-}
+import {
+    enforceMandatoryRoles,
+    validateMandatoryRoles,
+    type RoleRate,
+    type PricingRow,
+} from "@/lib/mandatory-roles-enforcer";
+import {
+    calculateFinancialBreakdown,
+    formatCurrency,
+    formatFinancialBreakdown,
+} from "@/lib/formatters";
 
 const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     // 🎯 Fetch roles dynamically from API (Single Source of Truth)
     const [roles, setRoles] = useState<RoleRate[]>([]);
     const [rolesLoading, setRolesLoading] = useState(true);
+    const [enforcementApplied, setEnforcementApplied] = useState(false);
 
     const [rows, setRows] = useState<PricingRow[]>(
         (
@@ -68,23 +66,49 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         fetchRoles();
     }, []);
 
+    // 🔒 MANDATORY ROLE ENFORCEMENT
+    // This effect runs once after Rate Card loads to ensure compliance
     useEffect(() => {
-        if (roles.length > 0) {
-            setRows((prev) =>
-                prev.map((row) => {
-                    if (row.role) {
-                        const roleData = roles.find(
-                            (r) => r.roleName === row.role,
-                        );
-                        const canonicalRoleName =
-                            roleData?.roleName || row.role;
-                        return { ...row, role: canonicalRoleName };
-                    }
-                    return row;
-                }),
+        if (roles.length > 0 && !enforcementApplied) {
+            console.log(
+                "🔒 [Pricing Table] Applying mandatory role enforcement...",
             );
+
+            try {
+                // Enforce mandatory roles programmatically
+                const compliantRows = enforceMandatoryRoles(rows, roles);
+
+                // Update state with compliant rows
+                setRows(compliantRows);
+                setEnforcementApplied(true);
+
+                console.log(
+                    "✅ [Pricing Table] Mandatory role enforcement complete",
+                );
+
+                // Validate for verification
+                const validation = validateMandatoryRoles(compliantRows);
+                if (!validation.isValid) {
+                    console.error(
+                        "❌ [Pricing Table] Validation failed after enforcement:",
+                        validation.details,
+                    );
+                } else {
+                    console.log(
+                        "✅ [Pricing Table] Validation passed:",
+                        validation.details,
+                    );
+                }
+            } catch (error) {
+                console.error("❌ [Pricing Table] Enforcement failed:", error);
+                // Show user-friendly error
+                alert(
+                    "Unable to enforce mandatory roles. Please ensure all required roles " +
+                        "are present in the Rate Card. Contact support if this issue persists.",
+                );
+            }
         }
-    }, [roles]);
+    }, [roles, enforcementApplied]);
 
     useEffect(() => {
         // Defer updateAttributes to a microtask to avoid flushSync errors
@@ -103,15 +127,29 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
             prev.map((row) => {
                 if (row.id !== id) return row;
                 if (field === "role") {
-                    // Find rate from dynamically loaded roles
+                    // 🔒 RATE CARD VALIDATION - No Fallback to AI Rate
                     const roleData = roles.find(
                         (r) => r.roleName === String(value),
                     );
-                    const rate = roleData?.hourlyRate || row.rate;
-                    // Always use the full canonical role name from rate card to prevent abbreviations
-                    const canonicalRoleName =
-                        roleData?.roleName || String(value);
-                    return { ...row, role: canonicalRoleName, rate };
+
+                    if (!roleData) {
+                        console.error(
+                            `❌ [Pricing Table] Role "${value}" not found in Rate Card`,
+                        );
+                        alert(
+                            `Role "${value}" is not in the official Rate Card. ` +
+                                `Please select a role from the dropdown.`,
+                        );
+                        return row; // Don't update - keep previous valid role
+                    }
+
+                    // ALWAYS use canonical name and official rate from Rate Card
+                    // NEVER trust or fallback to AI-provided rate
+                    return {
+                        ...row,
+                        role: roleData.roleName,
+                        rate: roleData.hourlyRate,
+                    };
                 }
                 return { ...row, [field]: value };
             }),
@@ -192,27 +230,18 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         setDraggedRowId(null);
     };
 
-    const calculateSubtotal = () => {
-        return rows.reduce((sum, row) => sum + row.hours * row.rate, 0);
-    };
+    // 💰 USE CENTRALIZED FINANCIAL CALCULATIONS
+    // This ensures consistency across all displays and exports
+    const financialBreakdown = calculateFinancialBreakdown(rows, discount);
+    const formattedBreakdown = formatFinancialBreakdown(financialBreakdown);
 
-    const calculateDiscount = () => {
-        return calculateSubtotal() * (discount / 100);
-    };
-
-    const calculateSubtotalAfterDiscount = () => {
-        return calculateSubtotal() - calculateDiscount();
-    };
-
-    const calculateGST = () => {
-        return calculateSubtotalAfterDiscount() * 0.1;
-    };
-
-    const calculateTotal = () => {
-        const rawTotal = calculateSubtotalAfterDiscount() + calculateGST();
-        // Commercial rounding: round to nearest $100
-        return Math.round(rawTotal / 100) * 100;
-    };
+    // Legacy function wrappers for backward compatibility
+    const calculateSubtotal = () => financialBreakdown.subtotal;
+    const calculateDiscount = () => financialBreakdown.discount;
+    const calculateSubtotalAfterDiscount = () =>
+        financialBreakdown.subtotalAfterDiscount;
+    const calculateGST = () => financialBreakdown.gst;
+    const calculateTotal = () => financialBreakdown.grandTotal;
 
     return (
         <NodeViewWrapper className="editable-pricing-table my-6">
