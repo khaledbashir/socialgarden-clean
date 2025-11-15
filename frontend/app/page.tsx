@@ -4333,6 +4333,10 @@ Ask me questions to get business insights, such as:
         content: string,
         suggestedRoles: any[] = [],
     ) => {
+        // 🎯 Declare localMultiScopeData at function scope to avoid hoisting issues
+        let localMultiScopeData: ConvertOptions["multiScopePricingData"] =
+            undefined;
+
         console.log(
             "📝 Inserting content into editor:",
             content.substring(0, 100),
@@ -4672,10 +4676,6 @@ Ask me questions to get business insights, such as:
             // 🎯 Extract budget and discount from last user prompt for financial calculations
             const { budget: userPromptBudget, discount: userPromptDiscount } =
                 extractBudgetAndDiscount(lastUserPrompt);
-
-            // 🎯 Capture multiScopePricingData locally to pass through convertOptions
-            let localMultiScopeData: ConvertOptions["multiScopePricingData"] =
-                undefined;
 
             const convertOptions: ConvertOptions = {
                 strictRoles: false,
