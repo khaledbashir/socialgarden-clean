@@ -45,7 +45,7 @@ export const MANDATORY_ROLES: MandatoryRoleDefinition[] = [
         maxHours: 15,
         defaultHours: 8,
         description: "Strategic oversight & governance",
-        order: 1
+        order: 1,
     },
     {
         role: "Tech - Delivery - Project Coordination",
@@ -53,7 +53,7 @@ export const MANDATORY_ROLES: MandatoryRoleDefinition[] = [
         maxHours: 10,
         defaultHours: 6,
         description: "Project delivery coordination",
-        order: 2
+        order: 2,
     },
     {
         role: "Account Management - Senior Account Manager",
@@ -61,8 +61,8 @@ export const MANDATORY_ROLES: MandatoryRoleDefinition[] = [
         maxHours: 12,
         defaultHours: 8,
         description: "Client communication & account governance",
-        order: 3
-    }
+        order: 3,
+    },
 ];
 
 /**
@@ -72,7 +72,7 @@ export const MANDATORY_ROLES: MandatoryRoleDefinition[] = [
 function normalizeRoleName(name: string): string {
     return name
         .toLowerCase()
-        .replace(/[^a-z0-9]/g, '') // Remove all special chars and spaces
+        .replace(/[^a-z0-9]/g, "") // Remove all special chars and spaces
         .trim();
 }
 
@@ -103,11 +103,13 @@ function generateRowId(): string {
  * CORE ENFORCEMENT FUNCTION
  *
  * Takes AI-suggested roles and returns a compliant pricing table with:
- * 1. All 3 mandatory roles at the top (positions 1-3)
- * 2. Canonical role names from Rate Card
- * 3. Official rates from Rate Card (never trust AI rates)
- * 4. Hours from AI if provided, otherwise defaults
- * 5. Other AI-suggested roles following mandatory ones
+ * 1. "Tech - Head Of" role at the TOP
+ * 2. "Tech - Delivery" role after Head Of
+ * 3. All other AI-suggested roles in the MIDDLE
+ * 4. "Account Management" role at the BOTTOM (just before totals)
+ * 5. Canonical role names from Rate Card
+ * 6. Official rates from Rate Card (never trust AI rates)
+ * 7. Hours from AI if provided, otherwise defaults
  *
  * @param aiSuggestedRoles - Raw roles from AI (can be empty, partial, or wrong)
  * @param rateCard - Official Rate Card from database (Single Source of Truth)
@@ -115,33 +117,41 @@ function generateRowId(): string {
  */
 export function enforceMandatoryRoles(
     aiSuggestedRoles: PricingRow[],
-    rateCard: RoleRate[]
+    rateCard: RoleRate[],
 ): PricingRow[] {
-    const result: PricingRow[] = [];
+    const topRoles: PricingRow[] = [];
+    const middleRoles: PricingRow[] = [];
+    const bottomRoles: PricingRow[] = [];
     const processedRoles = new Set<string>(); // Track to avoid duplicates
 
-    console.log('🔒 [Mandatory Roles Enforcer] Starting enforcement...');
+    console.log("🔒 [Mandatory Roles Enforcer] Starting enforcement...");
     console.log(`📥 [Enforcer] AI suggested ${aiSuggestedRoles.length} roles`);
     console.log(`📋 [Enforcer] Rate Card has ${rateCard.length} roles`);
 
-    // STEP 1: INJECT ALL 3 MANDATORY ROLES AT THE TOP
-    // This happens REGARDLESS of what AI provided
-    for (const mandatory of MANDATORY_ROLES) {
+    // Helper function to create a mandatory role row
+    const createMandatoryRow = (
+        mandatory: MandatoryRoleDefinition,
+    ): PricingRow => {
         const rateCardEntry = rateCard.find(
-            r => normalizeRoleName(r.roleName) === normalizeRoleName(mandatory.role)
+            (r) =>
+                normalizeRoleName(r.roleName) ===
+                normalizeRoleName(mandatory.role),
         );
 
         if (!rateCardEntry) {
-            console.error(`❌ [Enforcer] CRITICAL: Mandatory role "${mandatory.role}" not found in Rate Card`);
+            console.error(
+                `❌ [Enforcer] CRITICAL: Mandatory role "${mandatory.role}" not found in Rate Card`,
+            );
             throw new Error(
                 `Mandatory role "${mandatory.role}" missing from Rate Card. ` +
-                `Cannot generate compliant SOW without it.`
+                    `Cannot generate compliant SOW without it.`,
             );
         }
 
         // Check if AI already provided this role (use AI's hours if so)
         const aiProvided = aiSuggestedRoles.find(
-            r => normalizeRoleName(r.role) === normalizeRoleName(mandatory.role)
+            (r) =>
+                normalizeRoleName(r.role) === normalizeRoleName(mandatory.role),
         );
 
         const hours = aiProvided?.hours || mandatory.defaultHours;
@@ -149,34 +159,47 @@ export function enforceMandatoryRoles(
         // Validate hours are within acceptable range
         const validatedHours = Math.max(
             mandatory.minHours,
-            Math.min(mandatory.maxHours, hours)
+            Math.min(mandatory.maxHours, hours),
         );
 
         if (validatedHours !== hours) {
             console.warn(
                 `⚠️ [Enforcer] Adjusted hours for ${mandatory.role}: ` +
-                `${hours} → ${validatedHours} (min: ${mandatory.minHours}, max: ${mandatory.maxHours})`
+                    `${hours} → ${validatedHours} (min: ${mandatory.minHours}, max: ${mandatory.maxHours})`,
             );
         }
 
-        const mandatoryRow: PricingRow = {
-            id: generateRowId(),
-            role: rateCardEntry.roleName, // ALWAYS use canonical name from Rate Card
-            description: aiProvided?.description || mandatory.description,
-            hours: validatedHours,
-            rate: rateCardEntry.hourlyRate // ALWAYS use official rate from Rate Card
-        };
-
-        result.push(mandatoryRow);
         processedRoles.add(normalizeRoleName(mandatory.role));
 
         console.log(
             `✅ [Enforcer] Mandatory role #${mandatory.order}: ${mandatory.role} ` +
-            `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`
+                `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
         );
+
+        return {
+            id: generateRowId(),
+            role: rateCardEntry.roleName, // ALWAYS use canonical name from Rate Card
+            description: aiProvided?.description || mandatory.description,
+            hours: validatedHours,
+            rate: rateCardEntry.hourlyRate, // ALWAYS use official rate from Rate Card
+        };
+    };
+
+    // STEP 1: INJECT "Tech - Head Of" at the TOP
+    const headOfRole = MANDATORY_ROLES.find((m) => m.role.includes("Head Of"));
+    if (headOfRole) {
+        topRoles.push(createMandatoryRow(headOfRole));
     }
 
-    // STEP 2: ADD OTHER AI-SUGGESTED ROLES (excluding duplicates of mandatory roles)
+    // STEP 2: INJECT "Tech - Delivery" after Head Of
+    const deliveryRole = MANDATORY_ROLES.find((m) =>
+        m.role.includes("Delivery"),
+    );
+    if (deliveryRole) {
+        topRoles.push(createMandatoryRow(deliveryRole));
+    }
+
+    // STEP 3: ADD OTHER AI-SUGGESTED ROLES (excluding mandatory roles and Account Management)
     let additionalRolesAdded = 0;
 
     for (const aiRole of aiSuggestedRoles) {
@@ -184,19 +207,21 @@ export function enforceMandatoryRoles(
 
         // Skip if this is a mandatory role (already processed)
         if (processedRoles.has(normalizedAiRole)) {
-            console.log(`⏭️ [Enforcer] Skipping duplicate: ${aiRole.role} (already in mandatory section)`);
+            console.log(
+                `⏭️ [Enforcer] Skipping duplicate: ${aiRole.role} (already in mandatory section)`,
+            );
             continue;
         }
 
         // Validate role exists in Rate Card
         const rateCardEntry = rateCard.find(
-            r => normalizeRoleName(r.roleName) === normalizedAiRole
+            (r) => normalizeRoleName(r.roleName) === normalizedAiRole,
         );
 
         if (!rateCardEntry) {
             console.warn(
                 `⚠️ [Enforcer] Role "${aiRole.role}" not found in Rate Card. ` +
-                `This role will be REJECTED. Please select roles from official Rate Card.`
+                    `This role will be REJECTED. Please select roles from official Rate Card.`,
             );
             continue; // Skip invalid roles
         }
@@ -209,22 +234,33 @@ export function enforceMandatoryRoles(
             role: rateCardEntry.roleName, // ALWAYS use canonical name
             description: String(aiRole.description || "").trim(),
             hours: validatedHours,
-            rate: rateCardEntry.hourlyRate // ALWAYS use official rate (NEVER trust AI rate)
+            rate: rateCardEntry.hourlyRate, // ALWAYS use official rate (NEVER trust AI rate)
         };
 
-        result.push(additionalRow);
+        middleRoles.push(additionalRow);
         processedRoles.add(normalizedAiRole);
         additionalRolesAdded++;
 
         console.log(
             `➕ [Enforcer] Additional role: ${rateCardEntry.roleName} ` +
-            `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`
+                `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
         );
     }
 
+    // STEP 4: INJECT "Account Management" at the BOTTOM
+    const accountMgmtRole = MANDATORY_ROLES.find((m) =>
+        m.role.includes("Account Management"),
+    );
+    if (accountMgmtRole) {
+        bottomRoles.push(createMandatoryRow(accountMgmtRole));
+    }
+
+    // STEP 5: COMBINE ALL SECTIONS IN ORDER
+    const result = [...topRoles, ...middleRoles, ...bottomRoles];
+
     console.log(
         `🎯 [Enforcer] Enforcement complete: ` +
-        `3 mandatory roles + ${additionalRolesAdded} additional roles = ${result.length} total`
+            `${topRoles.length} top roles + ${middleRoles.length} middle roles + ${bottomRoles.length} bottom roles = ${result.length} total`,
     );
 
     return result;
@@ -244,18 +280,21 @@ export interface MandatoryRoleValidationResult {
     details: string[];
 }
 
-export function validateMandatoryRoles(rows: PricingRow[]): MandatoryRoleValidationResult {
+export function validateMandatoryRoles(
+    rows: PricingRow[],
+): MandatoryRoleValidationResult {
     const result: MandatoryRoleValidationResult = {
         isValid: true,
         missingRoles: [],
         incorrectOrder: false,
-        details: []
+        details: [],
     };
 
     // Check 1: All mandatory roles present
     for (const mandatory of MANDATORY_ROLES) {
         const found = rows.find(
-            r => normalizeRoleName(r.role) === normalizeRoleName(mandatory.role)
+            (r) =>
+                normalizeRoleName(r.role) === normalizeRoleName(mandatory.role),
         );
 
         if (!found) {
@@ -265,18 +304,58 @@ export function validateMandatoryRoles(rows: PricingRow[]): MandatoryRoleValidat
         }
     }
 
-    // Check 2: Mandatory roles appear first (in correct order)
+    // Check 2: Mandatory roles in correct positions (Head Of first, Account Management last)
     if (result.missingRoles.length === 0 && rows.length >= 3) {
-        for (let i = 0; i < MANDATORY_ROLES.length; i++) {
-            const expectedRole = MANDATORY_ROLES[i].role;
-            const actualRole = rows[i]?.role;
+        const headOfRole = MANDATORY_ROLES.find((m) =>
+            m.role.includes("Head Of"),
+        );
+        const deliveryRole = MANDATORY_ROLES.find((m) =>
+            m.role.includes("Delivery"),
+        );
+        const accountMgmtRole = MANDATORY_ROLES.find((m) =>
+            m.role.includes("Account Management"),
+        );
 
-            if (normalizeRoleName(actualRole) !== normalizeRoleName(expectedRole)) {
+        // Check Head Of is first
+        if (
+            headOfRole &&
+            normalizeRoleName(rows[0]?.role) !==
+                normalizeRoleName(headOfRole.role)
+        ) {
+            result.isValid = false;
+            result.incorrectOrder = true;
+            result.details.push(
+                `⚠️ Incorrect order: Position 1 should be "${headOfRole.role}", ` +
+                    `but found "${rows[0]?.role}"`,
+            );
+        }
+
+        // Check Delivery is second
+        if (
+            deliveryRole &&
+            normalizeRoleName(rows[1]?.role) !==
+                normalizeRoleName(deliveryRole.role)
+        ) {
+            result.isValid = false;
+            result.incorrectOrder = true;
+            result.details.push(
+                `⚠️ Incorrect order: Position 2 should be "${deliveryRole.role}", ` +
+                    `but found "${rows[1]?.role}"`,
+            );
+        }
+
+        // Check Account Management is last
+        if (accountMgmtRole) {
+            const lastRow = rows[rows.length - 1];
+            if (
+                normalizeRoleName(lastRow?.role) !==
+                normalizeRoleName(accountMgmtRole.role)
+            ) {
                 result.isValid = false;
                 result.incorrectOrder = true;
                 result.details.push(
-                    `⚠️ Incorrect order: Position ${i + 1} should be "${expectedRole}", ` +
-                    `but found "${actualRole}"`
+                    `⚠️ Incorrect order: Last position should be "${accountMgmtRole.role}", ` +
+                        `but found "${lastRow?.role}"`,
                 );
             }
         }
@@ -285,22 +364,28 @@ export function validateMandatoryRoles(rows: PricingRow[]): MandatoryRoleValidat
     // Check 3: Hours within acceptable range
     for (const mandatory of MANDATORY_ROLES) {
         const row = rows.find(
-            r => normalizeRoleName(r.role) === normalizeRoleName(mandatory.role)
+            (r) =>
+                normalizeRoleName(r.role) === normalizeRoleName(mandatory.role),
         );
 
         if (row) {
-            if (row.hours < mandatory.minHours || row.hours > mandatory.maxHours) {
+            if (
+                row.hours < mandatory.minHours ||
+                row.hours > mandatory.maxHours
+            ) {
                 result.isValid = false;
                 result.details.push(
                     `⚠️ ${row.role}: Hours ${row.hours} outside acceptable range ` +
-                    `(${mandatory.minHours}-${mandatory.maxHours})`
+                        `(${mandatory.minHours}-${mandatory.maxHours})`,
                 );
             }
         }
     }
 
     if (result.isValid) {
-        result.details.push('✅ All mandatory roles present and correctly ordered');
+        result.details.push(
+            "✅ All mandatory roles present and correctly ordered (Head Of → Other Roles → Account Management)",
+        );
     }
 
     return result;
@@ -310,7 +395,7 @@ export function validateMandatoryRoles(rows: PricingRow[]): MandatoryRoleValidat
  * Get list of mandatory role names (for UI dropdowns, prompts, etc.)
  */
 export function getMandatoryRoleNames(): string[] {
-    return MANDATORY_ROLES.map(m => m.role);
+    return MANDATORY_ROLES.map((m) => m.role);
 }
 
 /**
@@ -323,7 +408,9 @@ export function isRoleMandatory(roleName: string): boolean {
 /**
  * Get mandatory role definition by name
  */
-export function getMandatoryRoleDefinition(roleName: string): MandatoryRoleDefinition | null {
+export function getMandatoryRoleDefinition(
+    roleName: string,
+): MandatoryRoleDefinition | null {
     return isMandatoryRole(roleName);
 }
 
@@ -335,20 +422,21 @@ export function suggestMandatoryRoleAdjustments(rows: PricingRow[]): string[] {
 
     for (const mandatory of MANDATORY_ROLES) {
         const row = rows.find(
-            r => normalizeRoleName(r.role) === normalizeRoleName(mandatory.role)
+            (r) =>
+                normalizeRoleName(r.role) === normalizeRoleName(mandatory.role),
         );
 
         if (!row) {
             suggestions.push(
-                `Add ${mandatory.role} with ${mandatory.defaultHours} hours (${mandatory.description})`
+                `Add ${mandatory.role} with ${mandatory.defaultHours} hours (${mandatory.description})`,
             );
         } else if (row.hours < mandatory.minHours) {
             suggestions.push(
-                `Increase ${row.role} from ${row.hours}h to at least ${mandatory.minHours}h`
+                `Increase ${row.role} from ${row.hours}h to at least ${mandatory.minHours}h`,
             );
         } else if (row.hours > mandatory.maxHours) {
             suggestions.push(
-                `Reduce ${row.role} from ${row.hours}h to at most ${mandatory.maxHours}h`
+                `Reduce ${row.role} from ${row.hours}h to at most ${mandatory.maxHours}h`,
             );
         }
     }

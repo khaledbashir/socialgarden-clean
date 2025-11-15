@@ -19,18 +19,17 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     // 🎯 Fetch roles dynamically from API (Single Source of Truth)
     const [roles, setRoles] = useState<RoleRate[]>([]);
     const [rolesLoading, setRolesLoading] = useState(true);
-    const [enforcementApplied, setEnforcementApplied] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
 
-    const [rows, setRows] = useState<PricingRow[]>(
-        (
-            node.attrs.rows || [
-                { role: "", description: "", hours: 0, rate: 0 },
-            ]
-        ).map((row: any, idx: number) => ({
-            ...row,
-            id: row.id || `row-${idx}-${Date.now()}`,
-        })),
-    );
+    // Initialize rows from node attrs, but don't render until enforcement is applied
+    const initialRows = (
+        node.attrs.rows || [{ role: "", description: "", hours: 0, rate: 0 }]
+    ).map((row: any, idx: number) => ({
+        ...row,
+        id: row.id || `row-${idx}-${Date.now()}`,
+    }));
+
+    const [rows, setRows] = useState<PricingRow[]>(initialRows);
     const [discount, setDiscount] = useState(node.attrs.discount || 0);
 
     // Drag and drop state
@@ -68,19 +67,16 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
 
     // 🔒 MANDATORY ROLE ENFORCEMENT
     // This effect runs once after Rate Card loads to ensure compliance
+    // CRITICAL: Enforcement happens BEFORE first render to prevent race condition
     useEffect(() => {
-        if (roles.length > 0 && !enforcementApplied) {
+        if (roles.length > 0 && isInitializing) {
             console.log(
                 "🔒 [Pricing Table] Applying mandatory role enforcement...",
             );
 
             try {
-                // Enforce mandatory roles programmatically
-                const compliantRows = enforceMandatoryRoles(rows, roles);
-
-                // Update state with compliant rows
-                setRows(compliantRows);
-                setEnforcementApplied(true);
+                // Enforce mandatory roles programmatically BEFORE rendering
+                const compliantRows = enforceMandatoryRoles(initialRows, roles);
 
                 console.log(
                     "✅ [Pricing Table] Mandatory role enforcement complete",
@@ -99,6 +95,10 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                         validation.details,
                     );
                 }
+
+                // Update state with compliant rows and mark as ready to render
+                setRows(compliantRows);
+                setIsInitializing(false);
             } catch (error) {
                 console.error("❌ [Pricing Table] Enforcement failed:", error);
                 // Show user-friendly error
@@ -106,9 +106,10 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                     "Unable to enforce mandatory roles. Please ensure all required roles " +
                         "are present in the Rate Card. Contact support if this issue persists.",
                 );
+                setIsInitializing(false);
             }
         }
-    }, [roles, enforcementApplied]);
+    }, [roles, isInitializing]);
 
     useEffect(() => {
         // Defer updateAttributes to a microtask to avoid flushSync errors
@@ -243,6 +244,20 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     const calculateGST = () => financialBreakdown.gst;
     const calculateTotal = () => financialBreakdown.grandTotal;
 
+    // Don't render until enforcement is complete to prevent flicker
+    if (isInitializing || rolesLoading) {
+        return (
+            <NodeViewWrapper className="editable-pricing-table my-6">
+                <div className="border border-border rounded-lg p-8 bg-background dark:bg-gray-900/50 text-center">
+                    <div className="text-gray-500 dark:text-gray-400">
+                        <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent rounded-full mb-2" />
+                        <p>Loading pricing table...</p>
+                    </div>
+                </div>
+            </NodeViewWrapper>
+        );
+    }
+
     return (
         <NodeViewWrapper className="editable-pricing-table my-6">
             <style>
@@ -267,6 +282,16 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
           }
           .pricing-row:hover .drag-handle {
             opacity: 1;
+          }
+          /* Ensure role names display fully without truncation */
+          .role-select {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+          }
+          .role-select option {
+            white-space: normal;
+            word-wrap: break-word;
           }
           /* Hide pricing totals when parent has data-show-totals="false" */
           [data-show-totals="false"] .editable-pricing-table .pricing-total-summary {
@@ -346,7 +371,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                 >
                                     <td
                                         className="border border-border p-2"
-                                        style={{ width: "20%" }}
+                                        style={{ width: "30%" }}
                                     >
                                         <div className="flex items-center gap-2">
                                             <span
@@ -364,7 +389,8 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                                         e.target.value,
                                                     )
                                                 }
-                                                className="w-full text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#1CBF79] focus:border-[#1CBF79] hover:border-gray-400 dark:hover:border-gray-600"
+                                                title={row.role}
+                                                className="role-select w-full text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#1CBF79] focus:border-[#1CBF79] hover:border-gray-400 dark:hover:border-gray-600"
                                             >
                                                 <option
                                                     className="bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200"
@@ -389,7 +415,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                     </td>
                                     <td
                                         className="border border-border p-2"
-                                        style={{ width: "30%" }}
+                                        style={{ width: "25%" }}
                                     >
                                         <input
                                             type="text"

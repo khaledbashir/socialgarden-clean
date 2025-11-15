@@ -43,7 +43,7 @@ describe("Mandatory Roles Enforcer", () => {
 
     describe("enforceMandatoryRoles()", () => {
         describe("CRITICAL: AI Returns Empty Roles Array", () => {
-            test("Should inject all 3 mandatory roles with default hours", () => {
+            test("Should inject all 3 mandatory roles with default hours in correct order", () => {
                 const aiSuggestedRoles: PricingRow[] = [];
 
                 const result = enforceMandatoryRoles(
@@ -54,21 +54,21 @@ describe("Mandatory Roles Enforcer", () => {
                 // Must have exactly 3 roles (the mandatory ones)
                 expect(result).toHaveLength(3);
 
-                // Check first mandatory role
+                // Check first mandatory role (Head Of at TOP)
                 expect(result[0].role).toBe(
                     "Tech - Head Of - Senior Project Management",
                 );
                 expect(result[0].hours).toBe(8); // Default hours
                 expect(result[0].rate).toBe(365); // Rate from Rate Card
 
-                // Check second mandatory role
+                // Check second mandatory role (Delivery)
                 expect(result[1].role).toBe(
                     "Tech - Delivery - Project Coordination",
                 );
                 expect(result[1].hours).toBe(6); // Default hours
                 expect(result[1].rate).toBe(110); // Rate from Rate Card
 
-                // Check third mandatory role
+                // Check third mandatory role (Account Management at BOTTOM)
                 expect(result[2].role).toBe(
                     "Account Management - Senior Account Manager",
                 );
@@ -78,7 +78,7 @@ describe("Mandatory Roles Enforcer", () => {
         });
 
         describe("CRITICAL: AI Returns Partial Roles (Missing One Mandatory)", () => {
-            test("Should inject missing mandatory roles", () => {
+            test("Should inject missing mandatory roles in correct order", () => {
                 const aiSuggestedRoles: PricingRow[] = [
                     {
                         id: "ai-1",
@@ -401,7 +401,7 @@ describe("Mandatory Roles Enforcer", () => {
             });
         });
 
-        describe("EDGE CASE: Mandatory Role Missing from Rate Card", () => {
+        describe("Edge Case: Mandatory Role Missing From Rate Card", () => {
             test("Should throw error if mandatory role not in Rate Card", () => {
                 const incompleteRateCard: RoleRate[] = [
                     {
@@ -414,9 +414,10 @@ describe("Mandatory Roles Enforcer", () => {
 
                 const aiSuggestedRoles: PricingRow[] = [];
 
+                // Should throw when trying to inject Delivery role
                 expect(() =>
                     enforceMandatoryRoles(aiSuggestedRoles, incompleteRateCard),
-                ).toThrow(/not found in Rate Card/);
+                ).toThrow("missing from Rate Card");
             });
         });
 
@@ -503,7 +504,7 @@ describe("Mandatory Roles Enforcer", () => {
     });
 
     describe("validateMandatoryRoles()", () => {
-        test("Should pass validation for compliant table", () => {
+        test("Should pass validation for compliant table with correct ordering", () => {
             const compliantRows: PricingRow[] = [
                 {
                     id: "1",
@@ -535,30 +536,30 @@ describe("Mandatory Roles Enforcer", () => {
             expect(result.incorrectOrder).toBe(false);
         });
 
-        test("Should fail validation for missing mandatory role", () => {
-            const incompleteRows: PricingRow[] = [
+        test("Should fail validation if mandatory role missing", () => {
+            const incompliantRows: PricingRow[] = [
                 {
                     id: "1",
                     role: "Tech - Head Of - Senior Project Management",
-                    hours: 8,
+                    hours: 10,
                     rate: 365,
                     description: "",
                 },
-                // MISSING: Tech - Delivery - Project Coordination
                 {
                     id: "2",
-                    role: "Account Management - Senior Account Manager",
-                    hours: 8,
-                    rate: 210,
+                    role: "Tech - Delivery - Project Coordination",
+                    hours: 6,
+                    rate: 110,
                     description: "",
                 },
+                // MISSING: Account Management - Senior Account Manager
             ];
 
-            const result = validateMandatoryRoles(incompleteRows);
+            const result = validateMandatoryRoles(incompliantRows);
 
             expect(result.isValid).toBe(false);
             expect(result.missingRoles).toContain(
-                "Tech - Delivery - Project Coordination",
+                "Account Management - Senior Account Manager",
             );
         });
 
@@ -570,7 +571,7 @@ describe("Mandatory Roles Enforcer", () => {
                     hours: 8,
                     rate: 210,
                     description: "",
-                }, // Should be 3rd
+                }, // Should be LAST
                 {
                     id: "2",
                     role: "Tech - Delivery - Project Coordination",
@@ -584,7 +585,7 @@ describe("Mandatory Roles Enforcer", () => {
                     hours: 8,
                     rate: 365,
                     description: "",
-                }, // Should be 1st
+                }, // Should be FIRST
             ];
 
             const result = validateMandatoryRoles(wrongOrderRows);
