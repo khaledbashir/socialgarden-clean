@@ -96,3 +96,4 @@ INSERT INTO `rate_card_roles` (`role_name`, `hourly_rate`, `is_active`, `descrip
 
 SELECT COUNT(*) as total_roles FROM rate_card_roles WHERE is_active = TRUE;
 SELECT '✅ Official Social Garden rate card installed!' as status;
+

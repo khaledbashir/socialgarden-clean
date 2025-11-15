@@ -4883,7 +4883,21 @@ Ask me questions to get business insights, such as:
                         (node: any) => node.type === "editablePricingTable",
                     );
 
-                    if (!hasPricingTables) {
+                    // Check if the AI response contains error messages
+                    const errorPatterns = [
+                        /❌.*insertion.*blocked/i,
+                        /missing.*pricing.*data/i,
+                        /cannot.*parse.*json/i,
+                        /invalid.*json/i,
+                        /error.*generating/i,
+                        /ai.*response.*alert/i,
+                        /regenerate.*request/i,
+                    ];
+                    const hasErrorMessages = errorPatterns.some((pattern) =>
+                        pattern.test(cleanedContent),
+                    );
+
+                    if (!hasPricingTables && !hasErrorMessages) {
                         console.error(
                             "❌ CRITICAL ERROR: No pricing data found in JSON blocks or markdown tables.",
                         );
@@ -4899,6 +4913,19 @@ Ask me questions to get business insights, such as:
                             timestamp: Date.now(),
                         };
                         setChatMessages((prev) => [...prev, blockedMessage]);
+                        return;
+                    }
+
+                    if (hasErrorMessages) {
+                        console.log("⚠️ AI response contains error messages, inserting as text");
+                        // Insert the error message as regular text
+                        const errorMessage: ChatMessage = {
+                            id: `msg${Date.now()}`,
+                            role: "assistant",
+                            content: cleanedContent,
+                            timestamp: Date.now(),
+                        };
+                        setChatMessages((prev) => [...prev, errorMessage]);
                         return;
                     }
 

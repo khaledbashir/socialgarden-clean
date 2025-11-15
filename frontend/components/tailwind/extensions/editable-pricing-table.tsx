@@ -19,36 +19,32 @@ interface PricingRow {
 }
 
 const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
+    // 🎯 Fetch roles dynamically from API (Single Source of Truth)
+    const [roles, setRoles] = useState<RoleRate[]>([]);
+    const [rolesLoading, setRolesLoading] = useState(true);
+
     const [rows, setRows] = useState<PricingRow[]>(
         (
             node.attrs.rows || [
                 { role: "", description: "", hours: 0, rate: 0 },
             ]
-        ).map((row: any, idx: number) => {
-            // Ensure role names are canonical from rate card to prevent abbreviations
-            let canonicalRoleName = row.role;
-            if (row.role && roles.length > 0) {
-                const roleData = roles.find((r) => r.roleName === row.role);
-                canonicalRoleName = roleData?.roleName || row.role;
-            }
-            return {
-                ...row,
-                role: canonicalRoleName,
-                id: row.id || `row-${idx}-${Date.now()}`,
-            };
-        }),
+        ).map((row: any, idx: number) => ({
+            ...row,
+            id: row.id || `row-${idx}-${Date.now()}`,
+        })),
     );
     const [discount, setDiscount] = useState(node.attrs.discount || 0);
-    const scopeName: string = node.attrs.scopeName || "";
-    const scopeDescription: string = node.attrs.scopeDescription || "";
-    const isMultiScope: boolean = node.attrs.isMultiScope || false;
-    const totalScopes: number = node.attrs.totalScopes || 1;
+
+    // Drag and drop state
     const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
     const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
-    // 🎯 Fetch roles dynamically from API (Single Source of Truth)
-    const [roles, setRoles] = useState<RoleRate[]>([]);
-    const [rolesLoading, setRolesLoading] = useState(true);
+    // Extract scope-related attributes from node
+    const scopeName = node.attrs.scopeName || "";
+    const scopeDescription = node.attrs.scopeDescription || "";
+    const scopeIndex = node.attrs.scopeIndex || 0;
+    const totalScopes = node.attrs.totalScopes || 1;
+    const isMultiScope = totalScopes > 1;
 
     useEffect(() => {
         const fetchRoles = async () => {
@@ -73,6 +69,24 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     }, []);
 
     useEffect(() => {
+        if (roles.length > 0) {
+            setRows((prev) =>
+                prev.map((row) => {
+                    if (row.role) {
+                        const roleData = roles.find(
+                            (r) => r.roleName === row.role,
+                        );
+                        const canonicalRoleName =
+                            roleData?.roleName || row.role;
+                        return { ...row, role: canonicalRoleName };
+                    }
+                    return row;
+                }),
+            );
+        }
+    }, [roles]);
+
+    useEffect(() => {
         // Defer updateAttributes to a microtask to avoid flushSync errors
         // This prevents calling updateAttributes from within a React lifecycle
         Promise.resolve().then(() => {
@@ -90,10 +104,13 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                 if (row.id !== id) return row;
                 if (field === "role") {
                     // Find rate from dynamically loaded roles
-                    const roleData = roles.find((r) => r.roleName === value);
+                    const roleData = roles.find(
+                        (r) => r.roleName === String(value),
+                    );
                     const rate = roleData?.hourlyRate || row.rate;
                     // Always use the full canonical role name from rate card to prevent abbreviations
-                    const canonicalRoleName = roleData?.roleName || value;
+                    const canonicalRoleName =
+                        roleData?.roleName || String(value);
                     return { ...row, role: canonicalRoleName, rate };
                 }
                 return { ...row, [field]: value };
@@ -232,7 +249,9 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                 <div className="flex justify-between items-center mb-4">
                     <div>
                         <h3 className="text-lg font-bold text-foreground dark:text-gray-100">
-                            {isMultiScope ? scopeName : (scopeName || "Project Pricing")}
+                            {isMultiScope
+                                ? scopeName
+                                : scopeName || "Project Pricing"}
                         </h3>
                         {scopeDescription ? (
                             <p className="text-xs text-gray-400 mt-0.5">
@@ -245,7 +264,8 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                         )}
                         {isMultiScope && (
                             <p className="text-xs text-blue-600 mt-0.5">
-                                📊 Scope {node.attrs.scopeIndex + 1} of {totalScopes}
+                                📊 Scope {node.attrs.scopeIndex + 1} of{" "}
+                                {totalScopes}
                             </p>
                         )}
                     </div>
@@ -403,7 +423,8 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                         className="border border-border px-3 py-2 text-right text-sm font-semibold"
                                         style={{ width: "15%" }}
                                     >
-                                        ${(row.hours * row.rate).toFixed(2)} +GST
+                                        ${(row.hours * row.rate).toFixed(2)}{" "}
+                                        +GST
                                     </td>
                                     <td
                                         className="border border-border p-2 text-center"
@@ -452,7 +473,8 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                     <div className="flex justify-between text-sm text-red-600">
                                         <span>Discount ({discount}%):</span>
                                         <span>
-                                            -${calculateDiscount().toFixed(2)} +GST
+                                            -${calculateDiscount().toFixed(2)}{" "}
+                                            +GST
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
@@ -461,7 +483,8 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                             $
                                             {calculateSubtotalAfterDiscount().toFixed(
                                                 2,
-                                            )} +GST
+                                            )}{" "}
+                                            +GST
                                         </span>
                                     </div>
                                 </>
