@@ -346,9 +346,10 @@ const extractFinancialReasoning = (content: string): string | null => {
 const transformScopesToPDFFormat = (multiScopeData: {
     scopes: Array<{
         scope_name: string;
-        scope_description: string;
-        deliverables: string[];
-        assumptions: string[];
+        scope_description?: string;
+        deliverables?: string[];
+        assumptions?: string[];
+        discount?: number;
         role_allocation: Array<{
             role: string;
             hours: number;
@@ -356,7 +357,7 @@ const transformScopesToPDFFormat = (multiScopeData: {
             cost?: number;
         }>;
     }>;
-    discount: number;
+    discount?: number;
     projectTitle?: string;
     // Additional properties that may be accessed - safely handled with defaults
     clientName?: string;
@@ -520,6 +521,7 @@ type ConvertOptions = {
             scope_description?: string;
             deliverables?: string[];
             assumptions?: string[];
+            discount?: number;
             role_allocation: Array<{
                 role: string;
                 hours: number;
@@ -1652,6 +1654,7 @@ export default function Page() {
             scope_description?: string;
             deliverables?: string[];
             assumptions?: string[];
+            discount?: number;
             role_allocation: Array<{
                 role: string;
                 hours: number;
