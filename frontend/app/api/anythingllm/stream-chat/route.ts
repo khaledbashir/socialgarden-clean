@@ -25,6 +25,49 @@ const ANYTHINGLLM_URL = effectiveBaseUrl;
 const ANYTHINGLLM_API_KEY = effectiveApiKey;
 
 /**
+ * Fetch the rate card markdown from our internal endpoint
+ * This ensures the AI always has access to the official rate card for pricing calculations
+ */
+async function getRateCardMarkdown(): Promise<string> {
+    try {
+        const baseUrl =
+            process.env.NEXT_PUBLIC_BASE_URL ||
+            process.env.NEXT_PUBLIC_APP_URL ||
+            "http://localhost:3000";
+        
+        console.log("🔍 [Rate Card] Fetching from:", `${baseUrl}/api/rate-card/markdown`);
+        
+        const response = await fetch(`${baseUrl}/api/rate-card/markdown`, {
+            cache: "no-store",
+        });
+
+        console.log("🔍 [Rate Card] Response status:", response.status);
+
+        if (!response.ok) {
+            console.error("❌ [Rate Card] Failed to fetch:", response.status);
+            const errorText = await response.text();
+            console.error("❌ [Rate Card] Error response:", errorText);
+            return "[Rate card temporarily unavailable]";
+        }
+
+        const data = await response.json();
+        console.log("✅ [Rate Card] Successfully fetched, markdown length:", data.markdown?.length || 0);
+        console.log("✅ [Rate Card] First 200 chars:", data.markdown?.substring(0, 200) || "[NO MARKDOWN]");
+        
+        if (!data.markdown) {
+            console.error("❌ [Rate Card] No markdown in response:", data);
+            return "[Rate card markdown not found]";
+        }
+        
+        return data.markdown;
+    } catch (error: any) {
+        console.error("❌ [Rate Card] Exception:", error);
+        console.error("❌ [Rate Card] Stack:", error.stack);
+        return "[Rate card temporarily unavailable - fetch error]";
+    }
+}
+
+/**
  * Fetch live analytics data for the Analytics Assistant
  * This ensures the AI always has access to current database information
  */
@@ -88,63 +131,38 @@ ${data.all_clients
 
 export async function POST(request: NextRequest) {
     try {
-        // Configuration is now handled at module level above
         // ============================================================================
         // CRITICAL DEBUG: INCOMING /stream-chat PAYLOAD
         // ============================================================================
         const requestBody = await request.json();
-        // Sanitize messages by removing any injected system prompts
-        const sanitizedForLog = {
-            ...requestBody,
-            messages: Array.isArray(requestBody.messages)
-                ? requestBody.messages.filter(
-                      (m: any) => m && m.role !== "system",
-                  )
-                : requestBody.messages,
-        };
-        const removedSystems = Array.isArray(requestBody.messages)
-            ? requestBody.messages.filter((m: any) => m && m.role === "system")
-                  .length
-            : 0;
 
         console.log("//////////////////////////////////////////////////");
         console.log("// CRITICAL DEBUG: INCOMING /stream-chat PAYLOAD //");
         console.log("//////////////////////////////////////////////////");
-        console.log(
-            "FULL REQUEST BODY (sanitized: system messages removed from log):",
-        );
-        console.log(JSON.stringify(sanitizedForLog, null, 2));
+        console.log("FULL REQUEST BODY:");
+        console.log(JSON.stringify(requestBody, null, 2));
         console.log("");
-        if (removedSystems > 0) {
-            console.log(
-                `WARN: Detected and ignored ${removedSystems} system message(s) in incoming payload.`,
-            );
-        }
         console.log("KEY FIELDS:");
-        console.log("  workspace:", sanitizedForLog.workspace);
-        console.log("  workspaceSlug:", sanitizedForLog.workspaceSlug);
-        console.log("  threadSlug:", sanitizedForLog.threadSlug);
-        console.log("  mode:", sanitizedForLog.mode);
-        console.log("  model:", sanitizedForLog.model);
-        console.log("  messages.length:", sanitizedForLog.messages?.length);
-        if (sanitizedForLog.messages && sanitizedForLog.messages.length > 0) {
-            console.log(
-                "  messages[0].role:",
-                sanitizedForLog.messages[0].role,
-            );
+        console.log("  workspace:", requestBody.workspace);
+        console.log("  workspaceSlug:", requestBody.workspaceSlug);
+        console.log("  threadSlug:", requestBody.threadSlug);
+        console.log("  mode:", requestBody.mode);
+        console.log("  model:", requestBody.model);
+        console.log("  messages.length:", requestBody.messages?.length);
+        if (requestBody.messages && requestBody.messages.length > 0) {
+            console.log("  messages[0].role:", requestBody.messages[0].role);
             console.log(
                 "  messages[0].content (first 200 chars):",
-                sanitizedForLog.messages[0].content?.substring(0, 200),
+                requestBody.messages[0].content?.substring(0, 200),
             );
             console.log(
                 "  messages[messages.length-1].role:",
-                sanitizedForLog.messages[sanitizedForLog.messages.length - 1]
-                    .role,
+                requestBody.messages[requestBody.messages.length - 1].role,
             );
             console.log(
                 "  messages[messages.length-1].content (first 200 chars):",
-                sanitizedForLog.messages[
-                    sanitizedForLog.messages.length - 1
+                requestBody.messages[
+                    requestBody.messages.length - 1
                 ].content?.substring(0, 200),
             );
         }
@@ -160,10 +178,6 @@ export async function POST(request: NextRequest) {
             mode = "chat",
             model,
         } = body;
-        // Guard: strip any system messages from actual processing
-        if (Array.isArray(messages)) {
-            messages = messages.filter((m: any) => m && m.role !== "system");
-        }
 
         // Use 'workspace' if provided, otherwise fall back to 'workspaceSlug'
         const effectiveWorkspaceSlug = workspace || workspaceSlug;
@@ -235,6 +249,22 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // ✅ NEW ARCHITECTURE: Inject rate card into message context (not as system prompt override)
+        // This ensures the AI always has the rate card available without overriding workspace config
+        console.log(
+            "📋 [Rate Card Injection] Fetching live rate card to prepend to user message...",
+        );
+        const rateCardMarkdown = await getRateCardMarkdown();
+        const messageWithContext = `[OFFICIAL_RATE_CARD_SOURCE_OF_TRUTH]
+${rateCardMarkdown}
+
+[USER_REQUEST]
+${messageToSend}`;
+
+        console.log(
+            `✅ [Rate Card Injection] Rate card prepended to message (total size: ${messageWithContext.length} chars)`,
+        );
+
         // Determine the endpoint based on whether this is thread-based chat
         let endpoint: string;
         if (threadSlug) {
@@ -253,20 +283,26 @@ export async function POST(request: NextRequest) {
         console.log("ThreadSlug:", threadSlug);
         console.log("");
         console.log(
-            "⚠️  CRITICAL: The system prompt for this workspace is configured in AnythingLLM.",
+            "✅ INFO: System prompt is controlled by AnythingLLM workspace configuration.",
         );
         console.log(
-            "⚠️  This route does NOT inject prompts - it relies on workspace configuration.",
+            "✅ INFO: Rate card is injected into user message context for reliable access.",
         );
         console.log(
-            "⚠️  If responses are generic, check the workspace settings in AnythingLLM admin.",
+            "✅ INFO: This backend acts as a direct passthrough to the workspace.",
         );
         console.log("");
         console.log("Message to send (first 500 chars):");
-        console.log(messageToSend.substring(0, 500));
+        console.log(messageWithContext.substring(0, 500));
         console.log("...");
         console.log("=== END DEBUG ===");
         console.log("");
+
+        console.log("\n\n🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥\n");
+        console.log("FINAL MESSAGE PAYLOAD VERIFICATION:");
+        console.log("THE COMPLETE MESSAGE BEING SENT TO THE AI IS:");
+        console.log(messageWithContext);
+        console.log("\n🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥\n\n");
 
         const response = await fetch(endpoint, {
             method: "POST",
@@ -275,7 +311,7 @@ export async function POST(request: NextRequest) {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                message: messageToSend,
+                message: messageWithContext,
                 mode, // 'chat' or 'query' (provided by caller)
             }),
         });
@@ -301,9 +337,9 @@ export async function POST(request: NextRequest) {
             return new Response(
                 JSON.stringify({
                     error: `AnythingLLM API error: ${response.statusText}`,
-                    details: errorText.substring(0, 500), // Increased from 200 to 500
+                    details: errorText.substring(0, 500),
                     status: response.status,
-                    endpoint: endpoint, // Include endpoint in error response
+                    endpoint: endpoint,
                     workspace: effectiveWorkspaceSlug,
                     threadSlug: threadSlug,
                 }),

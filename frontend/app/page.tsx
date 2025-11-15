@@ -4686,6 +4686,13 @@ Ask me questions to get business insights, such as:
                     editorRef.current.insertContent(finalContent);
                 }
                 console.log("✅ Editor content updated successfully");
+
+                // ✅ FIX: Immediately sync latestEditorJSON to prevent auto-save from overwriting with stale content
+                // This ensures the newly inserted content is the authoritative source of truth
+                setLatestEditorJSON(finalContent);
+                console.log(
+                    "🔒 [Race Condition Fix] Locked in new editor state to prevent auto-save overwrite",
+                );
             } else {
                 console.warn(
                     "⚠️ Editor ref not available, skipping direct update",
@@ -5163,6 +5170,11 @@ Ask me questions to get business insights, such as:
                         } else {
                             editorRef.current.insertContent(finalContent);
                         }
+                        // ✅ FIX: Immediately sync latestEditorJSON to prevent auto-save from overwriting
+                        setLatestEditorJSON(finalContent);
+                        console.log(
+                            "🔒 [Race Condition Fix] Locked in new editor state to prevent auto-save overwrite",
+                        );
                     }
 
                     // 9. Embed SOW in master 'gen' workspace and master dashboard

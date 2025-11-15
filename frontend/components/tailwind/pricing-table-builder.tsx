@@ -121,23 +121,40 @@ interface PricingRow {
   description: string;
   hours: number;
   rate: number;
+  isHeader?: boolean; // Add optional isHeader property
 }
 
 interface PricingTableBuilderProps {
   onInsertTable: (markdown: string) => void;
 }
 
+// Header Row Component (non-sortable, but editable)
+function HeaderRow({ row, updateRow }: { row: PricingRow; updateRow: (id: string, field: keyof PricingRow, value: string | number) => void }) {
+  return (
+    <div className="col-span-13 bg-gradient-to-r from-[#2C823D]/10 to-[#2C823D]/5 border-l-4 border-[#2C823D] p-4 rounded-lg mb-2">
+      <div className="flex items-center gap-2">
+        <Input
+          value={row.role}
+          onChange={(e) => updateRow(row.id, "role", e.target.value)}
+          className="text-lg font-semibold text-[#2C823D] bg-transparent border-none shadow-none p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+          placeholder="Enter scope name..."
+        />
+      </div>
+    </div>
+  );
+}
+
 // Sortable Row Component
-function SortableRow({ 
-  row, 
-  index, 
-  updateRow, 
-  removeRow, 
+function SortableRow({
+  row,
+  index,
+  updateRow,
+  removeRow,
   isOnlyRow,
-  totalRows 
-}: { 
-  row: PricingRow; 
-  index: number; 
+  totalRows
+}: {
+  row: PricingRow;
+  index: number;
   updateRow: (id: string, field: keyof PricingRow, value: string | number) => void;
   removeRow: (id: string) => void;
   isOnlyRow: boolean;
@@ -267,7 +284,7 @@ function SortableRow({
 
 export default function PricingTableBuilder({ onInsertTable }: PricingTableBuilderProps) {
   const [rows, setRows] = useState<PricingRow[]>([
-    { id: "1", role: "", description: "", hours: 0, rate: 0 },
+    { id: "1", role: "", description: "", hours: 0, rate: 0, isHeader: false },
   ]);
   const [discount, setDiscount] = useState(0);
 
@@ -283,9 +300,31 @@ export default function PricingTableBuilder({ onInsertTable }: PricingTableBuild
 
     if (over && active.id !== over.id) {
       setRows((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
+        // Only allow reordering of non-header rows
+        const nonHeaderRows = items.filter(item => !item.isHeader);
+        const oldIndex = nonHeaderRows.findIndex((item) => item.id === active.id);
+        const newIndex = nonHeaderRows.findIndex((item) => item.id === over.id);
+        
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const reorderedNonHeaders = arrayMove(nonHeaderRows, oldIndex, newIndex);
+          
+          // Rebuild the full array with headers in their original positions
+          const result: PricingRow[] = [];
+          let nonHeaderIndex = 0;
+          
+          items.forEach(item => {
+            if (item.isHeader) {
+              result.push(item);
+            } else {
+              result.push(reorderedNonHeaders[nonHeaderIndex]);
+              nonHeaderIndex++;
+            }
+          });
+          
+          return result;
+        }
+        
+        return items;
       });
     }
   };
@@ -293,12 +332,29 @@ export default function PricingTableBuilder({ onInsertTable }: PricingTableBuild
   const addRow = () => {
     setRows([
       ...rows,
-      { id: Date.now().toString(), role: "", description: "", hours: 0, rate: 0 },
+      { id: Date.now().toString(), role: "", description: "", hours: 0, rate: 0, isHeader: false },
+    ]);
+  };
+
+  const addScopeHeader = () => {
+    const scopeNumber = rows.filter(row => row.isHeader).length + 1;
+    setRows([
+      ...rows,
+      {
+        id: Date.now().toString(),
+        role: `📍 Scope ${scopeNumber}: [Scope Name]`,
+        description: "",
+        hours: 0,
+        rate: 0,
+        isHeader: true
+      },
     ]);
   };
 
   const removeRow = (id: string) => {
-    if (rows.length > 1) {
+    const rowToRemove = rows.find((row) => row.id === id);
+    // Don't allow removing header rows or if it's the only row
+    if (rowToRemove && !rowToRemove.isHeader && rows.length > 1) {
       setRows(rows.filter((row) => row.id !== id));
     }
   };
@@ -307,15 +363,25 @@ export default function PricingTableBuilder({ onInsertTable }: PricingTableBuild
     setRows(
       rows.map((row) => {
         if (row.id === id) {
-          if (field === "role") {
-            const selectedRole = ROLES.find((r) => r.name === value);
-            return {
-              ...row,
-              role: value as string,
-              rate: selectedRole?.rate || row.rate,
-            };
+          // Allow editing role field for header rows, but all fields for regular rows
+          if (row.isHeader) {
+            // For header rows, only allow editing the role field
+            if (field === "role") {
+              return { ...row, [field]: value };
+            }
+            return row; // Don't update other fields for header rows
+          } else {
+            // For regular rows, handle role selection logic
+            if (field === "role") {
+              const selectedRole = ROLES.find((r) => r.name === value);
+              return {
+                ...row,
+                role: value as string,
+                rate: selectedRole?.rate || row.rate,
+              };
+            }
+            return { ...row, [field]: value };
           }
-          return { ...row, [field]: value };
         }
         return row;
       })
@@ -323,7 +389,13 @@ export default function PricingTableBuilder({ onInsertTable }: PricingTableBuild
   };
 
   const calculateSubtotal = () => {
-    return rows.reduce((sum, row) => sum + row.hours * row.rate, 0);
+    return rows.reduce((sum, row) => {
+      // Only calculate subtotal for non-header rows
+      if (!row.isHeader) {
+        return sum + row.hours * row.rate;
+      }
+      return sum;
+    }, 0);
   };
 
   const calculateDiscount = () => {
@@ -348,7 +420,10 @@ export default function PricingTableBuilder({ onInsertTable }: PricingTableBuild
     markdown += "|------|-------------|-------|------------|------------|\n";
 
     rows.forEach((row) => {
-      if (row.role && row.hours > 0) {
+      if (row.isHeader) {
+        // Add scope headers as section breaks in markdown
+        markdown += `| **${row.role}** | | | | |\n`;
+      } else if (row.role && row.hours > 0) {
         const cost = row.hours * row.rate;
         markdown += `| ${row.role} | ${row.description} | ${row.hours} | $${row.rate} | $${cost.toFixed(2)} |\n`;
       }
@@ -380,6 +455,10 @@ export default function PricingTableBuilder({ onInsertTable }: PricingTableBuild
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-foreground">Build Pricing Table</h2>
         <div className="flex gap-2">
+          <Button onClick={addScopeHeader} size="sm" variant="outline" className="border-[#2C823D] text-[#2C823D] hover:bg-[#2C823D]/10">
+            <Plus className="h-4 w-4 mr-1" />
+            Add Scope Header
+          </Button>
           <Button onClick={addRow} size="sm" className="bg-[#2C823D] hover:bg-[#25703A]">
             <Plus className="h-4 w-4 mr-1" />
             Add Role
@@ -399,20 +478,28 @@ export default function PricingTableBuilder({ onInsertTable }: PricingTableBuild
       >
         <div className="space-y-3 mb-6 max-h-96 overflow-y-auto">
           <SortableContext
-            items={rows.map((row) => row.id)}
+            items={rows.filter(row => !row.isHeader).map((row) => row.id)}
             strategy={verticalListSortingStrategy}
           >
-            {rows.map((row, index) => (
-              <SortableRow
-                key={row.id}
-                row={row}
-                index={index}
-                updateRow={updateRow}
-                removeRow={removeRow}
-                isOnlyRow={rows.length === 1}
-                totalRows={rows.length}
-              />
-            ))}
+            {rows.map((row, index) => {
+              // Calculate the actual index for non-header rows (for drag and drop)
+              const nonHeaderRows = rows.filter(r => !r.isHeader);
+              const actualIndex = nonHeaderRows.findIndex(r => r.id === row.id);
+              
+              return row.isHeader ? (
+                <HeaderRow key={row.id} row={row} updateRow={updateRow} />
+              ) : (
+                <SortableRow
+                  key={row.id}
+                  row={row}
+                  index={actualIndex}
+                  updateRow={updateRow}
+                  removeRow={removeRow}
+                  isOnlyRow={nonHeaderRows.length === 1}
+                  totalRows={nonHeaderRows.length}
+                />
+              );
+            })}
           </SortableContext>
         </div>
       </DndContext>
