@@ -417,31 +417,37 @@ const extractFinancialReasoning = (content: string): string | null => {
 // Fixed: Updated type definition to include all properties accessed in the function
 const transformScopesToPDFFormat = (
     multiScopeData: {
-        scopes: Array<{
-            scope_name: string;
-            scope_description?: string;
-            deliverables?: string[];
-            assumptions?: string[];
-            discount?: number;
-            role_allocation: Array<{
-                role: string;
-                hours: number;
-                rate?: number;
-                cost?: number;
+        // 🎯 V4.1 Multi-Scope Pricing Data from AI
+        const [multiScopePricingData, setMultiScopePricingData] = useState<{
+            scopes: Array<{
+                scope_name: string;
+                scope_description?: string;
+                deliverables?: string[];
+                assumptions?: string[];
+                discount?: number;
+                role_allocation: Array<{
+                    role: string;
+                    hours: number;
+                    rate?: number;
+                    cost?: number;
+                }>;
             }>;
-        }>;
-        discount?: number;
-        projectTitle?: string;
-        // Additional properties that may be accessed - safely handled with defaults
-        clientName?: string;
-        company?: any;
-        projectSubtitle?: string;
-        projectOverview?: string;
-        budgetNotes?: string;
-        currency?: string;
-        gstApplicable?: boolean;
-        generatedDate?: string;
-        authoritativeTotal?: number;
+            discount?: number;
+            projectTitle?: string;
+            // Additional properties that may be accessed - safely handled with defaults
+            clientName?: string;
+            company?: any;
+            projectSubtitle?: string;
+            projectOverview?: string;
+            budgetNotes?: string;
+            currency?: string;
+            gstApplicable?: boolean;
+            generatedDate?: string;
+            authoritativeTotal?: number;
+        } | null>(null);
+
+        // 🎯 CRITICAL FIX: Store user prompt discount to override AI-generated discount
+        const [userPromptDiscount, setUserPromptDiscount] = useState<number>(0);
     },
     currentDocData?: any,
 ): {
@@ -562,7 +568,11 @@ const transformScopesToPDFFormat = (
         projectTitle:
             multiScopeData.projectTitle || currentDocData?.title || "SOW",
         scopes: transformedScopes,
-        discount: multiScopeData.discount || 0,
+        // 🎯 CRITICAL FIX: Use user prompt discount if available, otherwise fall back to AI discount
+        discount:
+            userPromptDiscount > 0
+                ? userPromptDiscount
+                : multiScopeData.discount || 0,
         clientName: clientName,
         company: multiScopeData.company || { name: "Social Garden" },
         projectSubtitle: multiScopeData.projectSubtitle || "",
@@ -3784,11 +3794,30 @@ Ask me questions to get business insights, such as:
                     "✅ [PDF Export] Using multi-scope professional format",
                 );
 
-                // Transform V4.1 multi-scope data to backend format
-                const transformedData = transformScopesToPDFFormat(
-                    multiScopePricingData,
-                    currentDoc, // Pass current document for clientName extraction
-                );
+                // 🎯 CRITICAL FIX: Ensure we use user prompt discount, not AI-generated discount
+                if (userPromptDiscount > 0) {
+                    console.log(
+                        `💰 [DISCOUNT] Overriding AI discount with user prompt discount: ${userPromptDiscount}%`,
+                    );
+                    // Create a modified version of multiScopeData with user prompt discount
+                    const modifiedMultiScopeData = {
+                        ...multiScopePricingData,
+                        discount: userPromptDiscount,
+                    };
+
+                    // Transform V4.1 multi-scope data to backend format
+                    const transformedData = transformScopesToPDFFormat(
+                        modifiedMultiScopeData,
+                        currentDoc, // Pass current document for clientName extraction
+                    );
+                } else {
+                    // Transform V4.1 multi-scope data to backend format
+                    const transformedData = transformScopesToPDFFormat(
+                        multiScopePricingData,
+                        currentDoc, // Pass current document for clientName extraction
+                    );
+                }
+
                 console.log(
                     "✅ [PDF Export] Transformed multi-scope data for backend",
                 );
@@ -4965,8 +4994,16 @@ Ask me questions to get business insights, such as:
             );
 
             // 🎯 Extract budget and discount from last user prompt for financial calculations
-            const { budget: userPromptBudget, discount: userPromptDiscount } =
-                extractBudgetAndDiscount(lastUserPrompt);
+            const {
+                budget: userPromptBudget,
+                discount: extractedUserPromptDiscount,
+            } = extractBudgetAndDiscount(lastUserPrompt);
+
+            // Store user prompt discount in state to override AI-generated discount
+            setUserPromptDiscount(extractedUserPromptDiscount);
+            console.log(
+                `💰 [DISCOUNT] Stored user prompt discount: ${extractedUserPromptDiscount}%`,
+            );
 
             const convertOptions: ConvertOptions = {
                 strictRoles: false,
@@ -5544,8 +5581,14 @@ Ask me questions to get business insights, such as:
                     // 🎯 Extract budget and discount from last user prompt for financial calculations
                     const {
                         budget: userPromptBudget,
-                        discount: userPromptDiscount,
+                        discount: extractedUserPromptDiscount,
                     } = extractBudgetAndDiscount(lastUserPrompt);
+
+                    // Store user prompt discount in state to override AI-generated discount
+                    setUserPromptDiscount(extractedUserPromptDiscount);
+                    console.log(
+                        `💰 [DISCOUNT] Stored user prompt discount: ${extractedUserPromptDiscount}%`,
+                    );
                     const convertOptions: ConvertOptions = {
                         strictRoles: false,
                         userPromptBudget,
