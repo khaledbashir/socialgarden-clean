@@ -2,7 +2,7 @@
 
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
     enforceMandatoryRoles,
     validateMandatoryRoles,
@@ -19,10 +19,9 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     // 🎯 Fetch roles dynamically from API (Single Source of Truth)
     const [roles, setRoles] = useState<RoleRate[]>([]);
     const [rolesLoading, setRolesLoading] = useState(true);
-    const [isInitializing, setIsInitializing] = useState(true);
 
-    // Store raw data but DO NOT put it in state yet (prevents premature render)
-    const initialRowsRef = React.useRef(
+    // Store raw data from node attrs
+    const initialRowsRef = useRef(
         (
             node.attrs.rows || [
                 { role: "", description: "", hours: 0, rate: 0 },
@@ -33,9 +32,54 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         })),
     );
 
-    // Initialize with EMPTY array - will be populated after enforcement
-    const [rows, setRows] = useState<PricingRow[]>([]);
+    // 🔒 CRITICAL FIX: Use useMemo to enforce roles BEFORE first render
+    // This ensures rows are compliant from the very first render - no flicker
+    const enforcedRows = useMemo(() => {
+        if (roles.length === 0) {
+            // Rate card not loaded yet - return empty to show loading
+            return [];
+        }
+
+        try {
+            console.log(
+                "🔒 [Pricing Table] Applying mandatory role enforcement via useMemo...",
+            );
+            const compliantRows = enforceMandatoryRoles(
+                initialRowsRef.current,
+                roles,
+            );
+
+            // Validate
+            const validation = validateMandatoryRoles(compliantRows);
+            if (!validation.isValid) {
+                console.error(
+                    "❌ [Pricing Table] Validation failed after enforcement:",
+                    validation.details,
+                );
+            } else {
+                console.log(
+                    "✅ [Pricing Table] Validation passed:",
+                    validation.details,
+                );
+            }
+
+            return compliantRows;
+        } catch (error) {
+            console.error("❌ [Pricing Table] Enforcement failed:", error);
+            return initialRowsRef.current;
+        }
+    }, [roles]); // Recalculate only when roles change
+
+    // State for rows (initialized from enforcedRows)
+    const [rows, setRows] = useState<PricingRow[]>(enforcedRows);
     const [discount, setDiscount] = useState(node.attrs.discount || 0);
+
+    // Update rows when enforcedRows changes (after rate card loads)
+    useEffect(() => {
+        if (enforcedRows.length > 0) {
+            setRows(enforcedRows);
+        }
+    }, [enforcedRows]);
 
     // Drag and drop state
     const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
@@ -69,55 +113,6 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         };
         fetchRoles();
     }, []);
-
-    // 🔒 MANDATORY ROLE ENFORCEMENT
-    // This effect runs once after Rate Card loads to ensure compliance
-    // CRITICAL: Enforcement happens BEFORE first render to prevent race condition
-    useEffect(() => {
-        if (roles.length > 0 && isInitializing) {
-            console.log(
-                "🔒 [Pricing Table] Applying mandatory role enforcement...",
-            );
-
-            try {
-                // Enforce mandatory roles programmatically using ref data (not state)
-                const compliantRows = enforceMandatoryRoles(
-                    initialRowsRef.current,
-                    roles,
-                );
-
-                console.log(
-                    "✅ [Pricing Table] Mandatory role enforcement complete",
-                );
-
-                // Validate for verification
-                const validation = validateMandatoryRoles(compliantRows);
-                if (!validation.isValid) {
-                    console.error(
-                        "❌ [Pricing Table] Validation failed after enforcement:",
-                        validation.details,
-                    );
-                } else {
-                    console.log(
-                        "✅ [Pricing Table] Validation passed:",
-                        validation.details,
-                    );
-                }
-
-                // NOW set state with compliant rows for FIRST render
-                setRows(compliantRows);
-                setIsInitializing(false);
-            } catch (error) {
-                console.error("❌ [Pricing Table] Enforcement failed:", error);
-                // Show user-friendly error
-                alert(
-                    "Unable to enforce mandatory roles. Please ensure all required roles " +
-                        "are present in the Rate Card. Contact support if this issue persists.",
-                );
-                setIsInitializing(false);
-            }
-        }
-    }, [roles, isInitializing]);
 
     useEffect(() => {
         // Defer updateAttributes to a microtask to avoid flushSync errors
@@ -252,9 +247,9 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     const calculateGST = () => financialBreakdown.gst;
     const calculateTotal = () => financialBreakdown.grandTotal;
 
-    // Don't render table until enforcement is complete to prevent flicker
+    // Don't render table until rate card loads and enforcement completes
     // This ensures users NEVER see raw, non-compliant AI data
-    if (isInitializing || rolesLoading || rows.length === 0) {
+    if (rolesLoading || rows.length === 0) {
         return (
             <NodeViewWrapper className="editable-pricing-table my-6">
                 <div className="border border-border rounded-lg p-8 bg-background dark:bg-gray-900/50 text-center">
