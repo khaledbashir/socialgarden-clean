@@ -2438,6 +2438,9 @@ Ask me questions to get business insights, such as:
         const parentFolder = folders.find((f) => f.id === targetFolderId);
         const workspaceSlug = parentFolder?.workspaceSlug;
 
+        // 🎯 Check if this is the Unfiled folder (no workspace needed)
+        const isUnfiledFolder = targetFolderId === UNFILED_FOLDER_ID;
+
         let newDoc: Document = {
             id: newId,
             title,
@@ -2446,9 +2449,9 @@ Ask me questions to get business insights, such as:
             workspaceSlug,
         };
 
-        try {
-            // 🧵 Create AnythingLLM thread for this SOW (if workspace exists)
-            if (workspaceSlug) {
+        // 🧵 Only create AnythingLLM thread if NOT Unfiled and has workspace
+        if (!isUnfiledFolder && workspaceSlug) {
+            try {
                 console.log(
                     `🔗 Creating thread in workspace: ${workspaceSlug}`,
                 );
@@ -2472,11 +2475,9 @@ Ask me questions to get business insights, such as:
                         clientContext,
                     );
 
-                    const folderName =
-                        parentFolder?.name === UNFILED_FOLDER_NAME
-                            ? "Unfiled (organize later)"
-                            : parentFolder?.name || "workspace";
-                    toast.success(`✅ SOW created in ${folderName}`);
+                    toast.success(
+                        `✅ SOW created in ${parentFolder?.name || "workspace"}`,
+                    );
                 } else {
                     console.warn(
                         "⚠️ Thread creation failed - SOW created without thread",
@@ -2485,15 +2486,16 @@ Ask me questions to get business insights, such as:
                         "⚠️ SOW created but thread sync failed. You can still chat about it.",
                     );
                 }
-            } else {
-                console.log("ℹ️ No workspace found - creating SOW in Unfiled");
-                toast.success(
-                    `✅ SOW created in Unfiled (organize into folders later)`,
-                );
+            } catch (error) {
+                console.error("❌ Error creating thread:", error);
+                toast.warning("SOW created but thread sync failed");
             }
-        } catch (error) {
-            console.error("❌ Error creating thread:", error);
-            toast.error("SOW created but thread sync failed");
+        } else {
+            // Unfiled or no workspace - just create the SOW
+            console.log("ℹ️ Creating SOW in Unfiled (no workspace needed)");
+            toast.success(
+                `✅ SOW created in Unfiled! Organize into folders later or start working now.`,
+            );
         }
 
         // Save new SOW to database first
@@ -3110,9 +3112,12 @@ Ask me questions to get business insights, such as:
             });
 
             // Find the folder/workspace in local state (for display only)
+            // 🎯 Allow Unfiled folder even if not loaded yet
             const folder = workspaces.find((ws) => ws.id === workspaceId);
-            if (!folder) {
-                toast.error("Workspace not found");
+            const isUnfiledFolder = workspaceId === UNFILED_FOLDER_ID;
+
+            if (!folder && !isUnfiledFolder) {
+                toast.error("Folder not found");
                 return;
             }
 
