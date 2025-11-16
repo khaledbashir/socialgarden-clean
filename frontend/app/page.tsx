@@ -411,90 +411,45 @@ const extractFinancialReasoning = (content: string): string | null => {
         return reasoning;
     }
     return null;
- };
+};
 
- // 🎯 CRITICAL FIX: Store user prompt discount to override AI-generated discount
- const [userPromptDiscount, setUserPromptDiscount] = useState<number>(0);
+// These useState hooks have been moved inside the Page component
 
- // 🎯 V4.1 → Backend Schema: Transform Multi-Scope Data for PDF Generation
- // Define interface for the multiScopeData parameter
- interface MultiScopeData {
-     // 🎯 V4.1 Multi-Scope Pricing Data from AI
-     const [multiScopePricingData, setMultiScopePricingData] = useState<{
-         scopes: Array<{
-             scope_name: string;
-             scope_description?: string;
-             deliverables?: string[];
-             assumptions?: string[];
-             discount?: number;
-             role_allocation: Array<{
-                 role: string;
-                 hours: number;
-                 rate?: number;
-                 cost?: number;
-             }>;
-         }>;
-         discount?: number;
-         projectTitle?: string;
-         // Additional properties that may be accessed - safely handled with defaults
-         clientName?: string;
-         company?: any;
-         projectSubtitle?: string;
-         projectOverview?: string;
-         budgetNotes?: string;
-         currency?: string;
-         gstApplicable?: boolean;
-         generatedDate?: string;
-         authoritativeTotal?: number;
-     } | null>(null);
-
-     // 🎯 CRITICAL FIX: Store user prompt discount to override AI-generated discount
-     const [userPromptDiscount, setUserPromptDiscount] = useState<number>(0);
- const transformScopesToPDFFormat = (
-     multiScopeData: MultiScopeData,
+// 🎯 V4.1 → Backend Schema: Transform Multi-Scope Data for PDF Generation
+// Define interface for the multiScopeData parameter
+interface MultiScopeData {
+    scopes: Array<{
+        scope_name: string;
+        scope_description?: string;
+        deliverables?: string[];
+        assumptions?: string[];
         discount?: number;
-        projectTitle?: string;
-        // Additional properties that may be accessed - safely handled with defaults
-        clientName?: string;
-        company?: any;
-        projectSubtitle?: string;
-        projectOverview?: string;
-        budgetNotes?: string;
-        currency?: string;
-        gstApplicable?: boolean;
-        generatedDate?: string;
-        authoritativeTotal?: number;
+        role_allocation: Array<{
+            role: string;
+            hours: number;
+            rate?: number;
+            cost?: number;
+        }>;
+    }>;
+    discount?: number;
+    projectTitle?: string;
+    // Additional properties that may be accessed - safely handled with defaults
+    clientName?: string;
+    company?: any;
+    projectSubtitle?: string;
+    projectOverview?: string;
+    budgetNotes?: string;
+    currency?: string;
+    gstApplicable?: boolean;
+    generatedDate?: string;
+    authoritativeTotal?: number;
+}
 
 // 🎯 V4.1 → Backend Schema: Transform Multi-Scope Data for PDF Generation
 const transformScopesToPDFFormat = (
-    multiScopeData: {
-        scopes: Array<{
-            scope_name: string;
-            scope_description?: string;
-            deliverables?: string[];
-            assumptions?: string[];
-            discount?: number;
-            role_allocation: Array<{
-                role: string;
-                hours: number;
-                rate?: number;
-                cost?: number;
-            }>;
-        }>;
-        discount?: number;
-        projectTitle?: string;
-        // Additional properties that may be accessed - safely handled with defaults
-        clientName?: string;
-        company?: any;
-        projectSubtitle?: string;
-        projectOverview?: string;
-        budgetNotes?: string;
-        currency?: string;
-        gstApplicable?: boolean;
-        generatedDate?: string;
-        authoritativeTotal?: number;
-    },
+    multiScopeData: MultiScopeData,
     currentDocData?: any,
+    userPromptDiscount: number = 0,
 ): {
     projectTitle: string;
     scopes: Array<{
@@ -1643,6 +1598,38 @@ export default function Page() {
     const [viewMode, setViewMode] = useState<"editor" | "dashboard">(
         "dashboard",
     ); // NEW: View mode - START WITH DASHBOARD
+
+    // 🎯 CRITICAL FIX: Store user prompt discount to override AI-generated discount
+    const [userPromptDiscount, setUserPromptDiscount] = useState<number>(0);
+
+    // 🎯 V4.1 Multi-Scope Pricing Data from AI
+    const [multiScopePricingData, setMultiScopePricingData] = useState<{
+        scopes: Array<{
+            scope_name: string;
+            scope_description?: string;
+            deliverables?: string[];
+            assumptions?: string[];
+            discount?: number;
+            role_allocation: Array<{
+                role: string;
+                hours: number;
+                rate?: number;
+                cost?: number;
+            }>;
+        }>;
+        discount?: number;
+        projectTitle?: string;
+        // Additional properties that may be accessed - safely handled with defaults
+        clientName?: string;
+        company?: any;
+        projectSubtitle?: string;
+        projectOverview?: string;
+        budgetNotes?: string;
+        currency?: string;
+        gstApplicable?: boolean;
+        generatedDate?: string;
+        authoritativeTotal?: number;
+    } | null>(null);
     const [isGrandTotalVisible, setIsGrandTotalVisible] = useState(true); // 👁️ Toggle grand total visibility
 
     // Workspace & SOW state (NEW) - Start empty, load from AnythingLLM
@@ -1842,26 +1829,6 @@ export default function Page() {
     const [structuredSow, setStructuredSow] = useState<ArchitectSOW | null>(
         null,
     );
-
-    // 🎯 V4.1 Multi-Scope Pricing Data from AI
-    const [multiScopePricingData, setMultiScopePricingData] = useState<{
-        scopes: Array<{
-            scope_name: string;
-            scope_description?: string;
-            deliverables?: string[];
-            assumptions?: string[];
-            discount?: number;
-            role_allocation: Array<{
-                role: string;
-                hours: number;
-                rate?: number;
-                cost?: number;
-            }>;
-        }>;
-        discount?: number;
-        extractedAt?: number;
-        authoritativeTotal?: number; // 🎯 AI-calculated authoritative total
-    } | null>(null);
 
     // Initialize master dashboard on app load
     useEffect(() => {
@@ -3855,12 +3822,14 @@ Ask me questions to get business insights, such as:
                     transformedData = transformScopesToPDFFormat(
                         modifiedMultiScopeData,
                         currentDoc, // Pass current document for clientName extraction
+                        userPromptDiscount, // Pass the user prompt discount
                     );
                 } else {
                     // Transform V4.1 multi-scope data to backend format
                     transformedData = transformScopesToPDFFormat(
                         multiScopePricingData,
                         currentDoc, // Pass current document for clientName extraction
+                        userPromptDiscount, // Pass the user prompt discount
                     );
                 }
 
