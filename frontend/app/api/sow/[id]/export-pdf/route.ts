@@ -7,16 +7,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import {
     exportToPDF,
-    parseSOWMarkdown,
     cleanSOWContent,
+    extractSOWStructuredJson,
 } from "@/lib/export-utils";
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } },
+    { params }: { params: Promise<{ id: string }> },
 ) {
     try {
-        const sowId = params.id;
+        const { id: sowId } = await params;
         const body = await request.json();
         const { elementId } = body;
 
@@ -35,12 +35,15 @@ export async function POST(
         // Parse content to extract structured data
         let sowData;
         try {
-            // Clean content first
+            // Clean the content first
             const cleanedContent = cleanSOWContent(sow.content);
-            // Parse markdown to extract structured data
-            sowData = parseSOWMarkdown(cleanedContent);
-            sowData.title = sow.title;
-            sowData.client = sow.client_name;
+            // Extract structured JSON from the content
+            const structuredData = extractSOWStructuredJson(cleanedContent);
+            sowData = {
+                title: sow.title,
+                client: sow.client_name,
+                ...structuredData,
+            };
         } catch (parseError) {
             console.error("Error parsing SOW content:", parseError);
             // Fallback to basic data

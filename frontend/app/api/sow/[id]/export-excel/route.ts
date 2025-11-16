@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import {
     exportToExcel,
-    parseSOWMarkdown,
     cleanSOWContent,
+    extractSOWStructuredJson,
 } from "@/lib/export-utils";
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } },
+    { params }: { params: Promise<{ id: string }> },
 ) {
     try {
-        const sowId = params.id;
+        const { id: sowId } = await params;
 
         // Fetch SOW from database
         const sows = await query("SELECT * FROM sows WHERE id = ?", [sowId]);
@@ -30,9 +30,13 @@ export async function GET(
         try {
             // Clean the content first
             const cleanedContent = cleanSOWContent(sow.content);
-            // Parse markdown to extract structured data
-            sowData = parseSOWMarkdown(cleanedContent);
-            sowData.title = sow.title;
+            // Extract structured JSON from the content
+            const structuredData = extractSOWStructuredJson(cleanedContent);
+            sowData = {
+                title: sow.title,
+                client: sow.client_name,
+                ...structuredData,
+            };
         } catch (parseError) {
             console.error("Error parsing SOW content:", parseError);
             // Fallback to basic data
@@ -81,10 +85,10 @@ export async function GET(
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } },
+    { params }: { params: Promise<{ id: string }> },
 ) {
     try {
-        const sowId = params.id;
+        const { id: sowId } = await params;
         const body = await request.json();
         const { sowData, filename } = body;
 
