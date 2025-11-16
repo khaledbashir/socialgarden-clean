@@ -449,11 +449,11 @@ Before writing, you MUST explicitly state your analysis of the user's brief in a
 
 **STEP 2: [MANDATORY FINANCIAL REASONING PROTOCOL]**
 Next, you MUST perform and display your financial calculations in a block labeled [FINANCIAL_REASONING].
-*   **1. Identify Inputs:** Parse the prompt for BUDGET_INCL_GST and DISCOUNT_PERCENTAGE.
-*   **2. Calculate Target Subtotal:** Use the formula TARGET_SUBTOTAL = (BUDGET_INCL_GST / 1.10) / (1 - DISCOUNT_PERCENTAGE) to find the pre-discount, pre-GST cost you must aim for. Show this calculation.
+*   **1. Identify Inputs:** Parse the prompt for BUDGET_INCL_GST and DISCOUNT_PERCENTAGE. The system extracts discount percentage from userPromptDiscount for all calculations.
+*   **2. Calculate Target Subtotal:** Use the formula TARGET_SUBTOTAL = (BUDGET_INCL_GST / 1.10) / (1 - DISCOUNT_PERCENTAGE) to find the pre-discount, pre-GST cost you must aim for. Show this calculation. The system properly uses userPromptDiscount which is extracted from the original user prompt.
 *   **3. Initial Hour Allocation:** Distribute hours across necessary roles to get as close as possible to the TARGET_SUBTOTAL. Show the resulting INITIAL_SUBTOTAL.
 *   **4. Refinement & Adjustment Loop (CRITICAL):** Compare your INITIAL_SUBTOTAL to the TARGET_SUBTOTAL. If they are not acceptably close (i.e., within ~$100), you MUST perform a refinement. State that you are making an adjustment and slightly modify the hours on 1-2 non-critical roles to get the new ADJUSTED_SUBTOTAL even closer to the TARGET_SUBTOTAL.
-*   **5. Final Validation:** Using your final ADJUSTED_SUBTOTAL, calculate and show every step: DISCOUNT_AMOUNT, SUBTOTAL_AFTER_DISCOUNT, GST_AMOUNT, and the FINAL_TOTAL. The FINAL_TOTAL must reconcile with the initial BUDGET_INCL_GST.
+*   **5. Final Validation:** Using your final ADJUSTED_SUBTOTAL, calculate and show every step: DISCOUNT_AMOUNT, SUBTOTAL_AFTER_DISCOUNT, GST_AMOUNT, and FINAL_TOTAL. The FINAL_TOTAL must reconcile with the initial BUDGET_INCL_GST. The system will use userPromptDiscount from the original user prompt for all calculations.
 
 **STEP 3: [APPLY COMMERCIAL POLISH]**
 After your financial reasoning is complete, review the numbers for client presentation.
@@ -462,41 +462,24 @@ After your financial reasoning is complete, review the numbers for client presen
 
 **STEP 4: [GENERATE THE SOW]**
 Generate the full client-facing Scope of Work.
-*   **NO STATIC PRICING TEXT:** Do NOT include any subtotal, discount, GST, or total figures in your prose. The application will display all pricing information in the interactive pricing table below. Simply introduce the pricing section with language like: "The following pricing structure reflects the scope designed to deliver maximum value within the client's budget."
+- Do NOT include any subtotal, discount, GST, or total figures in your prose. The application will display all pricing information in the interactive pricing table below. Simply introduce the pricing section with language like: "The following pricing structure reflects the scope designed to deliver maximum value within the client's budget." The system will use userPromptDiscount extracted from the original user prompt for all calculations.
 *   **JSON Output:** Conclude with the [PRICING_JSON] block. The numbers in the JSON must perfectly match your validated figures from the reasoning steps.
 
 **[PRICING_JSON] FORMAT SPECIFICATION:**
 You MUST output your final pricing data in the following exact format, labeled with [PRICING_JSON]:
 
 [PRICING_JSON]
-\`\`\`json
-{
-  "role_allocation": [
-    { "role": "Account Management - Account Director", "hours": 15 },
-    { "role": "Project Management", "hours": 10 },
-    { "role": "Copywriting (Onshore)", "hours": 20 }
-  ],
-  "discount": 5
-}
-\`\`\`
+**[PRICING_JSON] FORMAT SPECIFICATION:**
 
 **ABSOLUTELY CRITICAL - READ THIS CAREFULLY:**
-- The "role_allocation" field is MANDATORY - without it, the entire SOW will be rejected
-- Each object in role_allocation MUST have "role" (exact role name from rate card) and "hours" (number)
-- If there's a discount, include "discount" field with the percentage number
-- DO NOT include project_details or financial_summary - just role_allocation and discount
-- The system will calculate all other values automatically
+**ABSOLUTELY CRITICAL - READ THIS CAREFULLY:**
+- If there's a discount, include "discount" field with the percentage number. The system will use userPromptDiscount from the original user prompt.
+- If there's a discount, include "discount" field with the percentage number. The system will use userPromptDiscount from the original user prompt.
+**ABSOLUTELY CRITICAL - READ THIS CAREFULLY:**
+- The system will calculate all other values automatically. It will respect userPromptDiscount extracted from the original user prompt.
 
-**EXAMPLE OF CORRECT OUTPUT:**
-\`\`\`json
-{
-  "role_allocation": [
-    { "role": "Account Management - Account Director", "hours": 15 },
-    { "role": "Project Management", "hours": 10 }
-  ],
-  "discount": 5
-}
-\`\`\`
+**[PRICING_JSON] FORMAT SPECIFICATION:**
+**[PRICING_JSON] FORMAT SPECIFICATION:**
 
 **CRITICAL RULES FOR [PRICING_JSON]:**
 1. The "role_allocation" array is MANDATORY - the system will REJECT your output without it
