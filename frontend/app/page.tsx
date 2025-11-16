@@ -118,8 +118,34 @@ const extractBudgetAndDiscount = (
         }
     }
 
-    // Discount removed - system defaults to 0%
-    discount = 0;
+    // 🎯 CRITICAL FIX: Extract discount from user prompt
+    // Support formats: "9 percent discount", "9% discount", "discount of 9%", "with a 9 percent discount"
+    const discountPatterns = [
+        /(\d+(?:\.\d+)?)\s*percent\s*discount/i,
+        /(\d+(?:\.\d+)?)\s*%\s*discount/i,
+        /discount\s*(?:of|:)?\s*(\d+(?:\.\d+)?)\s*%/i,
+        /discount\s*(?:of|:)?\s*(\d+(?:\.\d+)?)\s*percent/i,
+        /with\s*(?:a|an)?\s*(\d+(?:\.\d+)?)\s*(?:%|percent)\s*discount/i,
+        /apply\s*(?:a|an)?\s*(\d+(?:\.\d+)?)\s*(?:%|percent)\s*discount/i,
+    ];
+
+    for (const pattern of discountPatterns) {
+        const match = prompt.match(pattern);
+        if (match && match[1]) {
+            const discountValue = parseFloat(match[1]);
+            if (
+                !isNaN(discountValue) &&
+                discountValue > 0 &&
+                discountValue <= 100
+            ) {
+                discount = discountValue;
+                console.log(
+                    `🎁 Discount extracted from user prompt: ${discount}%`,
+                );
+                break;
+            }
+        }
+    }
 
     return { budget, discount };
 };
@@ -348,33 +374,36 @@ const extractFinancialReasoning = (content: string): string | null => {
 
 // 🎯 V4.1 → Backend Schema: Transform Multi-Scope Data for PDF Generation
 // Fixed: Updated type definition to include all properties accessed in the function
-const transformScopesToPDFFormat = (multiScopeData: {
-    scopes: Array<{
-        scope_name: string;
-        scope_description?: string;
-        deliverables?: string[];
-        assumptions?: string[];
-        discount?: number;
-        role_allocation: Array<{
-            role: string;
-            hours: number;
-            rate?: number;
-            cost?: number;
+const transformScopesToPDFFormat = (
+    multiScopeData: {
+        scopes: Array<{
+            scope_name: string;
+            scope_description?: string;
+            deliverables?: string[];
+            assumptions?: string[];
+            discount?: number;
+            role_allocation: Array<{
+                role: string;
+                hours: number;
+                rate?: number;
+                cost?: number;
+            }>;
         }>;
-    }>;
-    discount?: number;
-    projectTitle?: string;
-    // Additional properties that may be accessed - safely handled with defaults
-    clientName?: string;
-    company?: any;
-    projectSubtitle?: string;
-    projectOverview?: string;
-    budgetNotes?: string;
-    currency?: string;
-    gstApplicable?: boolean;
-    generatedDate?: string;
-    authoritativeTotal?: number;
-}): {
+        discount?: number;
+        projectTitle?: string;
+        // Additional properties that may be accessed - safely handled with defaults
+        clientName?: string;
+        company?: any;
+        projectSubtitle?: string;
+        projectOverview?: string;
+        budgetNotes?: string;
+        currency?: string;
+        gstApplicable?: boolean;
+        generatedDate?: string;
+        authoritativeTotal?: number;
+    },
+    currentDocData?: any,
+): {
     projectTitle: string;
     scopes: Array<{
         id: number;
@@ -391,7 +420,7 @@ const transformScopesToPDFFormat = (multiScopeData: {
     }>;
     discount: number;
     clientName?: string;
-    company?: string;
+    company?: any;
     projectSubtitle?: string;
     projectOverview?: string;
     budgetNotes?: string;
@@ -458,11 +487,42 @@ const transformScopesToPDFFormat = (multiScopeData: {
         );
     });
 
+    // 🎯 CRITICAL FIX: Extract clientName from multiple sources
+    let clientName = multiScopeData.clientName;
+
+    // Fallback 1: Try to extract from current document
+    if (!clientName && currentDocData) {
+        clientName = currentDocData.client_name || currentDocData.clientName;
+        console.log(
+            `📋 [PDF Export] Extracted clientName from currentDoc: "${clientName}"`,
+        );
+    }
+
+    // Fallback 2: Try to extract from document title
+    if (!clientName && currentDocData?.title) {
+        const titleMatch = currentDocData.title.match(/^([^-]+)/);
+        if (titleMatch) {
+            clientName = titleMatch[1].trim();
+            console.log(
+                `📋 [PDF Export] Extracted clientName from title: "${clientName}"`,
+            );
+        }
+    }
+
+    // Fallback 3: Use a default if still not found
+    if (!clientName) {
+        clientName = "Valued Client";
+        console.warn(
+            '⚠️ [PDF Export] No clientName found, using default: "Valued Client"',
+        );
+    }
+
     return {
-        projectTitle: multiScopeData.projectTitle || "SOW",
+        projectTitle:
+            multiScopeData.projectTitle || currentDocData?.title || "SOW",
         scopes: transformedScopes,
         discount: multiScopeData.discount || 0,
-        clientName: multiScopeData.clientName || undefined,
+        clientName: clientName,
         company: multiScopeData.company || { name: "Social Garden" },
         projectSubtitle: multiScopeData.projectSubtitle || "",
         projectOverview: multiScopeData.projectOverview || "",
@@ -3686,9 +3746,13 @@ Ask me questions to get business insights, such as:
                 // Transform V4.1 multi-scope data to backend format
                 const transformedData = transformScopesToPDFFormat(
                     multiScopePricingData,
+                    currentDoc, // Pass current document for clientName extraction
                 );
                 console.log(
                     "✅ [PDF Export] Transformed multi-scope data for backend",
+                );
+                console.log(
+                    `✅ [PDF Export] Client Name: "${transformedData.clientName}"`,
                 );
 
                 // Call the new professional PDF API route
@@ -3760,15 +3824,49 @@ Ask me questions to get business insights, such as:
             toast.error("❌ No document selected");
             return;
         }
+
+        // 🎯 CRITICAL FIX: Validate that we have a valid SOW ID
+        if (!currentDoc.id) {
+            console.error(
+                "❌ [Excel Export] Current document has no ID:",
+                currentDoc,
+            );
+            toast.error(
+                "❌ Cannot export: Document ID is missing. Please save the document first.",
+            );
+            return;
+        }
+
+        console.log(`📊 [Excel Export] Exporting SOW ID: ${currentDoc.id}`);
         toast.info("📊 Generating Excel...");
+
         try {
-            const res = await fetch(`/api/sow/${currentDocId}/export-excel`, {
+            // Use the document's actual database ID, not the threadSlug
+            const sowId = currentDoc.id;
+            const res = await fetch(`/api/sow/${sowId}/export-excel`, {
                 method: "GET",
             });
+
             if (!res.ok) {
                 const txt = await res.text();
-                throw new Error(`Export failed (${res.status}): ${txt}`);
+                console.error(
+                    `❌ [Excel Export] API Error (${res.status}):`,
+                    txt,
+                );
+
+                // Parse error response for better user feedback
+                let errorMessage = `Export failed (${res.status})`;
+                try {
+                    const errorJson = JSON.parse(txt);
+                    errorMessage =
+                        errorJson.error || errorJson.message || errorMessage;
+                } catch {
+                    errorMessage = txt || errorMessage;
+                }
+
+                throw new Error(errorMessage);
             }
+
             const blob = await res.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
@@ -3782,9 +3880,11 @@ Ask me questions to get business insights, such as:
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
+
+            console.log("✅ [Excel Export] Successfully exported Excel file");
             toast.success("✅ Excel downloaded successfully!");
         } catch (error: any) {
-            console.error("Error exporting Excel:", error);
+            console.error("❌ [Excel Export] Error:", error);
             toast.error(
                 `❌ Error exporting Excel: ${error?.message || "Unknown error"}`,
             );

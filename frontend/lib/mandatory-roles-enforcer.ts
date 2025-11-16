@@ -82,6 +82,11 @@ function normalizeRoleName(name: string): string {
  */
 function isManagementOversightRole(roleName: string): boolean {
     const lowerRole = roleName.toLowerCase();
+    // Remove parentheses and extra whitespace for better matching
+    const normalizedRole = lowerRole
+        .replace(/[()]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
     // Check for explicit management/oversight indicators
     const oversightKeywords = [
@@ -96,28 +101,45 @@ function isManagementOversightRole(roleName: string): boolean {
         "relationship manager",
         "engagement manager",
         "portfolio manager",
+        "account exec",
+        "account executive",
     ];
 
     // Check if role contains any oversight keywords
     for (const keyword of oversightKeywords) {
-        if (lowerRole.includes(keyword)) {
+        if (normalizedRole.includes(keyword)) {
             return true;
         }
     }
 
     // Special case: "Director" or "Manager" in non-technical context
     // (but exclude "Tech - Head Of" which should be at top)
-    if (lowerRole.includes("head of")) {
+    if (normalizedRole.includes("head of")) {
         return false; // Head Of roles go at the TOP
+    }
+
+    // 🎯 CRITICAL FIX: Catch "Project Management - (Account Director)" and similar patterns
+    // Pattern: "project management" followed by any text with "director" or "manager"
+    if (normalizedRole.includes("project management")) {
+        // If it contains director/manager/coordinator anywhere in the string, it's oversight
+        if (
+            normalizedRole.includes("director") ||
+            normalizedRole.includes("manager") ||
+            normalizedRole.includes("coordinator")
+        ) {
+            return true;
+        }
     }
 
     // Check for director/manager roles (but be careful with technical roles)
     if (
-        (lowerRole.includes("director") || lowerRole.includes("manager")) &&
-        !lowerRole.includes("tech") &&
-        !lowerRole.includes("technical") &&
-        !lowerRole.includes("developer") &&
-        !lowerRole.includes("engineer")
+        (normalizedRole.includes("director") ||
+            normalizedRole.includes("manager")) &&
+        !normalizedRole.includes("tech") &&
+        !normalizedRole.includes("technical") &&
+        !normalizedRole.includes("developer") &&
+        !normalizedRole.includes("engineer") &&
+        !normalizedRole.includes("delivery")
     ) {
         return true;
     }
