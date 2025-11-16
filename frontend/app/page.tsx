@@ -3820,6 +3820,7 @@ Ask me questions to get business insights, such as:
                 );
 
                 // 🎯 CRITICAL FIX: Ensure we use user prompt discount, not AI-generated discount
+                let transformedData;
                 if (userPromptDiscount > 0) {
                     console.log(
                         `💰 [DISCOUNT] Overriding AI discount with user prompt discount: ${userPromptDiscount}%`,
@@ -3831,13 +3832,13 @@ Ask me questions to get business insights, such as:
                     };
 
                     // Transform V4.1 multi-scope data to backend format
-                    const transformedData = transformScopesToPDFFormat(
+                    transformedData = transformScopesToPDFFormat(
                         modifiedMultiScopeData,
                         currentDoc, // Pass current document for clientName extraction
                     );
                 } else {
                     // Transform V4.1 multi-scope data to backend format
-                    const transformedData = transformScopesToPDFFormat(
+                    transformedData = transformScopesToPDFFormat(
                         multiScopePricingData,
                         currentDoc, // Pass current document for clientName extraction
                     );
@@ -3850,7 +3851,7 @@ Ask me questions to get business insights, such as:
                     `✅ [PDF Export] Client Name: "${transformedData.clientName}"`,
                 );
 
-                // Call the new professional PDF API route
+                // Call new professional PDF API route
                 const response = await fetch("/api/generate-professional-pdf", {
                     method: "POST",
                     headers: {
