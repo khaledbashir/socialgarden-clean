@@ -99,52 +99,93 @@ const extractBudgetAndDiscount = (
     ];
 
     for (const re of budgetPatterns) {
-        const m = prompt.match(re);
-        if (m) {
-            const numGroup = m[3] || m[2] || m[1] || "";
-            let raw = String(numGroup).replace(/[\,\s]/g, "");
-            let v = parseFloat(raw || "0");
-            const kGroup = m[4] || m[3] || m[2] || "";
-            if (kGroup && /k/i.test(kGroup)) v = v * 1000;
-            const gstStr = (m[6] || m[5] || "").toLowerCase();
-            const inclGST = /incl\s*gst/.test(gstStr);
-            if (!isNaN(v) && v > 0) {
-                budget = inclGST ? v / 1.1 : v; // Always return ex GST
+        const match = prompt.match(re);
+        if (match && match[1]) {
+            const budgetValue =
+                parseFloat(match[1].replace(/[,\s]/g, "")) *
+                (match[2]?.toLowerCase() === "k" ? 1000 : 1);
+            if (!isNaN(budgetValue) && budgetValue > 0) {
+                budget = budgetValue;
                 console.log(
-                    `💰 Budget extracted from user prompt: $${budget.toFixed(2)} ex GST`,
+                    `🎯 Budget extracted from user prompt: $${budgetValue.toLocaleString()}`,
                 );
                 break;
             }
         }
     }
 
-    // 🎯 CRITICAL FIX: Extract discount from user prompt
-    // Support formats: "9 percent discount", "9% discount", "discount of 9%", "with a 9 percent discount"
+    // 🎯 CRITICAL FIX: Extract discount from user prompt with comprehensive validation
+    // Support formats: "4 percent discount", "discount 4 percent", "9% discount", "discount of 9%", etc.
     const discountPatterns = [
+        // "discount 4 percent" - the exact format from the failing test case
+        /discount\s+(\d+(?:\.\d+)?)\s+percent/i,
+        // "4 percent discount"
         /(\d+(?:\.\d+)?)\s*percent\s*discount/i,
+        // "4% discount"
         /(\d+(?:\.\d+)?)\s*%\s*discount/i,
+        // "discount of 4%"
         /discount\s*(?:of|:)?\s*(\d+(?:\.\d+)?)\s*%/i,
+        // "discount of 4 percent"
         /discount\s*(?:of|:)?\s*(\d+(?:\.\d+)?)\s*percent/i,
+        // "with a 4% discount"
         /with\s*(?:a|an)?\s*(\d+(?:\.\d+)?)\s*(?:%|percent)\s*discount/i,
+        // "apply a 4% discount"
         /apply\s*(?:a|an)?\s*(\d+(?:\.\d+)?)\s*(?:%|percent)\s*discount/i,
+        // "4 percent off"
+        /(\d+(?:\.\d+)?)\s*percent\s*off/i,
+        // "4% off"
+        /(\d+(?:\.\d+)?)\s*%\s*off/i,
     ];
+
+    console.log(
+        `🔍 [DISCOUNT DEBUG] Searching for discount in prompt: "${prompt}"`,
+    );
 
     for (const pattern of discountPatterns) {
         const match = prompt.match(pattern);
-        if (match && match[1]) {
+        if (match) {
+            console.log(
+                `🔍 [DISCOUNT DEBUG] Pattern matched:`,
+                pattern,
+                `Result:`,
+                match,
+            );
             const discountValue = parseFloat(match[1]);
-            if (
-                !isNaN(discountValue) &&
-                discountValue > 0 &&
-                discountValue <= 100
-            ) {
-                discount = discountValue;
+
+            console.log(
+                `🔍 [DISCOUNT DEBUG] Extracted discount value: ${discountValue}`,
+            );
+
+            // 🎯 CRITICAL FIX: Comprehensive validation to prevent calculation errors
+            if (!isNaN(discountValue) && discountValue >= 0) {
+                if (discountValue > 100) {
+                    console.error(
+                        `❌ [DISCOUNT ERROR] Impossible discount ${discountValue}% detected, setting to 0%`,
+                    );
+                    discount = 0;
+                } else if (discountValue > 50) {
+                    console.warn(
+                        `⚠️ [DISCOUNT WARNING] High discount ${discountValue}% detected, capping at 50%`,
+                    );
+                    discount = 50;
+                } else {
+                    discount = discountValue;
+                }
+
                 console.log(
-                    `🎁 Discount extracted from user prompt: ${discount}%`,
+                    `✅ [DISCOUNT SUCCESS] Final discount extracted: ${discount}%`,
                 );
                 break;
+            } else {
+                console.warn(
+                    `⚠️ [DISCOUNT WARNING] Invalid discount value: ${discountValue}, continuing search`,
+                );
             }
         }
+    }
+
+    if (discount === 0) {
+        console.log(`ℹ️ [DISCOUNT INFO] No valid discount found in prompt`);
     }
 
     return { budget, discount };
@@ -3837,6 +3878,13 @@ Ask me questions to get business insights, such as:
             return;
         }
 
+        // Check if a document is selected
+        if (!currentDoc || !currentDoc.id) {
+            console.error("❌ [Excel Export] No SOW document selected");
+            toast.error("Please select a document before exporting to Excel");
+            return;
+        }
+
         console.log(`📊 [Excel Export] Exporting SOW ID: ${currentDoc.id}`);
         toast.info("📊 Generating Excel...");
 
@@ -3885,9 +3933,15 @@ Ask me questions to get business insights, such as:
             toast.success("✅ Excel downloaded successfully!");
         } catch (error: any) {
             console.error("❌ [Excel Export] Error:", error);
-            toast.error(
-                `❌ Error exporting Excel: ${error?.message || "Unknown error"}`,
-            );
+            // Provide more specific error message for SOW not found
+            const errorMessage = error?.message || "Unknown error";
+            if (errorMessage.includes("SOW not found")) {
+                toast.error(
+                    "❌ Document not found. Please save the document and try again.",
+                );
+            } else {
+                toast.error(`❌ Error exporting Excel: ${errorMessage}`);
+            }
         }
     };
 

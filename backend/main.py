@@ -1,16 +1,17 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import weasyprint
-from jinja2 import Template
 import base64
 import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
+import weasyprint
 from dotenv import load_dotenv
-from services.google_sheets_generator import create_sow_sheet
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
+from jinja2 import Template
+from pydantic import BaseModel
 from services.google_oauth_handler import get_oauth_handler
+from services.google_sheets_generator import create_sow_sheet
 
 # Load environment variables from .env file
 load_dotenv()
@@ -31,12 +32,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class PDFRequest(BaseModel):
     html_content: str
     filename: str = "document"
-    show_pricing_summary: bool = True  # 🎯 Smart PDF Export: flag to control pricing summary visibility
-    content: Optional[Dict[str, Any]] = None  # TipTap JSON content for enforcement checks
-    final_investment_target_text: Optional[str] = None  # 🎯 Authoritative final price to display in PDF
+    show_pricing_summary: bool = (
+        True  # 🎯 Smart PDF Export: flag to control pricing summary visibility
+    )
+    content: Optional[Dict[str, Any]] = (
+        None  # TipTap JSON content for enforcement checks
+    )
+    final_investment_target_text: Optional[str] = (
+        None  # 🎯 Authoritative final price to display in PDF
+    )
+
 
 class SheetRequest(BaseModel):
     client_name: str
@@ -48,6 +57,7 @@ class SheetRequest(BaseModel):
     pricing: Optional[list] = None
     assumptions: Optional[str] = ""
     timeline: Optional[str] = ""
+
 
 # HTML template - Clean template with only logo and footer
 SOW_TEMPLATE = """
@@ -366,6 +376,7 @@ hr {
 }
 """
 
+
 @app.post("/generate-pdf")
 async def generate_pdf(request: PDFRequest):
     try:
@@ -375,33 +386,36 @@ async def generate_pdf(request: PDFRequest):
         print(f"� Final Investment Target: {request.final_investment_target_text}")
         print(f"�📊 HTML Content Length: {len(request.html_content)}")
         print("=== Has table tag:", "<table" in request.html_content.lower(), "===")
-        
+
         # 🎯 CRITICAL FIX: When final_investment_target_text is provided,
         # strip any computed summary sections from the HTML to avoid duplicates
         html_content = request.html_content
         if request.final_investment_target_text:
             import re
+
             # Remove any <h4>Summary</h4> section and its following table/paragraph
             # This regex removes: <h4...>Summary</h4> + following <table...>...</table> + optional disclaimer <p>
             html_content = re.sub(
-                r'<h4[^>]*>\s*Summary\s*</h4>\s*<table[^>]*>.*?</table>\s*(<p[^>]*>.*?</p>)?',
-                '',
+                r"<h4[^>]*>\s*Summary\s*</h4>\s*<table[^>]*>.*?</table>\s*(<p[^>]*>.*?</p>)?",
+                "",
                 html_content,
-                flags=re.IGNORECASE | re.DOTALL
+                flags=re.IGNORECASE | re.DOTALL,
             )
-            print("✅ Stripped computed summary section from HTML (final_investment_target_text provided)")
-        
+            print(
+                "✅ Stripped computed summary section from HTML (final_investment_target_text provided)"
+            )
+
         # Load and encode the Social Garden logo
         logo_base64 = ""
         # Use the newer logo file that matches frontend branding
         logo_path = Path(__file__).parent / "social-garden-logo-dark-new.png"
         if logo_path.exists():
             with open(logo_path, "rb") as logo_file:
-                logo_base64 = base64.b64encode(logo_file.read()).decode('utf-8')
+                logo_base64 = base64.b64encode(logo_file.read()).decode("utf-8")
             print(f"✅ Logo loaded successfully from {logo_path}")
         else:
             print(f"⚠️ Logo file not found at {logo_path}")
-        
+
         # Render the HTML template with Jinja2
         template = Template(SOW_TEMPLATE)
         full_html = template.render(
@@ -410,65 +424,68 @@ async def generate_pdf(request: PDFRequest):
             logo_base64=logo_base64,
             final_investment_target_text=request.final_investment_target_text,
         )
-        
+
         # Generate PDF with WeasyPrint
         html_doc = weasyprint.HTML(string=full_html)
-        
+
         # Create output directory if it doesn't exist
         output_dir = Path("/tmp/pdfs")
         output_dir.mkdir(exist_ok=True)
-        
+
         # Generate PDF
         pdf_path = output_dir / f"{request.filename}.pdf"
-        
+
         # Write PDF to bytes then to file
         pdf_bytes = html_doc.write_pdf()
-        
+
         # Write to file
-        with open(pdf_path, 'wb') as f:
+        with open(pdf_path, "wb") as f:
             f.write(pdf_bytes)
 
         # Return PDF file
         return FileResponse(
-            pdf_path,
-            media_type='application/pdf',
-            filename=f"{request.filename}.pdf"
+            pdf_path, media_type="application/pdf", filename=f"{request.filename}.pdf"
         )
 
     except Exception as e:
         import traceback
+
         error_detail = f"PDF generation failed: {str(e)}\n{traceback.format_exc()}"
         print(error_detail)  # Log to console
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "Social Garden PDF Service"}
+
 
 @app.post("/create-sheet")
 async def create_sheet(request: SheetRequest):
     """Create a formatted Google Sheet from SOW data"""
     try:
         sow_data = {
-            'overview': request.overview,
-            'deliverables': request.deliverables,
-            'outcomes': request.outcomes,
-            'phases': request.phases,
-            'pricing': request.pricing or [],
-            'assumptions': request.assumptions,
-            'timeline': request.timeline
+            "overview": request.overview,
+            "deliverables": request.deliverables,
+            "outcomes": request.outcomes,
+            "phases": request.phases,
+            "pricing": request.pricing or [],
+            "assumptions": request.assumptions,
+            "timeline": request.timeline,
         }
-        
+
         result = create_sow_sheet(request.client_name, request.service_name, sow_data)
         return result
-        
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         import traceback
+
         error_detail = f"Sheet creation failed: {str(e)}\n{traceback.format_exc()}"
         print(error_detail)
         raise HTTPException(status_code=500, detail=f"Sheet creation failed: {str(e)}")
+
 
 @app.get("/oauth/authorize")
 async def oauth_authorize():
@@ -476,15 +493,14 @@ async def oauth_authorize():
     try:
         oauth_handler = get_oauth_handler()
         auth_url, state = oauth_handler.get_authorization_url()
-        return {
-            'auth_url': auth_url,
-            'state': state
-        }
+        return {"auth_url": auth_url, "state": state}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 class OAuthTokenRequest(BaseModel):
     code: str
+
 
 @app.post("/oauth/token")
 async def oauth_token(request: OAuthTokenRequest):
@@ -492,24 +508,28 @@ async def oauth_token(request: OAuthTokenRequest):
     try:
         oauth_handler = get_oauth_handler()
         token_dict = oauth_handler.exchange_code_for_token(request.code)
-        
+
         # Encode token for safe transmission
         encoded_token = oauth_handler.encode_token(token_dict)
-        
+
         return {
-            'token': encoded_token,
-            'access_token': token_dict.get('access_token'),
-            'expires_in': token_dict.get('expires_in')
+            "token": encoded_token,
+            "access_token": token_dict.get("access_token"),
+            "expires_in": token_dict.get("expires_in"),
         }
     except Exception as e:
         print(f"ERROR exchanging token: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Failed to get access token: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Failed to get access token: {str(e)}"
+        )
+
 
 class SOWItem(BaseModel):
     description: str  # REQUIRED
     role: str
     hours: float
     cost: float
+
 
 class SOWScope(BaseModel):
     id: int  # REQUIRED
@@ -519,6 +539,7 @@ class SOWScope(BaseModel):
     deliverables: list[str]
     assumptions: list[str]  # REQUIRED
 
+
 class ProfessionalPDFRequest(BaseModel):
     projectTitle: str
     scopes: list[SOWScope]
@@ -527,6 +548,7 @@ class ProfessionalPDFRequest(BaseModel):
     company: Optional[str] = "Social Garden"
     budgetNotes: Optional[str] = None
     authoritativeTotal: Optional[float] = None  # 🎯 AI-calculated authoritative total
+
 
 class SheetRequestOAuth(BaseModel):
     client_name: str
@@ -540,33 +562,41 @@ class SheetRequestOAuth(BaseModel):
     timeline: Optional[str] = ""
     access_token: str
 
+
 @app.post("/create-sheet-oauth")
 async def create_sheet_oauth(request: SheetRequestOAuth):
     """Create a formatted Google Sheet using OAuth token"""
     try:
         if not request.access_token:
             raise ValueError("access_token is required")
-        
+
         sow_data = {
-            'overview': request.overview,
-            'deliverables': request.deliverables,
-            'outcomes': request.outcomes,
-            'phases': request.phases,
-            'pricing': request.pricing or [],
-            'assumptions': request.assumptions,
-            'timeline': request.timeline
+            "overview": request.overview,
+            "deliverables": request.deliverables,
+            "outcomes": request.outcomes,
+            "phases": request.phases,
+            "pricing": request.pricing or [],
+            "assumptions": request.assumptions,
+            "timeline": request.timeline,
         }
-        
-        result = create_sow_sheet(request.client_name, request.service_name, sow_data, access_token=request.access_token)
+
+        result = create_sow_sheet(
+            request.client_name,
+            request.service_name,
+            sow_data,
+            access_token=request.access_token,
+        )
         return result
-        
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         import traceback
+
         error_detail = f"Sheet creation failed: {str(e)}\n{traceback.format_exc()}"
         print(error_detail)
         raise HTTPException(status_code=500, detail=f"Sheet creation failed: {str(e)}")
+
 
 @app.post("/generate-professional-pdf")
 async def generate_professional_pdf(request: ProfessionalPDFRequest):
@@ -578,10 +608,10 @@ async def generate_professional_pdf(request: ProfessionalPDFRequest):
         print(f"💰 Discount: {request.discount}%")
         print(f"👤 Client: {request.clientName or 'N/A'}")
         print(f"🏢 Company: {request.company}")
-        
+
         # DEBUG: Log scope details
         for i, scope in enumerate(request.scopes):
-            print(f"  📋 Scope {i+1}: {scope.title} (ID: {scope.id})")
+            print(f"  📋 Scope {i + 1}: {scope.title} (ID: {scope.id})")
             print(f"    📝 Description: {scope.description}")
             print(f"    👥 Items: {len(scope.items)} items")
             total_hours = sum(item.hours for item in scope.items)
@@ -591,52 +621,172 @@ async def generate_professional_pdf(request: ProfessionalPDFRequest):
             print(f"    📋 Deliverables: {len(scope.deliverables)} items")
             print(f"    ⚠️ Assumptions: {len(scope.assumptions)} items")
             print()
-        
+
         # Load the professional multi-scope template
         template_path = Path(__file__).parent / "multiscope_template.html"
         if not template_path.exists():
-            raise HTTPException(status_code=500, detail="Multi-scope template not found")
-        
-        with open(template_path, 'r', encoding='utf-8') as f:
+            raise HTTPException(
+                status_code=500, detail="Multi-scope template not found"
+            )
+
+        with open(template_path, "r", encoding="utf-8") as f:
             template_content = f.read()
-        
+
         # Load and encode the Social Garden logo
         logo_base64 = ""
         logo_path = Path(__file__).parent / "social-garden-logo-dark-new.png"
         if logo_path.exists():
             with open(logo_path, "rb") as logo_file:
-                logo_base64 = base64.b64encode(logo_file.read()).decode('utf-8')
+                logo_base64 = base64.b64encode(logo_file.read()).decode("utf-8")
             print(f"✅ Logo loaded successfully from {logo_path}")
         else:
             print(f"⚠️ Logo file not found at {logo_path}")
-        
+
         # Render the template with Jinja2
         template = Template(template_content)
-        
+
         # Calculate totals
-        calculated_subtotal = sum(sum(item.cost for item in scope.items) for scope in request.scopes)
-        
+        calculated_subtotal = sum(
+            sum(item.cost for item in scope.items) for scope in request.scopes
+        )
+
         # 🎯 Use authoritative total if provided (from AI), otherwise use calculated
         if request.authoritativeTotal is not None:
-            print(f"🎯 Using authoritative total from AI: ${request.authoritativeTotal:.2f}")
+            print(
+                f"🎯 Using authoritative total from AI: ${request.authoritativeTotal:.2f}"
+            )
             # Use authoritative total as final amount, scale other components proportionally
             total = request.authoritativeTotal
-            gst_amount = total * (10/110)  # GST portion of total (10/110 = ~9.09%)
-            subtotal_after_discount = total * (100/110)  # Pre-GST portion (100/110 = ~90.91%)
+            gst_amount = total * (10 / 110)  # GST portion of total (10/110 = ~9.09%)
+            subtotal_after_discount = total * (
+                100 / 110
+            )  # Pre-GST portion (100/110 = ~90.91%)
             discount_amount = calculated_subtotal - subtotal_after_discount
-            subtotal = calculated_subtotal  # Keep original calculated subtotal for display
+            subtotal = (
+                calculated_subtotal  # Keep original calculated subtotal for display
+            )
+
+            # CRITICAL FIX: Validate discount calculation to prevent negative values
+            if discount_amount < 0 or discount_amount > subtotal:
+                print(
+                    f"⚠️ Invalid discount amount detected: {discount_amount}, recalculating with validation"
+                )
+                # Apply the same validation logic as the else branch
+                try:
+                    discount_percent = (
+                        float(request.discount) if request.discount is not None else 0.0
+                    )
+                except (ValueError, TypeError):
+                    discount_percent = 0.0
+
+                if discount_percent < 0 or discount_percent > 50:
+                    discount_percent = 0.0
+
+                discount_amount = subtotal * (discount_percent / 100.0)
+                subtotal_after_discount = subtotal - discount_amount
+                gst_amount = subtotal_after_discount * 0.10
+                total = subtotal_after_discount + gst_amount
+
+                print(
+                    f"✅ Recalculated with {discount_percent}% discount: ${total:.2f}"
+                )
         else:
             print(f"🧮 Using calculated totals: ${calculated_subtotal:.2f}")
             subtotal = calculated_subtotal
-            discount_amount = subtotal * (request.discount / 100)
+
+            # 🎯 CRITICAL FIX: Comprehensive discount validation and calculation
+            print(f"🔍 [DISCOUNT DEBUG] Raw discount value: {request.discount}")
+            print(f"🔍 [DISCOUNT DEBUG] Discount type: {type(request.discount)}")
+
+            # Ensure discount is a valid number
+            try:
+                discount_percent = (
+                    float(request.discount) if request.discount is not None else 0.0
+                )
+            except (ValueError, TypeError):
+                print(
+                    f"❌ [DISCOUNT ERROR] Invalid discount format: {request.discount}, defaulting to 0%"
+                )
+                discount_percent = 0.0
+
+            # Validate discount range - must be between 0 and 50% (cap at 50% for safety)
+            if discount_percent < 0:
+                print(
+                    f"⚠️ [DISCOUNT ERROR] Negative discount {discount_percent}%, setting to 0%"
+                )
+                discount_percent = 0.0
+            elif discount_percent >= 100:
+                print(
+                    f"❌ [DISCOUNT ERROR] Impossible discount {discount_percent}%, setting to 0%"
+                )
+                discount_percent = 0.0
+            elif discount_percent > 50:
+                print(
+                    f"⚠️ [DISCOUNT ERROR] Excessive discount {discount_percent}%, capping at 50%"
+                )
+                discount_percent = 50.0
+
+            print(
+                f"✅ [DISCOUNT VALIDATED] Final discount percentage: {discount_percent}%"
+            )
+
+            # Calculate discount amount with validation
+            discount_amount = subtotal * (discount_percent / 100.0)
+
+            # Ensure discount amount doesn't exceed subtotal
+            if discount_amount > subtotal:
+                print(
+                    f"❌ [DISCOUNT ERROR] Discount amount ${discount_amount:.2f} exceeds subtotal ${subtotal:.2f}"
+                )
+                discount_amount = 0.0
+                discount_percent = 0.0
+
             subtotal_after_discount = subtotal - discount_amount
+
+            # Ensure subtotal after discount is not negative
+            if subtotal_after_discount < 0:
+                print(
+                    f"❌ [DISCOUNT ERROR] Negative subtotal after discount, resetting calculations"
+                )
+                discount_amount = 0.0
+                discount_percent = 0.0
+                subtotal_after_discount = subtotal
+
             gst_amount = subtotal_after_discount * 0.10
             total = subtotal_after_discount + gst_amount
-        
+
+            # Final validation - ensure all values are positive
+            if total < 0 or gst_amount < 0 or subtotal_after_discount < 0:
+                print(
+                    f"❌ [DISCOUNT ERROR] Negative final values detected, resetting to no discount"
+                )
+                discount_amount = 0.0
+                discount_percent = 0.0
+                subtotal_after_discount = subtotal
+                gst_amount = subtotal * 0.10
+                total = subtotal + gst_amount
+
+            print(f"💰 [DISCOUNT SUMMARY] Subtotal: ${subtotal:.2f}")
+            print(
+                f"💰 [DISCOUNT SUMMARY] Discount ({discount_percent}%): -${discount_amount:.2f}"
+            )
+            print(
+                f"💰 [DISCOUNT SUMMARY] After Discount: ${subtotal_after_discount:.2f}"
+            )
+            print(f"💰 [DISCOUNT SUMMARY] GST (10%): ${gst_amount:.2f}")
+            print(f"💰 [DISCOUNT SUMMARY] Total: ${total:.2f}")
+
+        # Use the validated discount percentage for template rendering
+        validated_discount = (
+            discount_percent
+            if "discount_percent" in locals()
+            else (request.discount if request.discount is not None else 0)
+        )
+
         full_html = template.render(
             projectTitle=request.projectTitle,
             scopes=request.scopes,
-            discount=request.discount,
+            discount=validated_discount,
             clientName=request.clientName,
             company=request.company,
             budgetNotes=request.budgetNotes,
@@ -645,41 +795,50 @@ async def generate_professional_pdf(request: ProfessionalPDFRequest):
             discount_amount=discount_amount,
             subtotal_after_discount=subtotal_after_discount,
             gst_amount=gst_amount,
-            total=total
+            total=total,
         )
-        
+
         # Generate PDF with WeasyPrint
         html_doc = weasyprint.HTML(string=full_html)
-        
+
         # Create output directory if it doesn't exist
         output_dir = Path("/tmp/pdfs")
         output_dir.mkdir(exist_ok=True)
-        
+
         # Generate PDF
-        pdf_path = output_dir / f"{request.projectTitle.replace(' ', '-')}-Professional.pdf"
-        
+        pdf_path = (
+            output_dir / f"{request.projectTitle.replace(' ', '-')}-Professional.pdf"
+        )
+
         # Write PDF to bytes then to file
         pdf_bytes = html_doc.write_pdf()
-        
+
         # Write to file
-        with open(pdf_path, 'wb') as f:
+        with open(pdf_path, "wb") as f:
             f.write(pdf_bytes)
 
         print("✅ Professional multi-scope PDF generated successfully")
-        
+
         # Return PDF file
         return FileResponse(
             pdf_path,
-            media_type='application/pdf',
-            filename=f"{request.projectTitle.replace(' ', '-')}-Professional.pdf"
+            media_type="application/pdf",
+            filename=f"{request.projectTitle.replace(' ', '-')}-Professional.pdf",
         )
 
     except Exception as e:
         import traceback
-        error_detail = f"Professional PDF generation failed: {str(e)}\n{traceback.format_exc()}"
+
+        error_detail = (
+            f"Professional PDF generation failed: {str(e)}\n{traceback.format_exc()}"
+        )
         print(error_detail)  # Log to console
-        raise HTTPException(status_code=500, detail=f"Professional PDF generation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Professional PDF generation failed: {str(e)}"
+        )
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

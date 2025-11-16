@@ -1,343 +1,422 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="UTF-8" />
-  <title>{{ client_name }} - Proposal</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      font-size: 12px;
-      color: #222;
-      margin: 40px;
-      line-height: 1.4;
-    }
+    <head>
+        <meta charset="UTF-8" />
+        <title>{{ client_name }} - Proposal</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                color: #222;
+                margin: 40px;
+                line-height: 1.4;
+            }
 
-    h1, h2, h3 {
-      margin: 0;
-      padding: 0;
-      page-break-after: avoid;
-    }
+            h1,
+            h2,
+            h3 {
+                margin: 0;
+                padding: 0;
+                page-break-after: avoid;
+            }
 
-    h1 {
-      font-size: 24px;
-      letter-spacing: 2px;
-      margin-bottom: 20px;
-    }
+            h1 {
+                font-size: 24px;
+                letter-spacing: 2px;
+                margin-bottom: 20px;
+            }
 
-    h2 {
-      font-size: 16px;
-      margin-top: 20px;
-      margin-bottom: 10px;
-      page-break-after: avoid;
-    }
+            h2 {
+                font-size: 16px;
+                margin-top: 20px;
+                margin-bottom: 10px;
+                page-break-after: avoid;
+            }
 
-    h3 {
-      font-size: 14px;
-      margin-top: 16px;
-      margin-bottom: 8px;
-      page-break-after: avoid;
-    }
+            h3 {
+                font-size: 14px;
+                margin-top: 16px;
+                margin-bottom: 8px;
+                page-break-after: avoid;
+            }
 
-    p {
-      margin: 8px 0;
-      line-height: 1.5;
-    }
+            p {
+                margin: 8px 0;
+                line-height: 1.5;
+            }
 
-    .page-break {
-      page-break-before: always;
-    }
+            .page-break {
+                page-break-before: always;
+            }
 
-    .header {
-      text-align: center;
-      margin-bottom: 40px;
-      page-break-inside: avoid;
-    }
+            .header {
+                text-align: center;
+                margin-bottom: 40px;
+                page-break-inside: avoid;
+            }
 
-    .subheader {
-      text-align: center;
-      margin: 10px 0 20px;
-      page-break-inside: avoid;
-    }
+            .subheader {
+                text-align: center;
+                margin: 10px 0 20px;
+                page-break-inside: avoid;
+            }
 
-    .section {
-      margin-bottom: 24px;
-      page-break-inside: avoid;
-    }
+            .section {
+                margin-bottom: 24px;
+                page-break-inside: avoid;
+            }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-      margin-top: 10px;
-      margin-bottom: 20px;
-      table-layout: fixed;
-    }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 11px;
+                margin-top: 10px;
+                margin-bottom: 20px;
+                table-layout: fixed;
+            }
 
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      vertical-align: top;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-    }
+            th,
+            td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                vertical-align: top;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
 
-    th {
-      background-color: #f5f5f5;
-      font-weight: bold;
-      text-align: left;
-      font-size: 10px;
-    }
+            th {
+                background-color: #f5f5f5;
+                font-weight: bold;
+                text-align: left;
+                font-size: 10px;
+            }
 
-    td {
-      font-size: 10px;
-    }
+            td {
+                font-size: 10px;
+            }
 
-    /* Specific column widths to prevent overlapping */
-    th:nth-child(1), td:nth-child(1) { width: 35%; } /* Description */
-    th:nth-child(2), td:nth-child(2) { width: 25%; } /* Role */
-    th:nth-child(3), td:nth-child(3) { width: 15%; } /* Hours */
-    th:nth-child(4), td:nth-child(4) { width: 25%; } /* Cost */
+            /* Specific column widths to prevent overlapping */
+            th:nth-child(1),
+            td:nth-child(1) {
+                width: 35%;
+            } /* Description */
+            th:nth-child(2),
+            td:nth-child(2) {
+                width: 25%;
+            } /* Role */
+            th:nth-child(3),
+            td:nth-child(3) {
+                width: 15%;
+            } /* Hours */
+            th:nth-child(4),
+            td:nth-child(4) {
+                width: 25%;
+            } /* Cost */
 
-    .scope-header {
-      background-color: #e8f4f8;
-      font-weight: bold;
-      font-size: 12px;
-      padding: 12px 8px;
-    }
+            .scope-header {
+                background-color: #e8f4f8;
+                font-weight: bold;
+                font-size: 12px;
+                padding: 12px 8px;
+            }
 
-    .scope-description {
-      background-color: #f9f9f9;
-      font-style: italic;
-      padding: 10px 8px;
-      font-size: 11px;
-    }
+            .scope-description {
+                background-color: #f9f9f9;
+                font-style: italic;
+                padding: 10px 8px;
+                font-size: 11px;
+            }
 
-    .section-header {
-      background-color: #f0f0f0;
-      font-weight: bold;
-      padding: 8px;
-      font-size: 11px;
-    }
+            .section-header {
+                background-color: #f0f0f0;
+                font-weight: bold;
+                padding: 8px;
+                font-size: 11px;
+            }
 
-    .deliverables-list, .assumptions-list {
-      background-color: #fafafa;
-      padding: 10px 8px;
-      margin: 0;
-    }
+            .deliverables-list,
+            .assumptions-list {
+                background-color: #fafafa;
+                padding: 10px 8px;
+                margin: 0;
+            }
 
-    .deliverables-list ul, .assumptions-list ul {
-      margin: 0;
-      padding-left: 20px;
-    }
+            .deliverables-list ul,
+            .assumptions-list ul {
+                margin: 0;
+                padding-left: 20px;
+            }
 
-    .deliverables-list li, .assumptions-list li {
-      margin-bottom: 4px;
-      line-height: 1.3;
-      font-size: 10px;
-    }
+            .deliverables-list li,
+            .assumptions-list li {
+                margin-bottom: 4px;
+                line-height: 1.3;
+                font-size: 10px;
+            }
 
-    ul {
-      margin: 4px 0 4px 18px;
-      padding: 0;
-    }
+            ul {
+                margin: 4px 0 4px 18px;
+                padding: 0;
+            }
 
-    li {
-      margin-bottom: 2px;
-    }
+            li {
+                margin-bottom: 2px;
+            }
 
-    .no-border {
-      border: none !important;
-    }
+            .no-border {
+                border: none !important;
+            }
 
-    .footer {
-      font-size: 9px;
-      color: #777;
-      text-align: center;
-      margin-top: 40px;
-      page-break-inside: avoid;
-    }
+            .footer {
+                font-size: 9px;
+                color: #777;
+                text-align: center;
+                margin-top: 40px;
+                page-break-inside: avoid;
+            }
 
-    .summary-table {
-      margin-top: 20px;
-      font-size: 12px;
-    }
+            .summary-table {
+                margin-top: 20px;
+                font-size: 12px;
+            }
 
-    .summary-table td {
-      padding: 10px;
-      text-align: left;
-    }
+            .summary-table td {
+                padding: 10px;
+                text-align: left;
+            }
 
-    .summary-table .num {
-      text-align: right;
-      font-weight: bold;
-    }
+            .summary-table .num {
+                text-align: right;
+                font-weight: bold;
+            }
 
-    /* Prevent page breaks inside important sections */
-    tr { page-break-inside: avoid; }
+            /* Prevent page breaks inside important sections */
+            tr {
+                page-break-inside: avoid;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- PAGE 1 -->
+        <div class="header">
+            <h1>SOCIALGARDEN</h1>
+        </div>
 
-  </style>
-</head>
-<body>
+        <div class="subheader">
+            <h2>{{ projectTitle }}</h2>
+            <h3>{{ projectTitle }}</h3>
+        </div>
 
-  <!-- PAGE 1 -->
-  <div class="header">
-    <h1>SOCIALGARDEN</h1>
-  </div>
+        <div class="section">
+            <p><strong>Client:</strong> {{ clientName }}</p>
+        </div>
 
-  <div class="subheader">
-    <h2>{{ projectTitle }}</h2>
-    <h3>{{ projectTitle }}</h3>
-  </div>
+        <div class="section">
+            <table>
+                <thead>
+                    <tr>
+                        <th>DESCRIPTION</th>
+                        <th>ROLE</th>
+                        <th>HOURS</th>
+                        <th>TOTAL COST + GST</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Loop through scopes #} {% for scope in scopes %}
+                    <!-- Scope Header -->
+                    <tr>
+                        <td colspan="4" class="scope-header">
+                            {{ scope.title }}
+                        </td>
+                    </tr>
 
-  <div class="section">
-    <p><strong>Client:</strong> {{ clientName }}</p>
-  </div>
+                    {% if scope.description %}
+                    <tr>
+                        <td colspan="4" class="scope-description">
+                            {{ scope.description }}
+                        </td>
+                    </tr>
+                    {% endif %}
 
-  <div class="section">
-    <table>
-      <thead>
-        <tr>
-          <th>DESCRIPTION</th>
-          <th>ROLE</th>
-          <th>HOURS</th>
-          <th>TOTAL COST + GST</th>
-        </tr>
-      </thead>
-      <tbody>
-        {# Loop through scopes #}
-        {% for scope in scopes %}
-          <!-- Scope Header -->
-          <tr>
-            <td colspan="4" class="scope-header">{{ scope.title }}</td>
-          </tr>
+                    <!-- Line items -->
+                    {% for item in scope.items %}
+                    <tr>
+                        <td>{{ item.description or "" }}</td>
+                        <td>{{ item.role or "" }}</td>
+                        <td style="text-align: center">
+                            {{ item.hours or 0 }}
+                        </td>
+                        <td style="text-align: right">
+                            ${{ "%.2f"|format(item.cost) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
 
-          {% if scope.description %}
-          <tr>
-            <td colspan="4" class="scope-description">{{ scope.description }}</td>
-          </tr>
-          {% endif %}
+                    <!-- Deliverables Section -->
+                    {% if scope.deliverables and scope.deliverables|length > 0
+                    %}
+                    <tr>
+                        <td colspan="4" class="section-header">
+                            Deliverables:
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="deliverables-list">
+                            <ul>
+                                {% for d in scope.deliverables %}
+                                <li>{{ d }}</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                    {% endif %}
 
-          <!-- Line items -->
-          {% for item in scope.items %}
-          <tr>
-            <td>{{ item.description or "" }}</td>
-            <td>{{ item.role or "" }}</td>
-            <td style="text-align: center;">{{ item.hours or 0 }}</td>
-            <td style="text-align: right;">${{ "%.2f"|format(item.cost) }}</td>
-          </tr>
-          {% endfor %}
+                    <!-- Assumptions Section -->
+                    {% if scope.assumptions and scope.assumptions|length > 0 %}
+                    <tr>
+                        <td colspan="4" class="section-header">Assumptions:</td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="assumptions-list">
+                            <ul>
+                                {% for a in scope.assumptions %}
+                                <li>{{ a }}</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                    {% endif %}
 
-          <!-- Deliverables Section -->
-          {% if scope.deliverables and scope.deliverables|length > 0 %}
-          <tr>
-            <td colspan="4" class="section-header">Deliverables:</td>
-          </tr>
-          <tr>
-            <td colspan="4" class="deliverables-list">
-              <ul>
-                {% for d in scope.deliverables %}
-                <li>{{ d }}</li>
-                {% endfor %}
-              </ul>
-            </td>
-          </tr>
-          {% endif %}
+                    <!-- Add spacing between scopes -->
+                    {% if not loop.last %}
+                    <tr>
+                        <td
+                            colspan="4"
+                            class="no-border"
+                            style="height: 15px"
+                        ></td>
+                    </tr>
+                    {% endif %} {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
-          <!-- Assumptions Section -->
-          {% if scope.assumptions and scope.assumptions|length > 0 %}
-          <tr>
-            <td colspan="4" class="section-header">Assumptions:</td>
-          </tr>
-          <tr>
-            <td colspan="4" class="assumptions-list">
-              <ul>
-                {% for a in scope.assumptions %}
-                <li>{{ a }}</li>
-                {% endfor %}
-              </ul>
-            </td>
-          </tr>
-          {% endif %}
+        <!-- PAGE 2: Summary / Totals / Notes -->
+        <div class="page-break"></div>
 
-          <!-- Add spacing between scopes -->
-          {% if not loop.last %}
-          <tr>
-            <td colspan="4" class="no-border" style="height: 15px;"></td>
-          </tr>
-          {% endif %}
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+        <div class="section">
+            <h2>Scope &amp; Price Overview</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50%">SCOPE</th>
+                        <th style="width: 25%; text-align: center">
+                            ESTIMATED TOTAL HOURS
+                        </th>
+                        <th style="width: 25%; text-align: right">
+                            TOTAL COST
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scope in scopes %}
+                    <tr>
+                        <td><strong>{{ scope.title }}</strong></td>
+                        <td style="text-align: center">
+                            <strong
+                                >{{ scope.items|sum(attribute='hours')
+                                }}</strong
+                            >
+                        </td>
+                        <td style="text-align: right">
+                            <strong
+                                >${{
+                                "%.2f"|format(scope.items|sum(attribute='cost'))
+                                }}</strong
+                            >
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr style="border-top: 2px solid #333">
+                        <td><strong>TOTAL PROJECT</strong></td>
+                        <td style="text-align: center">
+                            <strong
+                                >{{ scopes|map(attribute='items')|map('sum',
+                                attribute='hours')|sum }}</strong
+                            >
+                        </td>
+                        <td style="text-align: right">
+                            <strong
+                                >${{ "%.2f"|format(subtotal_after_discount)
+                                }}</strong
+                            >
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
-  <!-- PAGE 2: Summary / Totals / Notes -->
-  <div class="page-break"></div>
+        {% if budgetNotes %}
+        <div class="section">
+            <h3>Budget Notes:</h3>
+            <p>{{ budgetNotes }}</p>
+        </div>
+        {% endif %}
 
-  <div class="section">
-    <h2>Scope &amp; Price Overview</h2>
-    <table>
-      <thead>
-        <tr>
-          <th style="width: 50%;">SCOPE</th>
-          <th style="width: 25%; text-align: center;">ESTIMATED TOTAL HOURS</th>
-          <th style="width: 25%; text-align: right;">TOTAL COST</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for scope in scopes %}
-        <tr>
-          <td><strong>{{ scope.title }}</strong></td>
-          <td style="text-align: center;"><strong>{{ scope.items|sum(attribute='hours') }}</strong></td>
-          <td style="text-align: right;"><strong>${{ "%.2f"|format(scope.items|sum(attribute='cost')) }}</strong></td>
-        </tr>
-        {% endfor %}
-        <tr style="border-top: 2px solid #333;">
-          <td><strong>TOTAL PROJECT</strong></td>
-          <td style="text-align: center;"><strong>{{ scopes|map(attribute='items')|map('sum', attribute='hours')|sum }}</strong></td>
-          <td style="text-align: right;"><strong>${{ "%.2f"|format(subtotal_after_discount) }}</strong></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+        <div class="section">
+            <h3>Investment Summary:</h3>
+            <table class="summary-table">
+                <tbody>
+                    <tr>
+                        <td style="width: 70%"><strong>Subtotal:</strong></td>
+                        <td style="width: 30%; text-align: right">
+                            <strong>${{ "%.2f"|format(subtotal) }}</strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Discount ({{ discount }}%):</strong></td>
+                        <td style="text-align: right">
+                            <strong
+                                >-${{ "%.2f"|format(discount_amount) }}</strong
+                            >
+                        </td>
+                    </tr>
+                    <tr style="border-top: 1px solid #ccc">
+                        <td><strong>Subtotal (After Discount):</strong></td>
+                        <td style="text-align: right">
+                            <strong
+                                >${{ "%.2f"|format(subtotal_after_discount)
+                                }}</strong
+                            >
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>GST (10%):</strong></td>
+                        <td style="text-align: right">
+                            <strong>${{ "%.2f"|format(gst_amount) }}</strong>
+                        </td>
+                    </tr>
+                    <tr
+                        style="
+                            border-top: 2px solid #333;
+                            background-color: #f0f0f0;
+                        "
+                    >
+                        <td><strong>TOTAL INVESTMENT:</strong></td>
+                        <td style="text-align: right; font-size: 14px">
+                            <strong>${{ "%.2f"|format(total) }}</strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
-  {% if budgetNotes %}
-  <div class="section">
-    <h3>Budget Notes:</h3>
-    <p>{{ budgetNotes }}</p>
-  </div>
-  {% endif %}
+        <div class="footer">
+            <p>Professional Proposal generated by SocialGarden workspace.</p>
+        </div>
 
-  <div class="section">
-    <h3>Investment Summary:</h3>
-    <table class="summary-table">
-      <tbody>
-        <tr>
-          <td style="width: 70%;"><strong>Subtotal:</strong></td>
-          <td style="width: 30%; text-align: right;"><strong>${{ "%.2f"|format(subtotal) }}</strong></td>
-        </tr>
-        <tr>
-          <td><strong>Discount ({{ discount }}%):</strong></td>
-          <td style="text-align: right;"><strong>-${{ "%.2f"|format(discount_amount) }}</strong></td>
-        </tr>
-        <tr style="border-top: 1px solid #ccc;">
-          <td><strong>Subtotal (After Discount):</strong></td>
-          <td style="text-align: right;"><strong>${{ "%.2f"|format(subtotal_after_discount) }}</strong></td>
-        </tr>
-        <tr>
-          <td><strong>GST (10%):</strong></td>
-          <td style="text-align: right;"><strong>${{ "%.2f"|format(gst_amount) }}</strong></td>
-        </tr>
-        <tr style="border-top: 2px solid #333; background-color: #f0f0f0;">
-          <td><strong>TOTAL INVESTMENT:</strong></td>
-          <td style="text-align: right; font-size: 14px;"><strong>${{ "%.2f"|format(total) }}</strong></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="footer">
-    <p>Professional Proposal generated by SocialGarden workspace.</p>
-  </div>
-
-</body>
+        <div class="concluding-statement">
+            <p>*** This concludes the Scope of Work document. ***</p>
+        </div>
+    </body>
 </html>
