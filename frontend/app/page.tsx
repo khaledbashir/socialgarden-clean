@@ -419,33 +419,37 @@ const extractFinancialReasoning = (content: string): string | null => {
  // 🎯 V4.1 → Backend Schema: Transform Multi-Scope Data for PDF Generation
  // Define interface for the multiScopeData parameter
  interface MultiScopeData {
-     scopes: Array<{
-         scope_name: string;
-         scope_description?: string;
-         deliverables?: string[];
-         assumptions?: string[];
-         discount?: number;
-         role_allocation: Array<{
-             role: string;
-             hours: number;
-             rate?: number;
-             cost?: number;
+     // 🎯 V4.1 Multi-Scope Pricing Data from AI
+     const [multiScopePricingData, setMultiScopePricingData] = useState<{
+         scopes: Array<{
+             scope_name: string;
+             scope_description?: string;
+             deliverables?: string[];
+             assumptions?: string[];
+             discount?: number;
+             role_allocation: Array<{
+                 role: string;
+                 hours: number;
+                 rate?: number;
+                 cost?: number;
+             }>;
          }>;
-     }>;
-     discount?: number;
-     projectTitle?: string;
-     // Additional properties that may be accessed - safely handled with defaults
-     clientName?: string;
-     company?: any;
-     projectSubtitle?: string;
-     projectOverview?: string;
-     budgetNotes?: string;
-     currency?: string;
-     gstApplicable?: boolean;
-     generatedDate?: string;
-     authoritativeTotal?: number;
- }
+         discount?: number;
+         projectTitle?: string;
+         // Additional properties that may be accessed - safely handled with defaults
+         clientName?: string;
+         company?: any;
+         projectSubtitle?: string;
+         projectOverview?: string;
+         budgetNotes?: string;
+         currency?: string;
+         gstApplicable?: boolean;
+         generatedDate?: string;
+         authoritativeTotal?: number;
+     } | null>(null);
 
+     // 🎯 CRITICAL FIX: Store user prompt discount to override AI-generated discount
+     const [userPromptDiscount, setUserPromptDiscount] = useState<number>(0);
  const transformScopesToPDFFormat = (
      multiScopeData: MultiScopeData,
         discount?: number;
@@ -5625,6 +5629,9 @@ Ask me questions to get business insights, such as:
                         budget: userPromptBudget,
                         discount: extractedUserPromptDiscount,
                     } = extractBudgetAndDiscount(lastUserPrompt);
+
+                    // 🎯 CRITICAL FIX: Store user prompt discount to override AI-generated discount
+                    setUserPromptDiscount(extractedUserPromptDiscount);
 
                     // Store user prompt discount in state to override AI-generated discount
                     setUserPromptDiscount(extractedUserPromptDiscount);
