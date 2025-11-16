@@ -521,7 +521,7 @@ const transformScopesToPDFFormat = (
             description: scope.scope_description,
             items: items,
             deliverables: scope.deliverables || [],
-            assumptions: uniqueAssumptions, // Use deduplicated assumptions for all scopes
+            assumptions: scope.assumptions || uniqueAssumptions, // Use scope-specific assumptions, fallback to shared
         };
     });
 
