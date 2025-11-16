@@ -4,6 +4,8 @@ import {
     exportToExcel,
     cleanSOWContent,
     extractSOWStructuredJson,
+    extractPricingFromContent,
+    rolesFromArchitectSOW,
 } from "@/lib/export-utils";
 
 export async function GET(
@@ -25,17 +27,50 @@ export async function GET(
 
         const sow = sows[0];
 
-        // Parse the content to extract structured data
+        // Parse content to extract structured data
         let sowData;
         try {
-            // Clean the content first
+            // Clean content first
             const cleanedContent = cleanSOWContent(sow.content);
-            // Extract structured JSON from the content
-            const structuredData = extractSOWStructuredJson(cleanedContent);
+
+            // Try to extract pricing data from TipTap JSON first
+            let pricingRows = [];
+            let discount = null;
+
+            if (sow.content && typeof sow.content === "object") {
+                // Content is already JSON (TipTap format)
+                pricingRows = extractPricingFromContent(sow.content);
+            } else if (typeof sow.content === "string") {
+                try {
+                    // Try to parse as JSON
+                    const contentJson = JSON.parse(sow.content);
+                    pricingRows = extractPricingFromContent(contentJson);
+                } catch (e) {
+                    // Try to extract structured JSON from markdown
+                    const structuredData =
+                        extractSOWStructuredJson(cleanedContent);
+                    if (structuredData) {
+                        pricingRows = rolesFromArchitectSOW(structuredData);
+                        if (
+                            structuredData.project_details?.discount_percentage
+                        ) {
+                            discount = {
+                                type: "percentage" as const,
+                                value: structuredData.project_details
+                                    .discount_percentage,
+                            };
+                        }
+                    }
+                }
+            }
+
             sowData = {
                 title: sow.title,
                 client: sow.client_name,
-                ...structuredData,
+                pricingRows,
+                discount,
+                deliverables: structuredData?.deliverables || [],
+                assumptions: structuredData?.assumptions || [],
             };
         } catch (parseError) {
             console.error("Error parsing SOW content:", parseError);
@@ -44,6 +79,8 @@ export async function GET(
                 title: sow.title,
                 client: sow.client_name,
                 pricingRows: [],
+                deliverables: [],
+                assumptions: [],
             };
         }
 
@@ -51,54 +88,6 @@ export async function GET(
         const clientName = sowData.client || "Client";
         const date = new Date().toISOString().split("T")[0];
         const filename = `${clientName.replace(/\s+/g, "-")}-SOW-${date}.xlsx`;
-
-        // Return the Excel file
-        const response = new NextResponse(new Blob(), {
-            status: 200,
-            headers: {
-                "Content-Disposition": `attachment; filename="${filename}"`,
-                "Content-Type":
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            },
-        });
-
-        // This is a workaround for Next.js streaming issues
-        // We'll generate the Excel client-side using a separate API call
-        return NextResponse.json({
-            success: true,
-            sowData,
-            filename,
-            message: "SOW data ready for Excel export",
-        });
-    } catch (error) {
-        console.error("Error exporting SOW to Excel:", error);
-        return NextResponse.json(
-            {
-                error: "Failed to export SOW to Excel",
-                details:
-                    error instanceof Error ? error.message : "Unknown error",
-            },
-            { status: 500 },
-        );
-    }
-}
-
-export async function POST(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> },
-) {
-    try {
-        const { id: sowId } = await params;
-        const body = await request.json();
-        const { sowData, filename } = body;
-
-        // Validate required data
-        if (!sowData || !filename) {
-            return NextResponse.json(
-                { error: "Missing required data: sowData and filename" },
-                { status: 400 },
-            );
-        }
 
         // Call backend service to generate Excel
         const PDF_SERVICE_URL =
@@ -124,10 +113,10 @@ export async function POST(
             );
         }
 
-        // Get the Excel file from backend
+        // Get Excel file from backend
         const excelBlob = await response.blob();
 
-        // Return the Excel file
+        // Return Excel file
         return new NextResponse(excelBlob, {
             status: 200,
             headers: {
@@ -137,10 +126,10 @@ export async function POST(
             },
         });
     } catch (error) {
-        console.error("Error generating Excel file:", error);
+        console.error("Error exporting SOW to Excel:", error);
         return NextResponse.json(
             {
-                error: "Failed to generate Excel file",
+                error: "Failed to export SOW to Excel",
                 details:
                     error instanceof Error ? error.message : "Unknown error",
             },
@@ -148,3 +137,5 @@ export async function POST(
         );
     }
 }
+
+// No longer needed POST handler since we handle everything in GET

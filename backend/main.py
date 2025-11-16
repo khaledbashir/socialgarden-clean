@@ -838,6 +838,159 @@ async def generate_professional_pdf(request: ProfessionalPDFRequest):
         )
 
 
+@app.post("/export-excel")
+async def create_excel_file(request: dict):
+    """Generate Excel file from SOW data"""
+    try:
+        # Import xlsxwriter (install if needed: pip install xlsxwriter)
+        import io
+
+        import xlsxwriter
+
+        # Get SOW data from request
+        sow_data = request.get("sowData", {})
+        filename = request.get("filename", "sow-export.xlsx")
+
+        # Create workbook in memory
+        output = io.BytesIO()
+        workbook = xlsxwriter.Workbook(output, {"in_memory": True})
+
+        # Create worksheets
+        # 1. Overview worksheet
+        overview_ws = workbook.add_worksheet("Overview")
+        overview_ws.write("A1", "Statement of Work")
+        overview_ws.write("A2", f"Client: {sow_data.get('client', 'N/A')}")
+        overview_ws.write("A3", f"Title: {sow_data.get('title', 'N/A')}")
+        overview_ws.write("A4", f"Date: {datetime.now().strftime('%Y-%m-%d')}")
+
+        # 2. Pricing worksheet
+        pricing_ws = workbook.add_worksheet("Pricing")
+
+        # Header formatting
+        header_format = workbook.add_format(
+            {"bold": True, "bg_color": "#4F81BD", "font_color": "white", "border": 1}
+        )
+
+        # Write headers
+        pricing_ws.write(0, 0, "Role", header_format)
+        pricing_ws.write(0, 1, "Hours", header_format)
+        pricing_ws.write(0, 2, "Rate (AUD)", header_format)
+        pricing_ws.write(0, 3, "Total (AUD)", header_format)
+
+        # Extract pricing data
+        pricing_rows = sow_data.get("pricingRows", [])
+
+        # Write pricing data
+        row_num = 1
+        total_hours = 0
+        subtotal = 0
+
+        for row in pricing_rows:
+            role = row.get("role", "N/A")
+            hours = float(row.get("hours", 0))
+            rate = float(row.get("rate", 0))
+            total = float(row.get("total", hours * rate))
+
+            pricing_ws.write(row_num, 0, role)
+            pricing_ws.write(row_num, 1, hours)
+            pricing_ws.write(row_num, 2, rate)
+            pricing_ws.write(row_num, 3, total)
+
+            total_hours += hours
+            subtotal += total
+            row_num += 1
+
+        # Add empty row
+        row_num += 1
+
+        # Calculate totals
+        discount_info = sow_data.get("discount", {})
+        discount_amount = 0
+
+        if discount_info:
+            discount_type = discount_info.get("type", "")
+            discount_value = float(discount_info.get("value", 0))
+
+            if discount_type == "percentage" and discount_value > 0:
+                discount_amount = subtotal * (discount_value / 100)
+            elif discount_type == "fixed" and discount_value > 0:
+                discount_amount = discount_value
+
+        grand_total = subtotal - discount_amount
+        gst_amount = grand_total * 0.1
+        total_with_gst = grand_total + gst_amount
+
+        # Write totals
+        totals_format = workbook.add_format({"bold": True})
+
+        pricing_ws.write(row_num, 0, "Total Hours", totals_format)
+        pricing_ws.write(row_num, 1, total_hours)
+        row_num += 1
+
+        pricing_ws.write(row_num, 2, "Sub-Total (excl. GST)", totals_format)
+        pricing_ws.write(row_num, 3, subtotal)
+        row_num += 1
+
+        if discount_amount > 0:
+            discount_label = (
+                f"Discount ({discount_value}%)"
+                if discount_type == "percentage"
+                else "Discount"
+            )
+            pricing_ws.write(row_num, 2, discount_label, totals_format)
+            pricing_ws.write(row_num, 3, discount_amount)
+            row_num += 1
+
+        pricing_ws.write(row_num, 2, "Grand Total (excl. GST)", totals_format)
+        pricing_ws.write(row_num, 3, grand_total)
+        row_num += 1
+
+        pricing_ws.write(row_num, 2, "GST (10%)", totals_format)
+        pricing_ws.write(row_num, 3, gst_amount)
+        row_num += 1
+
+        pricing_ws.write(row_num, 2, "Total Inc. GST", totals_format)
+        pricing_ws.write(row_num, 3, total_with_gst)
+
+        # 3. Deliverables worksheet (if available)
+        if "deliverables" in sow_data and sow_data["deliverables"]:
+            deliverables_ws = workbook.add_worksheet("Deliverables")
+            deliverables_ws.write(0, 0, "Deliverables", header_format)
+
+            for i, deliverable in enumerate(sow_data["deliverables"], 1):
+                deliverables_ws.write(i, 0, deliverable)
+
+        # 4. Assumptions worksheet (if available)
+        if "assumptions" in sow_data and sow_data["assumptions"]:
+            assumptions_ws = workbook.add_worksheet("Assumptions")
+            assumptions_ws.write(0, 0, "Assumptions", header_format)
+
+            for i, assumption in enumerate(sow_data["assumptions"], 1):
+                assumptions_ws.write(i, 0, assumption)
+
+        # Close workbook
+        workbook.close()
+
+        # Reset buffer position
+        output.seek(0)
+
+        # Return file
+        return FileResponse(
+            io.BytesIO(output.getvalue()),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename=filename,
+        )
+
+    except Exception as e:
+        import traceback
+
+        error_detail = f"Excel generation failed: {str(e)}\n{traceback.format_exc()}"
+        print(error_detail)
+        raise HTTPException(
+            status_code=500, detail=f"Excel generation failed: {str(e)}"
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
 
