@@ -81,6 +81,19 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         }
     }, [enforcedRows]);
 
+    // 🎯 CRITICAL FIX: Sync discount state with node.attrs.discount when it changes
+    useEffect(() => {
+        if (
+            node.attrs.discount !== undefined &&
+            node.attrs.discount !== discount
+        ) {
+            console.log(
+                `🔍 [DISCOUNT DEBUG] Updating discount from ${discount}% to ${node.attrs.discount}%`,
+            );
+            setDiscount(node.attrs.discount);
+        }
+    }, [node.attrs.discount, discount]);
+
     // Drag and drop state
     const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
     const [dropTargetId, setDropTargetId] = useState<string | null>(null);
