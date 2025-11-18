@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { ConversationHistoryPanel } from './conversation-history-panel';
 import { MessageDisplayPanel } from './message-display-panel';
 import { EnhancedDashboard } from './enhanced-dashboard';
+import { SHOW_DASHBOARD_UI } from '@/config/featureFlags';
 
 interface Conversation {
   id: string;
@@ -315,7 +316,7 @@ export function StatefulDashboardChat({ userId = 'default-user' }: StatefulDashb
 
             {/* Dashboard stats on the side for reference */}
             <div className="w-96 border-l border-slate-800 overflow-hidden">
-              <EnhancedDashboard />
+              {SHOW_DASHBOARD_UI && <EnhancedDashboard />}
             </div>
           </div>
         ) : (

@@ -26,6 +26,7 @@ import { EnhancedDashboard } from "@/components/tailwind/enhanced-dashboard";
 import { StatefulDashboardChat } from "@/components/tailwind/stateful-dashboard-chat";
 import { KnowledgeBase } from "@/components/tailwind/knowledge-base";
 import { FloatingDocumentActions } from "@/components/tailwind/document-toolbar";
+import { SHOW_DASHBOARD_UI, SHOW_CLIENT_PORTAL_UI } from "@/config/featureFlags";
 import { calculateTotalInvestment } from "@/lib/sow-utils";
 import { validateAIResponse } from "@/lib/input-validation";
 import {
@@ -3968,6 +3969,49 @@ Ask me questions to get business insights, such as:
         }
     };
 
+    // Share Portal handler (conditionally passed to DocumentStatusBar)
+    const handleSharePortal = async () => {
+        if (!currentDoc) {
+            toast.error("❌ No document selected");
+            return;
+        }
+        toast.info("📤 Preparing portal link...");
+        try {
+            const currentFolder = folders.find((f) => f.id === currentDoc.folderId);
+            if (!currentFolder || !currentFolder.workspaceSlug) {
+                toast.error("❌ No workspace found for this SOW");
+                return;
+            }
+
+            const htmlContent = editorRef.current?.getHTML() || "";
+            if (!htmlContent || htmlContent === "<p></p>") {
+                toast.error("❌ Document is empty. Add content before sharing.");
+                return;
+            }
+
+            const clientContext = currentFolder?.name || "unknown";
+            await anythingLLM.embedSOWInBothWorkspaces(currentDoc.title, htmlContent, clientContext);
+
+            const portalUrl = `${window.location.origin}/portal/sow/${currentDoc.id}`;
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(portalUrl);
+                toast.success("✅ Portal link copied! SOW is now shareable.");
+            } else {
+                const input = document.createElement("input");
+                input.value = portalUrl;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand("copy");
+                document.body.removeChild(input);
+                toast.success("✅ Portal link copied (fallback)! SOW is now shareable.");
+            }
+        } catch (error: any) {
+            console.error("Error sharing portal:", error);
+            toast.error(`❌ Error preparing portal: ${error.message}`);
+        }
+    };
+
     // Create Google Sheet with OAuth token
     const createGoogleSheet = async (accessToken: string) => {
         if (!currentDoc) {
@@ -6759,7 +6803,8 @@ Ask me questions to get business insights, such as:
                             onReorderWorkspaces={handleReorderWorkspaces}
                             onReorderSOWs={handleReorderSOWs}
                             onMoveSOW={handleMoveSOW}
-                            // Dashboard filters removed
+                            // Dashboard visibility flag
+                            showDashboardLink={SHOW_DASHBOARD_UI}
                         />
                     }
                     mainPanel={
@@ -6785,96 +6830,7 @@ Ask me questions to get business insights, such as:
                                         onExportPDF={handleExportPDF}
                                         onExportNewPDF={handleExportNewPDF}
                                         onExportExcel={handleExportExcel}
-                                        onSharePortal={async () => {
-                                            if (!currentDoc) {
-                                                toast.error(
-                                                    "❌ No document selected",
-                                                );
-                                                return;
-                                            }
-
-                                            toast.info(
-                                                "📤 Preparing portal link...",
-                                            );
-
-                                            try {
-                                                // 1. First, embed the SOW to AnythingLLM
-                                                const currentFolder =
-                                                    folders.find(
-                                                        (f) =>
-                                                            f.id ===
-                                                            currentDoc.folderId,
-                                                    );
-
-                                                if (
-                                                    !currentFolder ||
-                                                    !currentFolder.workspaceSlug
-                                                ) {
-                                                    toast.error(
-                                                        "❌ No workspace found for this SOW",
-                                                    );
-                                                    return;
-                                                }
-
-                                                // Get HTML content from editor
-                                                const htmlContent =
-                                                    editorRef.current?.getHTML() ||
-                                                    "";
-
-                                                if (
-                                                    !htmlContent ||
-                                                    htmlContent === "<p></p>"
-                                                ) {
-                                                    toast.error(
-                                                        "❌ Document is empty. Add content before sharing.",
-                                                    );
-                                                    return;
-                                                }
-
-                                                // Embed to master 'gen' workspace and master dashboard
-                                                const clientContext =
-                                                    currentFolder?.name ||
-                                                    "unknown";
-                                                await anythingLLM.embedSOWInBothWorkspaces(
-                                                    currentDoc.title,
-                                                    htmlContent,
-                                                    clientContext,
-                                                );
-
-                                                // 2. Generate portal URL
-                                                const portalUrl = `${window.location.origin}/portal/sow/${currentDoc.id}`;
-
-                                                // 3. Copy to clipboard with fallback
-                                                if (
-                                                    navigator.clipboard &&
-                                                    navigator.clipboard
-                                                        .writeText
-                                                ) {
-                                                    await navigator.clipboard
-                                                        .writeText(portalUrl)
-                                                        .then(() =>
-                                                            toast.success(
-                                                                "✅ Portal link copied! SOW is now shareable.",
-                                                            ),
-                                                        )
-                                                        .catch(() => {
-                                                            // Fallback: Create temporary input and copy
-                                                            const input =
-                                                                document.createElement(
-                                                                    "input",
-                                                                );
-                                                            input.value =
-                                                                portalUrl;
-                                                            document.body.appendChild(
-                                                                input,
-                                                            );
-                                                            input.select();
-                                                            document.execCommand(
-                                                                "copy",
-                                                            );
-                                                            document.body.removeChild(
-                                                                input,
-                                                            );
+                                        onSharePortal={SHOW_CLIENT_PORTAL_UI ? handleSharePortal : undefined}
                                                             toast.success(
                                                                 "✅ Portal link copied! SOW is now shareable.",
                                                             );
@@ -6943,7 +6899,7 @@ Ask me questions to get business insights, such as:
                                     )}
                                 </div>
                             </div>
-                        ) : viewMode === "dashboard" ? (
+                        ) : viewMode === "dashboard" && SHOW_DASHBOARD_UI ? (
                             <div className="h-full bg-[#0e0f0f]">
                                 <EnhancedDashboard
                                     onOpenInEditor={(sowId: string) => {
@@ -6957,7 +6913,7 @@ Ask me questions to get business insights, such as:
                                             );
                                         }
                                     }}
-                                    onOpenInPortal={(sowId: string) => {
+                                    onOpenInPortal={ SHOW_CLIENT_PORTAL_UI ? ((sowId: string) => {
                                         if (!sowId) return;
                                         try {
                                             router.push(`/portal/sow/${sowId}`);
@@ -6967,7 +6923,7 @@ Ask me questions to get business insights, such as:
                                                 e,
                                             );
                                         }
-                                    }}
+                                    }) : undefined }
                                 />
                             </div>
                         ) : (
@@ -6987,7 +6943,7 @@ Ask me questions to get business insights, such as:
                         // ✨ Render appropriate sidebar based on viewMode
                         // Dashboard mode: Query-only Analytics Assistant with workspace dropdown
                         // Editor mode: Full-featured SOW generation with The Architect
-                        viewMode === "dashboard" ? (
+                        viewMode === "dashboard" && SHOW_DASHBOARD_UI ? (
                             <DashboardChat
                                 isOpen={agentSidebarOpen}
                                 onToggle={() =>
@@ -7134,7 +7090,7 @@ Ask me questions to get business insights, such as:
             </div>
 
             {/* Send to Client Modal */}
-            {currentDoc && (
+            {currentDoc && SHOW_CLIENT_PORTAL_UI && (
                 <SendToClientModal
                     isOpen={showSendModal}
                     onClose={() => setShowSendModal(false)}
@@ -7156,7 +7112,7 @@ Ask me questions to get business insights, such as:
             )}
 
             {/* Share Link Modal */}
-            {shareModalData && (
+            {shareModalData && SHOW_CLIENT_PORTAL_UI && (
                 <ShareLinkModal
                     isOpen={showShareModal}
                     onClose={() => {

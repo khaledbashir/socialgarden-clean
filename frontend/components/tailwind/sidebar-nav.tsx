@@ -106,7 +106,8 @@ interface SidebarNavProps {
         toIndex?: number,
     ) => void;
 
-    // Dashboard filters removed - UI simplified
+    // Show/hide Dashboard link (for feature toggling)
+    showDashboardLink?: boolean;
 }
 
 export default function SidebarNav({
@@ -127,7 +128,7 @@ export default function SidebarNav({
     onReorderWorkspaces,
     onReorderSOWs,
     onMoveSOW,
-    // dashboardFilter removed
+    showDashboardLink,
 }: SidebarNavProps) {
     // Helper functions to categorize folders (must be before usage)
     const isAgentWorkspace = (workspace: any) => {
@@ -779,6 +780,7 @@ export default function SidebarNav({
             {/* STATIC LINKS SECTION */}
             <div className="flex-shrink-0 p-4 space-y-2 border-b border-gray-800">
                 {/* Dashboard Link */}
+                {showDashboardLink && (
                 <button
                     onClick={() => onViewChange("dashboard")}
                     className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
@@ -791,6 +793,7 @@ export default function SidebarNav({
                     <span className="text-sm font-medium">Dashboard</span>
                     {/* Dashboard filters removed */}
                 </button>
+                )}
 
                 {/* Dashboard clear filter removed */}
 

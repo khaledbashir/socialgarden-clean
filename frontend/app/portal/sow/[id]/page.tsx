@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 import { exportToExcel } from '@/lib/export-utils';
 import { SocialGardenHeader } from '@/components/header/sg-header';
 import dynamic from 'next/dynamic';
+import { SHOW_CLIENT_PORTAL_UI } from '@/config/featureFlags';
+import PortalHidden from '@/components/tailwind/portal-hidden';
 
 // Dynamically import the SOW PDF wrapper to avoid SSR issues
 const SOWPdfExportWrapper = dynamic(
@@ -113,6 +115,11 @@ export default function ClientPortalPage() {
     // Load AI recommendations
     loadRecommendations();
   }, [sowId]);
+
+  // Hide portal content if feature flag disables it
+  if (!SHOW_CLIENT_PORTAL_UI) {
+    return <PortalHidden />;
+  }
 
   // No custom chat state needed - WorkspaceChat handles everything!
 
@@ -967,7 +974,7 @@ export default function ClientPortalPage() {
                 <div className="bg-[#1A1A1D] border border-[#2A2A2D] rounded-xl p-6">
                   <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                     <Target className="w-5 h-5 text-[#1CBF79]" />
-                    Select Services
+                    Services
                   </h3>
                   <div className="space-y-3">
                     {serviceOptions.map(service => {
