@@ -5,12 +5,22 @@ export const useUIState = () => {
   const [agentSidebarOpen, setAgentSidebarOpen] = useState(true);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareModalData, setShareModalData] = useState<{
-    sowId: string;
-    sowName: string;
-    requesterName: string;
-    requesterEmail: string;
-  } | null>(null);
+  const [shareModalData, setShareModalData] = useState<
+    | {
+        sowId: string;
+        sowName: string;
+        requesterName: string;
+        requesterEmail: string;
+      }
+    | {
+        shareLink: string;
+        documentTitle: string;
+        shareCount: number;
+        firstShared: string;
+        lastShared: string;
+      }
+    | null
+  >(null);
   const [showGuidedSetup, setShowGuidedSetup] = useState(false);
   const [viewMode, setViewMode] = useState<"editor" | "dashboard">("editor");
   const [isGrandTotalVisible, setIsGrandTotalVisible] = useState(true);

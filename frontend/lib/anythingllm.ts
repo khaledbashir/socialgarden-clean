@@ -1197,6 +1197,15 @@ You have access to the full SOW document that has been embedded in this workspac
         mode: "query" | "chat" = "chat",
     ): Promise<any> {
         try {
+            if (!workspaceSlug || !threadSlug || !message) {
+                console.warn("⚠️ [chatWithThread] Missing required parameters:", {
+                    hasWorkspace: !!workspaceSlug,
+                    hasThread: !!threadSlug,
+                    hasMessage: !!message,
+                });
+                return null;
+            }
+
             const response = await fetch(
                 `${this.baseUrl}/api/v1/workspace/${workspaceSlug}/thread/${threadSlug}/chat`,
                 {
@@ -1210,8 +1219,21 @@ You have access to the full SOW document that has been embedded in this workspac
             );
 
             if (!response.ok) {
+                let errorText = response.statusText;
+                try {
+                    const errorData = await response.json().catch(() => ({}));
+                    errorText = errorData.error || errorData.message || response.statusText;
+                } catch (e) {
+                    // If JSON parsing fails, use statusText
+                }
+                
                 console.error(
-                    `❌ Failed to send chat message: ${response.statusText}`,
+                    `❌ Failed to send chat message: ${response.status} ${errorText}`,
+                    {
+                        workspace: workspaceSlug,
+                        thread: threadSlug,
+                        status: response.status,
+                    }
                 );
                 return null;
             }
@@ -1219,7 +1241,13 @@ You have access to the full SOW document that has been embedded in this workspac
             const data = await response.json();
             return data;
         } catch (error) {
-            console.error("❌ Error sending chat message:", error);
+            // Handle network errors, JSON parsing errors, etc.
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error("❌ Error sending chat message:", errorMessage, {
+                workspace: workspaceSlug,
+                thread: threadSlug,
+                error: error,
+            });
             return null;
         }
     }

@@ -23,7 +23,8 @@ import { Loader2, Copy, Mail, Calendar, CheckCircle } from "lucide-react";
 interface SendToClientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  document: {
+  docId?: string; // optional folder/document id
+  document?: {
     id: string;
     title: string;
     content: string;
@@ -35,6 +36,7 @@ interface SendToClientModalProps {
 export function SendToClientModal({
   isOpen,
   onClose,
+  docId,
   document,
   onSuccess,
 }: SendToClientModalProps) {
@@ -57,6 +59,11 @@ export function SendToClientModal({
       return;
     }
 
+    if (!document) {
+      toast.error("No document selected to send");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -65,12 +72,12 @@ export function SendToClientModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: document.title,
+          title: document?.title ?? "",
           clientName,
           clientEmail,
-          content: JSON.stringify(document.content), // Store as JSON string
-          totalInvestment: document.totalInvestment || 0,
-          folderId: document.id, // Link to original document
+          content: JSON.stringify(document?.content ?? ""), // Store as JSON string
+          totalInvestment: document?.totalInvestment || 0,
+          folderId: docId, // Link to original document
           creatorEmail: "sam@socialgarden.com.au", // TODO: Get from auth
         }),
       });
@@ -202,16 +209,22 @@ export function SendToClientModal({
               {/* Document Info */}
               <div className="rounded-lg bg-slate-50 dark:bg-slate-900 p-4 space-y-2">
                 <p className="text-sm font-medium">Document Details</p>
-                <p className="text-sm text-muted-foreground">
-                  <strong>Title:</strong> {document.title}
-                </p>
-                {document.totalInvestment && (
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Investment:</strong> AUD{" "}
-                    {document.totalInvestment.toLocaleString("en-AU", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </p>
+                {!document ? (
+                  <p className="text-sm text-muted-foreground">No document selected</p>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Title:</strong> {document?.title ?? "Untitled"}
+                    </p>
+                    {document?.totalInvestment !== undefined && (
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Investment:</strong> AUD{" "}
+                        {document!.totalInvestment!.toLocaleString("en-AU", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -222,7 +235,7 @@ export function SendToClientModal({
               </Button>
               <Button
                 onClick={handleSend}
-                disabled={isLoading}
+                disabled={isLoading || !document}
                 className="bg-[#0e2e33] hover:bg-[#0e2e33]/90"
               >
                 {isLoading ? (

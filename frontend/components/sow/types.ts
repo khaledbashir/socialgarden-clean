@@ -104,6 +104,12 @@ export interface SOWPdfExportProps {
  * Props for the SOW PDF Export Wrapper component
  */
 export interface SOWPdfExportWrapperProps {
+    /** Whether the modal is open */
+    isOpen?: boolean;
+
+    /** Function to call when the modal is closed */
+    onClose?: () => void;
+
     /** Complete SOW data */
     sowData: SOWData;
 

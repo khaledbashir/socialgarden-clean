@@ -7,6 +7,7 @@ interface ResizableLayoutProps {
   leftPanel: React.ReactNode;
   mainPanel: React.ReactNode;
   rightPanel: React.ReactNode;
+  children?: React.ReactNode;
   leftMinSize?: number;
   mainMinSize?: number;
   rightMinSize?: number;
@@ -24,6 +25,7 @@ export function ResizableLayout({
   leftPanel,
   mainPanel,
   rightPanel,
+  children,
   leftMinSize = 15,
   mainMinSize = 30,
   rightMinSize = 20,
@@ -118,7 +120,7 @@ export function ResizableLayout({
         <div 
           className={`flex-1 h-full overflow-hidden min-w-0 flex flex-col transition-all duration-300 ml-0`}
         >
-          {mainPanel}
+          {mainPanel || children}
         </div>
 
         {/* RESIZABLE RIGHT CHAT PANEL */}

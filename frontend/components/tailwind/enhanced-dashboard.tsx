@@ -53,9 +53,11 @@ interface DashboardStats {
 interface EnhancedDashboardProps {
   onOpenInEditor?: (sowId: string) => void;
   onOpenInPortal?: (sowId: string) => void;
+  [key: string]: any;
 }
 
-export function EnhancedDashboard({ onOpenInEditor, onOpenInPortal }: EnhancedDashboardProps = {}) {
+export function EnhancedDashboard(props: EnhancedDashboardProps = {}) {
+  const { onOpenInEditor, onOpenInPortal } = props || {};
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -34,6 +34,8 @@ interface SOWData {
   serviceLine?: string;
 }
 
+import { SOWData as SOWPdfData } from '@/components/sow/types';
+
 type TabView = 'overview' | 'content' | 'pricing' | 'timeline';
 
 // Pricing Calculator State
@@ -59,6 +61,10 @@ export default function ClientPortalPage() {
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [hideGrandTotal, setHideGrandTotal] = useState<boolean>(false);
   const [budgetAdjustmentNotes, setBudgetAdjustmentNotes] = useState<string>('');
+  
+  // State for SOWPdfExportWrapper modal
+  const [showPdfExportModal, setShowPdfExportModal] = useState(false);
+  const [pdfExportData, setPdfExportData] = useState<SOWPdfData | null>(null);
   
   // Interactive Pricing Calculator
   const [selectedServices, setSelectedServices] = useState<string[]>(['social-media', 'content-creation']);
@@ -108,6 +114,21 @@ export default function ClientPortalPage() {
     const gst = subtotal * 0.1;
     return subtotal + gst;
   }, [selectedServices, contentPieces, socialPosts, adSpend, dynamicServices, recommendations, selectedAddOns]);
+
+  const baseServicesTotal = useMemo(() => {
+    const serviceOptions = dynamicServices.length > 0 ? dynamicServices : [
+      { id: 'social-media', name: 'Social Media Management', basePrice: 1500, description: '', icon: Users },
+      { id: 'content-creation', name: 'Content Creation', basePrice: 2000, description: '', icon: FileText },
+      { id: 'paid-ads', name: 'Paid Advertising', basePrice: 1200, description: '', icon: Target },
+      { id: 'seo', name: 'SEO Optimization', basePrice: 1800, description: '', icon: TrendingUp },
+      { id: 'analytics', name: 'Analytics & Reporting', basePrice: 800, description: '', icon: Eye }
+    ];
+    return serviceOptions
+      .filter(s => selectedServices.includes(s.id))
+      .reduce((sum, s) => sum + s.basePrice, 0);
+  }, [selectedServices, dynamicServices]);
+
+  // 🔥 RENDER TAB CONTENT - Memoized
 
   useEffect(() => {
     // Load SOW data
@@ -384,33 +405,14 @@ export default function ClientPortalPage() {
     }
   };
 
-  const handleDownloadPDF = async () => {
+  const handleShowProfessionalPDF = () => {
     if (!sow) return;
-    
-    try {
-      // Trigger PDF download via GET request
-      const response = await fetch(`/api/generate-pdf?sowId=${sowId}`);
-      
-      if (!response.ok) {
-        console.error('Failed to generate PDF:', response.statusText);
-        toast.error('Failed to download PDF. Please try again.');
-        return;
-      }
-      
-      // Create blob and download
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${sow.clientName}-SOW.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      toast.success('PDF downloaded successfully!');
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
-      toast.error('Failed to download PDF. Please try again.');
+    const preparedData = prepareSOWForNewPDF();
+    if (preparedData) {
+      setPdfExportData(preparedData);
+      setShowPdfExportModal(true);
+    } else {
+      toast.error("Failed to prepare SOW data for professional PDF.");
     }
   };
 
@@ -490,33 +492,35 @@ export default function ClientPortalPage() {
     };
   };
 
-  // Calculate totals for Excel export (same as pricing display)
-  const baseServicesTotal = useMemo(() => {
-    const serviceOptions = dynamicServices.length > 0 ? dynamicServices : [
-      { id: 'social-media', name: 'Social Media Management', basePrice: 1500, description: '', icon: Users },
-      { id: 'content-creation', name: 'Content Creation', basePrice: 2000, description: '', icon: FileText },
-      { id: 'paid-ads', name: 'Paid Advertising', basePrice: 1200, description: '', icon: Target },
-      { id: 'seo', name: 'SEO Optimization', basePrice: 1800, description: '', icon: TrendingUp },
-      { id: 'analytics', name: 'Analytics & Reporting', basePrice: 800, description: '', icon: Eye }
-    ];
-    return serviceOptions
-      .filter(s => selectedServices.includes(s.id))
-      .reduce((sum, s) => sum + s.basePrice, 0);
-  }, [selectedServices, dynamicServices]);
-
-  const contentCost = contentPieces * 150;
-  const socialCost = socialPosts * 25;
-  const adManagementFee = adSpend * 0.15;
-  const addOnsTotal = recommendations
-    .filter(r => selectedAddOns.includes(r.id))
-    .reduce((sum, r) => sum + r.recommended_price, 0);
-
-  const subtotal = baseServicesTotal + contentCost + socialCost + adManagementFee + addOnsTotal;
-  const gst = subtotal * 0.1;
-  const discountAmount = (subtotal + gst) * (discountPercent / 100);
-  const grandTotalBeforeRounding = (subtotal + gst) - discountAmount;
-  // Round to nearest $5,000
-  const grandTotal = Math.round(grandTotalBeforeRounding / 5000) * 5000;
+  const handleDownloadLegacyPDF = async () => {
+    if (!sow) return;
+    
+    try {
+      // Trigger PDF download via GET request
+      const response = await fetch(`/api/generate-pdf?sowId=${sowId}`);
+      
+      if (!response.ok) {
+        console.error('Failed to generate PDF:', response.statusText);
+        toast.error('Failed to download PDF. Please try again.');
+        return;
+      }
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${sow.clientName}-SOW.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success('PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast.error('Failed to download PDF. Please try again.');
+    }
+  };
 
   // 🔥 RENDER TAB CONTENT - Memoized
   const renderTabContent = useCallback(() => {
@@ -695,7 +699,7 @@ export default function ClientPortalPage() {
                 </button>
 
                 <button
-                  onClick={handleDownloadPDF}
+                  onClick={handleDownloadLegacyPDF}
                   className="p-6 bg-[#1A1A1D] border border-[#2A2A2D] rounded-xl hover:border-[#0B2529] transition-all group"
                 >
                   <Download className="w-8 h-8 text-[#0B2529] mb-3 group-hover:scale-110 transition-transform" />
@@ -705,9 +709,11 @@ export default function ClientPortalPage() {
 
                 {/* NEW: React-PDF Export Button */}
                 <div className="col-span-2">
-                  {sow && prepareSOWForNewPDF() && (
+                  {sow && pdfExportData && (
                     <SOWPdfExportWrapper 
-                      sowData={prepareSOWForNewPDF()!}
+                      isOpen={showPdfExportModal}
+                      onClose={() => setShowPdfExportModal(false)}
+                      sowData={pdfExportData}
                       fileName={`${sow.clientName}-SOW-Professional.pdf`}
                       variant="portal"
                     />
@@ -1530,7 +1536,7 @@ export default function ClientPortalPage() {
         {/* Footer Actions */}
         <div className="p-4 border-t border-[#2A2A2D] space-y-2">
           <Button
-            onClick={handleDownloadPDF}
+            onClick={handleDownloadLegacyPDF}
             variant="outline"
             className="w-full gap-2 border-gray-600 text-gray-300 hover:bg-[#2A2A2D] hover:text-white"
           >
@@ -1595,7 +1601,7 @@ export default function ClientPortalPage() {
               )}
               
               <Button
-                onClick={handleDownloadPDF}
+                onClick={handleShowProfessionalPDF}
                 variant="outline"
                 size="sm"
                 className="gap-2 border-gray-600 text-gray-300 hover:bg-[#2A2A2D] hover:border-[#1CBF79]"

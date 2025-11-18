@@ -23,7 +23,7 @@ import { cleanSOWContent } from "@/lib/export-utils";
 
 interface ChatMessage {
     id: string;
-    role: "user" | "assistant";
+    role: "user" | "assistant" | "system";
     content: string;
     timestamp: number;
 }
@@ -148,36 +148,38 @@ export default function WorkspaceChat({
             if (editorThreadSlug) {
                 setCurrentThreadSlug(editorThreadSlug);
 
-                // Load thread history from AnythingLLM
-                try {
-                    const response = await fetch(
-                        `/api/anythingllm/thread?workspace=${encodeURIComponent(editorWorkspaceSlug)}&thread=${encodeURIComponent(editorThreadSlug)}`,
-                    );
-                    if (response.ok) {
-                        const data = await response.json();
-                        const mapped = (data.history || []).map((msg: any) => ({
-                            id: `msg-${msg.id || Date.now()}-${Math.random()}`,
-                            role: msg.role === "user" ? "user" : "assistant",
-                            content: msg.content || "",
-                            timestamp: new Date(
-                                msg.createdAt || Date.now(),
-                            ).getTime(),
-                        }));
-                        onReplaceChatMessages(mapped);
-                        console.log(
-                            "✅ Loaded thread history from AnythingLLM:",
-                            mapped.length,
-                            "messages",
+                // Only load thread history if we don't already have messages
+                if (chatMessages.length === 0) {
+                    try {
+                        const response = await fetch(
+                            `/api/anythingllm/thread?workspace=${encodeURIComponent(editorWorkspaceSlug)}&thread=${encodeURIComponent(editorThreadSlug)}`,
                         );
+                        if (response.ok) {
+                            const data = await response.json();
+                            const mapped = (data.history || []).map((msg: any) => ({
+                                id: `msg-${msg.id || Date.now()}-${Math.random()}`,
+                                role: msg.role === "user" ? "user" : "assistant",
+                                content: msg.content || "",
+                                timestamp: new Date(
+                                    msg.createdAt || Date.now(),
+                                ).getTime(),
+                            }));
+                            onReplaceChatMessages(mapped);
+                            console.log(
+                                "✅ Loaded thread history from AnythingLLM:",
+                                mapped.length,
+                                "messages",
+                            );
+                        }
+                    } catch (error) {
+                        console.warn("⚠️ Failed to load thread history:", error);
                     }
-                } catch (error) {
-                    console.warn("⚠️ Failed to load thread history:", error);
                 }
             }
         };
 
         initializeThreads();
-    }, [editorWorkspaceSlug, editorThreadSlug]);
+    }, [editorWorkspaceSlug, editorThreadSlug, chatMessages.length]);
 
     // Focus input when component mounts or thread changes
     useEffect(() => {
@@ -734,7 +736,7 @@ export default function WorkspaceChat({
                                         {/* Show thinking section with streaming support */}
                                         {msg.role === "assistant" && (
                                             <div className="mb-4">
-                                                <StreamingThoughtAccordion
+                                                    <StreamingThoughtAccordion
                                                     content={msg.content}
                                                     messageId={msg.id}
                                                     isStreaming={
@@ -745,6 +747,10 @@ export default function WorkspaceChat({
                                                         content,
                                                     ) => {
                                                         // Content already cleaned by StreamingThoughtAccordion's buildInsertPayload
+                                                        console.log(
+                                                            "📥 [WorkspaceChat] onInsertClick payload:",
+                                                            content,
+                                                        );
                                                         onInsertToEditor(
                                                             content,
                                                         );
@@ -817,7 +823,12 @@ export default function WorkspaceChat({
                                         /<tool_call>[\s\S]*?<\/tool_call>/gi,
                                         "",
                                     );
-                                    onInsertToEditor(cleaned.trim());
+                                    const trimmed = cleaned.trim();
+                                    if (!trimmed) {
+                                        toast.error("No content to insert. The AI response appears to be empty or contains only internal processing tags.");
+                                        return;
+                                    }
+                                    onInsertToEditor(trimmed);
                                 }}
                             >
                                 <svg

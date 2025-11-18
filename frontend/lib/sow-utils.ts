@@ -165,7 +165,8 @@ export function cleanSOWContent(content: string) {
 // Transform MultiScopeData to PDFExportData format
 export function transformScopesToPDFFormat(
   multiScopeData: MultiScopeData,
-  title: string = "Statement of Work"
+  currentDocOrTitle: any = "Statement of Work",
+  userPromptDiscount?: number,
 ): PDFExportData {
   const scopes = multiScopeData.scopes.map((scope, index) => {
     const items = scope.role_allocation.map((role) => ({
@@ -192,11 +193,15 @@ export function transformScopesToPDFFormat(
     };
   });
 
+  const title = typeof currentDocOrTitle === "string" ? currentDocOrTitle : currentDocOrTitle?.title || "Statement of Work";
+  const clientName = typeof currentDocOrTitle === "object" ? currentDocOrTitle?.clientName || "" : "";
+  const effectiveDiscount = typeof userPromptDiscount === "number" && userPromptDiscount > 0 ? userPromptDiscount : multiScopeData.discount;
+
   return {
     title,
     scopes,
-    discount: multiScopeData.discount,
-    clientName: "",
+    discount: effectiveDiscount,
+    clientName,
     company: {
       name: "Social Garden",
     },

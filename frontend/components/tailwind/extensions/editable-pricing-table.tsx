@@ -73,13 +73,18 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     // State for rows (initialized from enforcedRows)
     const [rows, setRows] = useState<PricingRow[]>(enforcedRows);
     const [discount, setDiscount] = useState(node.attrs.discount || 0);
+    const [showTotal, setShowTotal] = useState(node.attrs.showTotal !== false); // Default to true
 
     // Update rows when enforcedRows changes (after rate card loads)
+    // BUT: Don't overwrite if user has manually added rows
+    const [isUserModified, setIsUserModified] = useState(false);
+    
     useEffect(() => {
-        if (enforcedRows.length > 0) {
+        // Only auto-update rows if user hasn't manually modified them
+        if (enforcedRows.length > 0 && !isUserModified) {
             setRows(enforcedRows);
         }
-    }, [enforcedRows]);
+    }, [enforcedRows, isUserModified]);
 
     // 🎯 CRITICAL FIX: Sync discount state with node.attrs.discount when it changes
     useEffect(() => {
@@ -93,6 +98,19 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
             setDiscount(node.attrs.discount);
         }
     }, [node.attrs.discount, discount]);
+
+    // 🎯 Sync showTotal state with node.attrs.showTotal when it changes
+    useEffect(() => {
+        if (
+            node.attrs.showTotal !== undefined &&
+            node.attrs.showTotal !== showTotal
+        ) {
+            console.log(
+                `🔍 [SHOW TOTAL DEBUG] Updating showTotal from ${showTotal} to ${node.attrs.showTotal}`,
+            );
+            setShowTotal(node.attrs.showTotal);
+        }
+    }, [node.attrs.showTotal, showTotal]);
 
     // Drag and drop state
     const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
@@ -131,15 +149,16 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         // Defer updateAttributes to a microtask to avoid flushSync errors
         // This prevents calling updateAttributes from within a React lifecycle
         Promise.resolve().then(() => {
-            updateAttributes({ rows, discount });
+            updateAttributes({ rows, discount, showTotal });
         });
-    }, [rows, discount, updateAttributes]);
+    }, [rows, discount, showTotal, updateAttributes]);
 
     const updateRow = (
         id: string,
         field: keyof PricingRow,
         value: string | number,
     ) => {
+        setIsUserModified(true); // Mark as user-modified
         setRows((prev) =>
             prev.map((row) => {
                 if (row.id !== id) return row;
@@ -175,14 +194,29 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
 
     const addRow = () => {
         const newId = `row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        setRows([
-            ...rows,
-            { id: newId, role: "", description: "", hours: 0, rate: 0 },
-        ]);
+        const newRow: PricingRow = {
+            id: newId,
+            role: "",
+            description: "",
+            hours: 0,
+            rate: 0,
+        };
+        
+        console.log("➕ [Pricing Table] Adding new row:", newRow);
+        console.log("➕ [Pricing Table] Current rows count:", rows.length);
+        
+        setIsUserModified(true); // Mark as user-modified to prevent enforcedRows from overwriting
+        
+        setRows((prevRows) => {
+            const updatedRows = [...prevRows, newRow];
+            console.log("➕ [Pricing Table] Updated rows count:", updatedRows.length);
+            return updatedRows;
+        });
     };
 
     const removeRow = (id: string) => {
         if (rows.length > 1) {
+            setIsUserModified(true); // Mark as user-modified
             setRows(rows.filter((row) => row.id !== id));
         }
     };
@@ -341,8 +375,14 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                         )}
                     </div>
                     <button
-                        onClick={addRow}
-                        className="px-3 py-1 bg-[#0E0F0F] text-white rounded text-sm hover:bg-[#0E0F0F]/80 transition-colors"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log("🔘 [Pricing Table] Add Role button clicked");
+                            addRow();
+                        }}
+                        className="px-3 py-1 bg-[#0E0F0F] text-white rounded text-sm hover:bg-[#0E0F0F]/80 transition-colors cursor-pointer"
+                        type="button"
                     >
                         + Add Role
                     </button>
@@ -518,6 +558,23 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
 
                 <div className="flex justify-end pricing-total-summary">
                     <div className="w-full max-w-md">
+                        {/* Toggle Total Visibility Button */}
+                        <div className="flex justify-end mb-2">
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const newShowTotal = !showTotal;
+                                    setShowTotal(newShowTotal);
+                                    console.log("👁️ [Pricing Table] Toggling total visibility:", newShowTotal);
+                                }}
+                                className="px-3 py-1.5 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors text-gray-700 dark:text-gray-200"
+                                type="button"
+                            >
+                                {showTotal ? "👁️ Hide Total" : "👁️‍🗨️ Show Total"}
+                            </button>
+                        </div>
+                        {showTotal && (
                         <div className="bg-muted dark:bg-gray-800 rounded-lg p-4 space-y-2">
                             <div className="flex justify-between items-center text-sm text-foreground dark:text-gray-100">
                                 <span>Discount (%):</span>
@@ -572,6 +629,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                 </span>
                             </div>
                         </div>
+                        )}
                     </div>
                 </div>
             </div>

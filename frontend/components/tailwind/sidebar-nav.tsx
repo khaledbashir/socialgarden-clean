@@ -40,6 +40,8 @@ import {
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Document } from "@/lib/types/sow"; // Import Document type
+
 // SOWTagSelector removed from sidebar - keep the component for editor usage if needed
 
 interface SOW {
@@ -80,6 +82,7 @@ interface SidebarNavProps {
     currentView: "dashboard" | "editor" | "ai-management";
     onViewChange: (view: "dashboard" | "editor" | "ai-management") => void;
 
+    documents: Document[]; // Add documents prop
     workspaces: Folder[];
     currentWorkspaceId: string;
     currentSOWId: string | null;

@@ -48,18 +48,14 @@ export default function PageModals({
 
             {/* Share Link Modal */}
             {shareModalData && SHOW_CLIENT_PORTAL_UI && (
-                <_ShareLinkModal
-                    isOpen={showShareModal}
-                    onClose={() => {
-                        setShowShareModal(false);
-                        setShareModalData(null);
-                    }}
-                    shareLink={shareModalData.shareLink}
-                    documentTitle={shareModalData.documentTitle}
-                    shareCount={shareModalData.shareCount}
-                    firstShared={shareModalData.firstShared}
-                    lastShared={shareModalData.lastShared}
-                />
+                    <_ShareLinkModal
+                        isOpen={showShareModal}
+                        onClose={() => {
+                            setShowShareModal(false);
+                            setShareModalData(null);
+                        }}
+                        shareData={shareModalData}
+                    />
             )}
 
             {/* Professional PDF modal */}

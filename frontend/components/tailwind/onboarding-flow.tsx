@@ -9,14 +9,14 @@ import { ChevronRight, ChevronLeft, Sparkles, Zap, MessageSquare, ArrowRight, Ch
 
 interface OnboardingFlowProps {
   isOpen: boolean;
-  onComplete: () => void;
+  onClose: () => void;
   onCreateWorkspace: (name: string) => void;
   workspaceCount?: number;
 }
 
 export default function OnboardingFlow({
   isOpen,
-  onComplete,
+  onClose,
   onCreateWorkspace,
   workspaceCount = 0,
 }: OnboardingFlowProps) {
@@ -68,11 +68,8 @@ export default function OnboardingFlow({
   };
 
   const handleClose = () => {
-    if (currentStep === steps.length - 1) {
-      onComplete();
-    } else {
-      onComplete();
-    }
+    // Close the onboarding modal and call provided onClose handler
+    onClose();
   };
 
   const currentStepData = steps[currentStep];

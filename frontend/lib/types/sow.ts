@@ -32,6 +32,7 @@ export interface Document {
   folderId?: string;
   workspaceSlug?: string;
   threadSlug?: string;
+  threadId?: string;
   syncedAt?: string;
   lastModified?: string;
   totalInvestment?: number;
@@ -51,7 +52,8 @@ export interface Folder {
   name: string;
   workspaceSlug: string;
   workspaceId?: string;
-  embedId?: string;
+  embedId?: string | number;
+  parentId?: string | number;
   syncedAt?: string;
   sowIds?: string[];
 }
@@ -59,16 +61,35 @@ export interface Folder {
 export interface Workspace {
   id: string;
   name: string;
-  sows?: SOW[];
+  sows: SOW[];
   workspace_slug?: string;
+  slug?: string;
 }
 
 export interface SOW {
   id: string;
   name: string;
   workspaceId: string;
-  vertical?: string;
-  service_line?: string;
+  vertical?:
+    | "property"
+    | "education"
+    | "finance"
+    | "healthcare"
+    | "retail"
+    | "hospitality"
+    | "professional-services"
+    | "technology"
+    | "other"
+    | null;
+  service_line?:
+    | "crm-implementation"
+    | "marketing-automation"
+    | "revops-strategy"
+    | "managed-services"
+    | "consulting"
+    | "training"
+    | "other"
+    | null;
 }
 
 export interface ChatMessage {

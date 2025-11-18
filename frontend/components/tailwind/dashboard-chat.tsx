@@ -19,12 +19,7 @@ import remarkGfm from "remark-gfm";
 import { StreamingThoughtAccordion } from "./streaming-thought-accordion";
 import { cleanSOWContent } from "@/lib/export-utils";
 
-interface ChatMessage {
-    id: string;
-    role: "user" | "assistant";
-    content: string;
-    timestamp: number;
-}
+import type { ChatMessage } from "@/lib/types/sow";
 
 interface DashboardChatProps {
     isOpen: boolean;

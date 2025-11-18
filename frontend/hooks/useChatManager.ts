@@ -15,12 +15,17 @@ import { WORKSPACE_CONFIG, getWorkspaceForAgent } from "@/lib/workspace-config";
 import { ROLES } from "@/lib/rateCard";
 import { sanitizeEmptyTextNodes } from "@/lib/page-utils";
 import { extractSOWStructuredJson } from "@/lib/export-utils";
+import { convertMarkdownToNovelJSON } from "@/lib/editor-utils";
 
 interface UseChatManagerProps {
     viewMode: "editor" | "dashboard";
     currentDoc?: Document | null;
     documents?: Document[];
     editorRef?: React.RefObject<any>;
+    workspaces?: any[];
+    currentWorkspaceId?: string;
+    currentSOWId?: string;
+    setLatestEditorJSON?: (content: any) => void;
 }
 
 export function useChatManager({
@@ -28,6 +33,7 @@ export function useChatManager({
     currentDoc = null,
     documents = [],
     editorRef = undefined,
+    setLatestEditorJSON,
 }: UseChatManagerProps) {
     const [agents, setAgents] = useState<Agent[]>([]);
     const [currentAgentId, setCurrentAgentId] = useState<string | null>(null);
@@ -35,6 +41,8 @@ export function useChatManager({
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
     const [lastUserPrompt, setLastUserPrompt] = useState<string>("");
+    const [userPromptDiscount, setUserPromptDiscount] = useState<number>(0);
+    const [multiScopePricingData, setMultiScopePricingData] = useState<any | null>(null);
 
     const currentRequestControllerRef = useRef<AbortController | null>(null);
     const lastMessageSentTimeRef = useRef<number>(0);
@@ -112,51 +120,130 @@ export function useChatManager({
     const handleInsertContent = useCallback(async (content: string, suggestedRoles: any[] = []) => {
         let localMultiScopeData: any = undefined;
 
-        log("📝 Inserting content into editor:", content.substring(0, 100));
+        // Trim content to check if it's actually empty
+        const trimmedContent = content?.trim() || "";
+        
+        log("📝 Inserting content into editor:", trimmedContent.substring(0, 100));
+        log("📝 Content length:", trimmedContent.length);
         log("📝 Editor ref exists:", !!editorRef?.current);
         log("📄 Current doc ID:", currentDoc?.id || null);
 
-        extractFinancialReasoning(content);
-
         if (!editorRef?.current) {
-            log("Editor not initialized, cannot insert content.");
+            log("❌ Editor not initialized, cannot insert content.");
+            toast.error("Editor not ready. Please wait a moment and try again.");
             return;
         }
 
-        if (!content || !currentDoc?.id) {
-            log("❌ Missing content or document ID");
+        if (!trimmedContent) {
+            log("❌ Content is empty after cleaning");
+            toast.error("No content to insert. The AI response appears to be empty or contains only internal processing tags.");
             return;
         }
+
+        if (!currentDoc?.id) {
+            log("❌ Missing document ID");
+            toast.error("No document is open. Please open a document first.");
+            return;
+        }
+
+        extractFinancialReasoning(trimmedContent);
 
         try {
-            let filteredContent = content;
+            let filteredContent = trimmedContent;
             filteredContent = filteredContent.replace(/<thinking>([\s\S]*?)<\/thinking>/gi, "");
             filteredContent = filteredContent.replace(/<think>([\s\S]*?)<\/think>/gi, "");
 
-            // Find embedded JSON tables and handle accordingly (similar to original code)
-            const jsonBlocks = Array.from(filteredContent.matchAll(/```json\s*([\s\S]*?)\s*```/gi));
-            if (jsonBlocks.length > 0) {
-                // Insert JSON-based pricing tables as editable placeholders
-                // For brevity, insert the content directly for now
-                editorRef.current.commands?.setContent ? editorRef.current.commands.setContent(filteredContent) : editorRef.current.insertContent(filteredContent);
-            } else {
-                // No json block - insert plain content
-                editorRef.current.commands?.setContent ? editorRef.current.commands.setContent(filteredContent) : editorRef.current.insertContent(filteredContent);
+            // Complex content conversion logic with proper TipTap JSON structure
+            let convertedContent: any;
+            let finalContent: any;
+            
+            // Extract budget and discount information
+            const { budget, discount } = extractBudgetAndDiscount(filteredContent);
+            
+            // Convert markdown to TipTap JSON structure
+            const convertOptions: any = {
+                preserveFormatting: true,
+                extractPricing: true,
+            };
+            
+            // Sanitize roles if provided
+            const sanitized = suggestedRoles && suggestedRoles.length > 0
+                ? sanitizeEmptyTextNodes(suggestedRoles)
+                : [];
+            
+            try {
+                convertedContent = convertMarkdownToNovelJSON(
+                    filteredContent,
+                    sanitized,
+                    convertOptions,
+                );
+                finalContent = convertedContent;
+            } catch (error) {
+                console.error("Error converting content:", error);
+                finalContent = { type: "doc", content: [] };
+            }
+            
+            // CRITICAL DIAGNOSTIC: Check content type before insertion
+            console.log("🧩 Final Content Type Check:");
+            console.log("FinalContent is object:", typeof finalContent === 'object' && finalContent !== null);
+            console.log("FinalContent type attribute:", finalContent?.type);
+            if (typeof finalContent === 'string' || !finalContent || finalContent.type !== 'doc') {
+                console.error("❌ CRITICAL INSERTION FAILURE: Final content is not a valid TipTap JSON object (type: 'doc'). Inserting raw string is blocked.");
+                toast.error("Insertion failed: Content conversion error.");
+                return; // Block insertion of invalid data
+            }
+            
+            // Update editor with properly structured content
+            if (editorRef.current) {
+                if (editorRef.current.commands?.setContent) {
+                    editorRef.current.commands.setContent(finalContent);
+                } else {
+                    editorRef.current.insertContent(finalContent);
+                }
+                // Sync with parent component state
+                if (setLatestEditorJSON) {
+                    setLatestEditorJSON(finalContent);
+                }
+                log("✅ Content inserted successfully with proper TipTap structure");
             }
 
-            // Attempt to embed to AnythingLLM workspace if configured
+            // Attempt to embed to AnythingLLM workspace if configured (non-blocking)
+            // This runs asynchronously and won't block content insertion
             const workspaceForAgent = getWorkspaceForAgent(currentAgentId || "");
-            if (workspaceForAgent) {
-                try {
-                    const success = await anythingLLM.embedSOWDocument(currentDoc?.title || currentDoc?.id || "", filteredContent, workspaceForAgent);
-                    if (success) {
-                        log("✅ Document embedded in AnythingLLM workspace");
-                    } else {
-                        log("⚠️ Embedding completed with warnings");
+            if (workspaceForAgent && currentDoc?.id) {
+                // Run embedding in background - don't await to avoid blocking insertion
+                (async () => {
+                    try {
+                        // Get HTML content from editor if available, otherwise use filtered markdown
+                        let htmlContent = filteredContent;
+                        if (editorRef.current?.getHTML) {
+                            htmlContent = editorRef.current.getHTML();
+                        } else if (editorRef.current?.view?.dom) {
+                            // Fallback: try to get HTML from editor DOM
+                            htmlContent = editorRef.current.view.dom.innerHTML || filteredContent;
+                        }
+                        
+                        // Fix parameter order: workspaceSlug, sowTitle, htmlContent, metadata
+                        const success = await anythingLLM.embedSOWDocument(
+                            workspaceForAgent,
+                            currentDoc?.title || currentDoc?.id || "Untitled SOW",
+                            htmlContent,
+                            {
+                                clientContext: currentDoc?.clientName || "",
+                                source: "chat_insertion",
+                            }
+                        );
+                        if (success) {
+                            log("✅ Document embedded in AnythingLLM workspace");
+                        } else {
+                            log("⚠️ Embedding completed with warnings (non-critical)");
+                        }
+                    } catch (embedError) {
+                        // Log but don't throw - embedding is optional
+                        log("⚠️ Embedding error (non-critical):", embedError);
+                        console.warn("⚠️ Failed to embed document to AnythingLLM (this is non-critical):", embedError);
                     }
-                } catch (embedError) {
-                    log("⚠️ Embedding error:", embedError);
-                }
+                })();
             }
 
             toast.success("✅ Content inserted into editor!");
@@ -222,6 +309,27 @@ export function useChatManager({
             // Simplified flow: call AnythingLLM API for a response
             const workspace = currentDoc?.workspaceSlug || getWorkspaceForAgent(currentAgentId || "");
             const threadSlug = threadSlugParam || currentDoc?.threadSlug || `temp-${Date.now()}`;
+            
+            // Validate required parameters
+            if (!workspace) {
+                log("❌ [Chat] No workspace available");
+                toast.error("No workspace configured. Please ensure a workspace is set up.");
+                setIsChatLoading(false);
+                currentRequestControllerRef.current = null;
+                return;
+            }
+            
+            if (!threadSlug || threadSlug.startsWith("temp-")) {
+                log("⚠️ [Chat] Using temporary thread slug - thread may not be persisted");
+            }
+            
+            log("📤 [Chat] Sending message:", {
+                workspace,
+                threadSlug,
+                messageLength: message.length,
+                hasCurrentDoc: !!currentDoc,
+            });
+            
             const response = await anythingLLM.chatWithThread(
                 workspace,
                 threadSlug,
@@ -229,18 +337,102 @@ export function useChatManager({
                 "chat"
             );
 
+            if (!response) {
+                log("❌ [Chat] No response from AnythingLLM (null/undefined)");
+                toast.error("Failed to get response from AI. Please check your connection and try again.");
+                setIsChatLoading(false);
+                currentRequestControllerRef.current = null;
+                return;
+            }
+
+            // Extract content from AnythingLLM response (can be textResponse, response, or content)
+            const responseContent = response?.textResponse || response?.response || response?.content || "";
+            
+            log("📥 [Chat] AnythingLLM response received:", {
+                hasResponse: !!response,
+                hasTextResponse: !!response?.textResponse,
+                hasResponseField: !!response?.response,
+                hasContent: !!response?.content,
+                contentLength: responseContent.length,
+                contentPreview: responseContent.substring(0, 100),
+                fullResponseKeys: response ? Object.keys(response) : [],
+            });
+
+            if (!responseContent || !responseContent.trim()) {
+                log("⚠️ [Chat] Empty or whitespace-only response from AnythingLLM");
+                toast.error("Received empty response from AI. The AI may not have generated any content. Please try rephrasing your request.");
+                setIsChatLoading(false);
+                currentRequestControllerRef.current = null;
+                return;
+            }
+
             // Append assistant response
             const assistantMessage: ChatMessage = {
                 id: `msg${Date.now()}-assistant`,
                 role: "assistant",
-                content: response?.content || "",
+                content: responseContent,
                 timestamp: Date.now(),
             };
             setChatMessages((prev) => [...prev, assistantMessage]);
 
             // Optionally auto-insert content from assistant message
             if (!isDashboardMode && assistantMessage.content && assistantMessage.content.includes("*** Insert into editor:")) {
-                await handleInsertContent(assistantMessage.content, []);
+                
+                // Extract content after the marker
+                const contentToInsert = assistantMessage.content.replace(/\*\*\* Insert into editor:\s*/, '');
+                
+                // Process content through conversion logic
+                let filteredContent = contentToInsert;
+                filteredContent = filteredContent.replace(/<thinking>([\s\S]*?)<\/thinking>/gi, "");
+                filteredContent = filteredContent.replace(/<think>([\s\S]*?)<\/think>/gi, "");
+                
+                // Convert to TipTap JSON structure
+                let convertedContent: any;
+                let finalContent: any;
+                
+                const convertOptions: any = {
+                    preserveFormatting: true,
+                    extractPricing: true,
+                };
+                
+                try {
+                    convertedContent = convertMarkdownToNovelJSON(
+                        filteredContent,
+                        [],
+                        convertOptions,
+                    );
+                    finalContent = convertedContent;
+                } catch (error) {
+                    console.error("Error converting content:", error);
+                    finalContent = { type: "doc", content: [] };
+                }
+                
+                // CRITICAL DIAGNOSTIC: Check content type before insertion
+                console.log("🧩 [Automatic Insertion] Final Content Type Check:");
+                console.log("FinalContent is object:", typeof finalContent === 'object' && finalContent !== null);
+                console.log("FinalContent type attribute:", finalContent?.type);
+                if (typeof finalContent === 'string' || !finalContent || finalContent.type !== 'doc') {
+                    console.error("❌ CRITICAL INSERTION FAILURE: Final content is not a valid TipTap JSON object (type: 'doc'). Inserting raw string is blocked.");
+                    toast.error("Insertion failed: Content conversion error.");
+                    return; // Block insertion of invalid data
+                }
+                
+                // [INJECT FIX HERE: Direct Editor Update]
+                if (editorRef.current) {
+                    if (editorRef.current.commands?.setContent) {
+                        editorRef.current.commands.setContent(finalContent);
+                    } else {
+                        editorRef.current.insertContent(finalContent);
+                    }
+                    // Sync latestEditorJSON immediately after insertion
+                    if (setLatestEditorJSON) {
+                        setLatestEditorJSON(finalContent);
+                    }
+                    console.log("🔒 [Automatic Fix] Editor updated and state locked.");
+                }
+                // [END FIX]
+                
+                toast.success("✅ Content automatically inserted into SOW editor");
             }
 
             setIsChatLoading(false);
@@ -321,7 +513,12 @@ export function useChatManager({
                             content: msg.content,
                             timestamp: Date.now(),
                         }));
-                        setChatMessages(messages);
+                        // Guard: only set history if there are no local messages and no active streaming message
+                        if (chatMessages.length === 0 && !streamingMessageId) {
+                            setChatMessages(messages);
+                        } else {
+                            log("⚠️ [Context Switch] Skipping history load to avoid overwriting local messages.");
+                        }
                     } catch (e) {
                         log("⚠️ Failed to load SOW chat history on context switch:", e);
                         setChatMessages([]);
@@ -338,10 +535,15 @@ export function useChatManager({
     return {
         agents,
         currentAgentId,
+        setCurrentAgentId,
         chatMessages,
         isChatLoading,
         streamingMessageId,
         lastUserPrompt,
+        userPromptDiscount,
+        setUserPromptDiscount,
+        multiScopePricingData,
+        setMultiScopePricingData,
         setChatMessages,
         handleCreateAgent,
         handleSelectAgent,
