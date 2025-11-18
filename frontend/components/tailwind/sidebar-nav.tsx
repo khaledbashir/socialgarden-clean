@@ -40,7 +40,7 @@ import {
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { SOWTagSelector } from "./sow-tag-selector";
+// SOWTagSelector removed from sidebar - keep the component for editor usage if needed
 
 interface SOW {
     id: string;
@@ -106,12 +106,7 @@ interface SidebarNavProps {
         toIndex?: number,
     ) => void;
 
-    // 🎯 Phase 1C: Dashboard filter support
-    dashboardFilter?: {
-        type: "vertical" | "serviceLine" | null;
-        value: string | null;
-    };
-    onClearFilter?: () => void;
+    // Dashboard filters removed - UI simplified
 }
 
 export default function SidebarNav({
@@ -132,8 +127,7 @@ export default function SidebarNav({
     onReorderWorkspaces,
     onReorderSOWs,
     onMoveSOW,
-    dashboardFilter,
-    onClearFilter,
+    // dashboardFilter removed
 }: SidebarNavProps) {
     // Helper functions to categorize folders (must be before usage)
     const isAgentWorkspace = (workspace: any) => {
@@ -758,15 +752,7 @@ export default function SidebarNav({
                     </div>
                 </div>
 
-                {/* Tag Selector Row */}
-                <div className="pl-6" onClick={(e) => e.stopPropagation()}>
-                    <SOWTagSelector
-                        sowId={sow.id}
-                        sowTitle={sow.name}
-                        currentVertical={sow.vertical || null}
-                        currentServiceLine={sow.service_line || null}
-                    />
-                </div>
+                {/* Tag Selector removed from sidebar per request */}
             </div>
         );
     }
@@ -803,31 +789,10 @@ export default function SidebarNav({
                 >
                     <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
                     <span className="text-sm font-medium">Dashboard</span>
-                    {/* 🎯 Phase 1C: Filter badge */}
-                    {dashboardFilter?.type && dashboardFilter?.value && (
-                        <span className="ml-auto px-2 py-0.5 text-xs bg-[#1CBF79] text-white rounded-full">
-                            Filtered
-                        </span>
-                    )}
+                    {/* Dashboard filters removed */}
                 </button>
 
-                {/* 🎯 Phase 1C: Clear Filter button (show when filter active) */}
-                {dashboardFilter?.type &&
-                    dashboardFilter?.value &&
-                    onClearFilter && (
-                        <button
-                            onClick={onClearFilter}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-1.5 text-xs text-orange-400 hover:text-orange-300 hover:bg-gray-900/50 rounded-lg transition-colors border border-orange-400/30"
-                        >
-                            <span>
-                                Clear{" "}
-                                {dashboardFilter.type === "vertical"
-                                    ? "Vertical"
-                                    : "Service"}{" "}
-                                Filter: {dashboardFilter.value}
-                            </span>
-                        </button>
-                    )}
+                {/* Dashboard clear filter removed */}
 
                 {/* Primary New SOW CTA */}
                 <div className="px-4 pb-3">

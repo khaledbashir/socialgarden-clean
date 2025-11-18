@@ -49,15 +49,7 @@ const SERVICE_LABELS: Record<string, { name: string; emoji: string }> = {
   'other': { name: 'Other', emoji: '🔹' },
 };
 
-interface SocialGardenBIWidgetsProps {
-  onFilterByVertical?: (vertical: string) => void;
-  onFilterByService?: (serviceLine: string) => void;
-}
-
-export function SocialGardenBIWidgets({ 
-  onFilterByVertical, 
-  onFilterByService 
-}: SocialGardenBIWidgetsProps = {}) {
+export function SocialGardenBIWidgets() {
   const [verticals, setVerticals] = useState<VerticalData[]>([]);
   const [services, setServices] = useState<ServiceData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,11 +119,9 @@ export function SocialGardenBIWidgets({
               const percentage = totalVerticalValue > 0 ? (Number(v.total_value) / totalVerticalValue) * 100 : 0;
               
               return (
-                <div 
+                  <div 
                   key={v.vertical} 
-                  className={`space-y-1 ${onFilterByVertical ? 'cursor-pointer hover:bg-gray-700/30 p-2 rounded-lg transition-colors' : ''}`}
-                  onClick={() => onFilterByVertical?.(v.vertical)}
-                  title={onFilterByVertical ? `Click to filter SOWs by ${label.name}` : undefined}
+                  className={`space-y-1`}
                 >
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-300">
@@ -173,9 +163,7 @@ export function SocialGardenBIWidgets({
               return (
                 <div 
                   key={s.service_line} 
-                  className={`space-y-1 ${onFilterByService ? 'cursor-pointer hover:bg-gray-700/30 p-2 rounded-lg transition-colors' : ''}`}
-                  onClick={() => onFilterByService?.(s.service_line)}
-                  title={onFilterByService ? `Click to filter SOWs by ${label.name}` : undefined}
+                  className={`space-y-1`}
                 >
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-300">

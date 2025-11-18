@@ -107,14 +107,16 @@ export function SOWTagSelector(props: SOWTagSelectorProps) {
   };
 
   // Get display label for current vertical
+  // Use empty placeholder instead of 'Select Vertical' to avoid showing 'Select' text
   const verticalLabel = vertical
-    ? VERTICALS.find(v => v.value === vertical)?.label || 'Select Vertical'
-    : 'Select Vertical';
+    ? VERTICALS.find(v => v.value === vertical)?.label || ''
+    : '';
 
   // Get display label for current service line
+  // Use empty placeholder instead of 'Select Service Line' to avoid showing 'Select' text
   const serviceLineLabel = serviceLine
-    ? SERVICE_LINES.find(sl => sl.value === serviceLine)?.label || 'Select Service Line'
-    : 'Select Service Line';
+    ? SERVICE_LINES.find(sl => sl.value === serviceLine)?.label || ''
+    : '';
 
   // If both are set, show as badge instead of dropdowns
   if (vertical && serviceLine && !showVerticalDropdown && !showServiceLineDropdown) {
@@ -152,7 +154,7 @@ export function SOWTagSelector(props: SOWTagSelectorProps) {
           className="px-2 py-1 rounded text-xs bg-gray-700 text-gray-200 hover:bg-gray-600 flex items-center gap-1 transition-all"
           disabled={isSaving}
         >
-          {verticalLabel === 'Select Vertical' ? '+ Vertical' : verticalLabel}
+          {verticalLabel || ''}
           <ChevronDown className="w-3 h-3" />
         </button>
 
@@ -183,7 +185,7 @@ export function SOWTagSelector(props: SOWTagSelectorProps) {
           className="px-2 py-1 rounded text-xs bg-gray-700 text-gray-200 hover:bg-gray-600 flex items-center gap-1 transition-all"
           disabled={isSaving}
         >
-          {serviceLineLabel === 'Select Service Line' ? '+ Service Line' : serviceLineLabel}
+          {serviceLineLabel || ''}
           <ChevronDown className="w-3 h-3" />
         </button>
 
