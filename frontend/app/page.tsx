@@ -1784,14 +1784,7 @@ export default function Page() {
         return null;
     };
 
-    // 🎯 Phase 1C: Dashboard filter state (vertical/service line click-to-filter)
-    const [dashboardFilter, setDashboardFilter] = useState<{
-        type: "vertical" | "serviceLine" | null;
-        value: string | null;
-    }>({
-        type: null,
-        value: null,
-    });
+    // Dashboard filter state removed
 
     // Workspace creation progress state (NEW)
     const [workspaceCreationProgress, setWorkspaceCreationProgress] = useState<{
@@ -3418,21 +3411,7 @@ Ask me questions to get business insights, such as:
         }
     };
 
-    // 🎯 Phase 1C: Dashboard filter handlers
-    const handleDashboardFilterByVertical = (vertical: string) => {
-        setDashboardFilter({ type: "vertical", value: vertical });
-        toast.success(`📊 Filtered to ${vertical} SOWs`);
-    };
-
-    const handleDashboardFilterByService = (serviceLine: string) => {
-        setDashboardFilter({ type: "serviceLine", value: serviceLine });
-        toast.success(`📊 Filtered to ${serviceLine} SOWs`);
-    };
-
-    const handleClearDashboardFilter = () => {
-        setDashboardFilter({ type: null, value: null });
-        toast.info("🔄 Filter cleared");
-    };
+    // Dashboard filtering removed.
 
     const handleReorderWorkspaces = (reorderedWorkspaces: Workspace[]) => {
         setWorkspaces(reorderedWorkspaces);
@@ -6061,6 +6040,11 @@ Ask me questions to get business insights, such as:
                             }
                         }
 
+                        try {
+                            toast.error(
+                                "AI returned empty content (workspace/thread may be misconfigured). Check console SSE logs and workspace settings.",
+                            );
+                        } catch (e) {}
                         setChatMessages((prev) =>
                             prev.map((msg) =>
                                 msg.id === aiMessageId
@@ -6208,6 +6192,17 @@ Ask me questions to get business insights, such as:
                                                     : msg,
                                             ),
                                         );
+                                    } else if (data.type === "abort") {
+                                        // Explicitly handle abort events for diagnostics
+                                        console.warn(
+                                            "⚠️ SSE abort event received from AnythingLLM stream",
+                                            data,
+                                        );
+                                        try {
+                                            toast.error(
+                                                "AI generation aborted (workspace/thread may be misconfigured). Check the workspace and thread routing.",
+                                            );
+                                        } catch (e) {}
                                     } else {
                                         // Log unhandled event types for debugging
                                         console.log(
@@ -6726,24 +6721,8 @@ Ask me questions to get business insights, such as:
         return null;
     }
 
-    // 🎯 Phase 1C: Filter workspaces based on dashboard filter
-    const filteredWorkspaces =
-        dashboardFilter.type && dashboardFilter.value
-            ? workspaces.map((workspace) => ({
-                  ...workspace,
-                  sows: workspace.sows.filter((sow) => {
-                      const doc = documents.find((d) => d.id === sow.id);
-                      if (!doc) return false;
-
-                      if (dashboardFilter.type === "vertical") {
-                          return doc.vertical === dashboardFilter.value;
-                      } else if (dashboardFilter.type === "serviceLine") {
-                          return doc.serviceLine === dashboardFilter.value;
-                      }
-                      return true;
-                  }),
-              }))
-            : workspaces;
+    // Dashboard filtering removed - show full workspaces list
+    const filteredWorkspaces = workspaces;
 
     return (
         <div className="flex flex-col h-screen bg-[#0e0f0f]">
@@ -6780,9 +6759,7 @@ Ask me questions to get business insights, such as:
                             onReorderWorkspaces={handleReorderWorkspaces}
                             onReorderSOWs={handleReorderSOWs}
                             onMoveSOW={handleMoveSOW}
-                            // 🎯 Phase 1C: Pass filter state and clear handler
-                            dashboardFilter={dashboardFilter}
-                            onClearFilter={handleClearDashboardFilter}
+                            // Dashboard filters removed
                         />
                     }
                     mainPanel={
@@ -6797,26 +6774,6 @@ Ask me questions to get business insights, such as:
                                         }
                                         saveStatus="saved"
                                         isSaving={false}
-                                        vertical={currentDoc.vertical}
-                                        serviceLine={currentDoc.serviceLine}
-                                        onVerticalChange={(vertical) => {
-                                            setDocuments((prev) =>
-                                                prev.map((d) =>
-                                                    d.id === currentDocId
-                                                        ? { ...d, vertical }
-                                                        : d,
-                                                ),
-                                            );
-                                        }}
-                                        onServiceLineChange={(serviceLine) => {
-                                            setDocuments((prev) =>
-                                                prev.map((d) =>
-                                                    d.id === currentDocId
-                                                        ? { ...d, serviceLine }
-                                                        : d,
-                                                ),
-                                            );
-                                        }}
                                         isGrandTotalVisible={
                                             isGrandTotalVisible
                                         }
@@ -6989,14 +6946,6 @@ Ask me questions to get business insights, such as:
                         ) : viewMode === "dashboard" ? (
                             <div className="h-full bg-[#0e0f0f]">
                                 <EnhancedDashboard
-                                    onFilterByVertical={
-                                        handleDashboardFilterByVertical
-                                    }
-                                    onFilterByService={
-                                        handleDashboardFilterByService
-                                    }
-                                    currentFilter={dashboardFilter}
-                                    onClearFilter={handleClearDashboardFilter}
                                     onOpenInEditor={(sowId: string) => {
                                         if (!sowId) return;
                                         try {

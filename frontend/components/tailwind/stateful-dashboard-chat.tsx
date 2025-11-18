@@ -29,19 +29,9 @@ interface Message {
 
 interface StatefulDashboardChatProps {
   userId?: string;
-  onFilterByVertical?: (vertical: string) => void;
-  onFilterByService?: (serviceLine: string) => void;
-  onClearFilter?: () => void;
-  currentFilter?: { type: 'vertical' | 'serviceLine' | null; value: string | null };
 }
 
-export function StatefulDashboardChat({
-  userId = 'default-user',
-  onFilterByVertical,
-  onFilterByService,
-  onClearFilter,
-  currentFilter
-}: StatefulDashboardChatProps = {}) {
+export function StatefulDashboardChat({ userId = 'default-user' }: StatefulDashboardChatProps = {}) {
   // State management
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -325,12 +315,7 @@ export function StatefulDashboardChat({
 
             {/* Dashboard stats on the side for reference */}
             <div className="w-96 border-l border-slate-800 overflow-hidden">
-              <EnhancedDashboard
-                onFilterByVertical={onFilterByVertical}
-                onFilterByService={onFilterByService}
-                currentFilter={currentFilter}
-                onClearFilter={onClearFilter}
-              />
+              <EnhancedDashboard />
             </div>
           </div>
         ) : (
