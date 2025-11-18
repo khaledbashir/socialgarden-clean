@@ -1,26 +1,4 @@
 {
-    "files.watcherExclude": {
-        "**/node_modules/**": true,
-        "**/archive/**": true,
-        "**/.git/**": true,
-        "**/__pycache__/**": true,
-        "**/.next/**": true
-    },
-    "python.analysis.exclude": [
-        "**/node_modules/**",
-        "**/archive/**",
-        "**/*.md",
-        "**/docs/**"
-    ],
-    "search.exclude": {
-        "**/node_modules/**": true,
-        "**/archive/**": true,
-        "**/__pycache__/**": true
-    },
-    "oaicopilot.baseUrl": "https://api.z.ai/api/coding/paas/v4",
-    "oaicopilot.apiKey": "bdf4030be8e548a4b52a1b3628957810.e7mXy0uUjHi5RaiA",
-    "oaicopilot.apiKeyHeader": "Authorization",
-    "oaicopilot.apiKeyPrefix": "Bearer",
     "oaicopilot.models": [
         {
             "id": "glm-4.6",
@@ -45,19 +23,16 @@
             "top_p": 1
         },
         {
-            "id": "MiniMax-M2",
-            "name": "MiniMax M2",
+            "id": "MiniMax-M2-Stable",
+            "name": "MiniMax M2 Stable",
             "owned_by": "minimax",
-            "provider": "openai",
+            "provider": "minimax",
             "baseUrl": "https://api.minimax.io/v1",
-            "apiKey": "your-jwt-token",
+            "apiKey": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiJBaG1hZCBCYXNoZWVyIiwiVXNlck5hbWUiOiJBaG1hZCBCYXNoZWVyIiwiQWNjb3VudCI6IiIsIlN1YmplY3RJRCI6IjE5ODQwMTE2ODUwMTg0NzY3NjUiLCJQaG9uZSI6IiIsIkdyb3VwSUQiOiIxOTg0MDExNjg1MDE0Mjc4MzY1IiwiUGFnZU5hbWUiOiIiLCJNYWlsIjoiYWhtYWRiYXNoZWVyckBnbWFpbC5jb20iLCJDcmVhdGVUaW1lIjoiMjAyNS0xMS0xOCAxODozNzo1MCIsIlRva2VuVHlwZSI6MSwiaXNzIjoibWluaW1heCJ9.XYBLNVZbwUxIGRluToOdxMdKmf0KC--9OLtLrJTiUIyjOJBH1lgIe8IH9kAgDFtgKd9SNGJ078rU0ZXTu1eM-kJVaHltGYTdfCsbd2mlqEBdWI-DgXwUhexXE5FLG4-2_4fULFz5gBSuFxSYStWtgSLV4Z8FF24ThVL3-QOTCzflCsDzz0REpO4fUm0my6KnYjYDWfM_kDS0OFmPxIwMH7Ucpl64BkeqJn0tpPNHQC_toX4QV9ch6k02cI10nePAISjtbk6mD3gIHwXyQEAus4YhzA6ZZO9Df3u2Duw2Rmb9JMl7YOHkQ3-8abS7T_XmP53DdEWd0dy6Rn-mv8EFlQ",
             "context_length": 200000,
             "max_tokens": 4096,
             "temperature": 0.7,
             "top_p": 1
         }
-    ],
-    "remote.SSH.remotePlatform": {
-        "basheer": "linux"
-    }
+    ]
 }

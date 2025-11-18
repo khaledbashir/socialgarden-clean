@@ -13,8 +13,16 @@ interface DashboardRightProps {
   onSendMessage?: (message: string) => void;
   isLoading?: boolean;
   streamingMessageId?: string | null;
+  onClearChat?: () => void;
+  onReplaceChatMessages?: (messages: any[]) => void;
 }
 
-export default function DashboardRight(props: DashboardRightProps) {
-  return <DashboardChat {...props} />;
+export default function DashboardRight({ onClearChat, onReplaceChatMessages, ...props }: DashboardRightProps) {
+  return (
+    <DashboardChat
+      {...(props as any)}
+      onClearChat={onClearChat}
+      onReplaceChatMessages={onReplaceChatMessages as any}
+    />
+  );
 }

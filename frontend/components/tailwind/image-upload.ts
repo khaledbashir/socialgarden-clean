@@ -13,31 +13,43 @@ const onUpload = (file: File) => {
 
   return new Promise((resolve, reject) => {
     toast.promise(
-      promise.then(async (res) => {
-        // Successfully uploaded image
-        if (res.status === 200) {
-          const { url } = (await res.json()) as { url: string };
-          // preload the image
-          const image = new Image();
-          image.src = url;
-          image.onload = () => {
-            resolve(url);
-          };
-          // No blob store configured
-        } else if (res.status === 401) {
-          resolve(file);
-          throw new Error("`BLOB_READ_WRITE_TOKEN` environment variable not found, reading image locally instead.");
-          // Unknown error
-        } else {
-          throw new Error("Error uploading image. Please try again.");
-        }
-      }),
+      promise
+        .then(async (res) => {
+          // Successfully uploaded image to cloud storage
+          if (res.status === 200) {
+            const { url } = (await res.json()) as { url: string };
+            // preload the image
+            const image = new Image();
+            image.src = url;
+            image.onload = () => {
+              resolve(url);
+            };
+            image.onerror = () => {
+              reject(new Error("Failed to load uploaded image"));
+            };
+            // No blob store configured - use local file (this is normal and expected)
+          } else if (res.status === 401) {
+            // Silently handle local images without error
+            console.log("📷 Using local image (cloud storage not configured)");
+            resolve(file);
+            // Unknown error
+          } else {
+            const error = new Error("Error uploading image. Please try again.");
+            reject(error);
+            throw error;
+          }
+        })
+        .catch((error) => {
+          // Catch any network or parsing errors
+          console.error("Image upload error:", error);
+          reject(error);
+          throw error;
+        }),
       {
         loading: "Uploading image...",
         success: "Image uploaded successfully.",
         error: (e) => {
-          reject(e);
-          return e.message;
+          return e?.message || "Failed to upload image";
         },
       },
     );

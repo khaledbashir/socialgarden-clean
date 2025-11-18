@@ -34,6 +34,7 @@ export async function GET(
             const cleanedContent = cleanSOWContent(sow.content);
 
             // Try to extract pricing data from TipTap JSON first
+            let structuredData: any = null;
             let pricingRows = [];
             let discount = null;
 
@@ -47,8 +48,8 @@ export async function GET(
                     pricingRows = extractPricingFromContent(contentJson);
                 } catch (e) {
                     // Try to extract structured JSON from markdown
-                    const structuredData =
-                        extractSOWStructuredJson(cleanedContent);
+                    // scoped to the outer block so it's visible below
+                    structuredData = extractSOWStructuredJson(cleanedContent);
                     if (structuredData) {
                         pricingRows = rolesFromArchitectSOW(structuredData);
                         if (

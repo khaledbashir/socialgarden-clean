@@ -1,5 +1,7 @@
 // Utility functions for SOW handling
 
+import type { Scope, RoleAllocation, MultiScopeData, PDFExportData } from "./types/sow";
+
 /**
  * Interface for pricing table rows in TipTap content
  */
@@ -158,4 +160,52 @@ export function cleanSOWContent(content: string) {
     .trim();
   
   return cleaned;
+}
+
+// Transform MultiScopeData to PDFExportData format
+export function transformScopesToPDFFormat(
+  multiScopeData: MultiScopeData,
+  title: string = "Statement of Work"
+): PDFExportData {
+  const scopes = multiScopeData.scopes.map((scope, index) => {
+    const items = scope.role_allocation.map((role) => ({
+      description: role.description,
+      role: role.role,
+      hours: role.hours,
+      rate: role.rate,
+      cost: role.cost,
+    }));
+
+    const total = scope.role_allocation.reduce(
+      (sum, role) => sum + role.cost,
+      0
+    );
+
+    return {
+      id: `scope-${index + 1}`,
+      title: scope.scope_name,
+      description: scope.scope_description,
+      items,
+      deliverables: scope.deliverables,
+      assumptions: scope.assumptions,
+      total,
+    };
+  });
+
+  return {
+    title,
+    scopes,
+    discount: multiScopeData.discount,
+    clientName: "",
+    company: {
+      name: "Social Garden",
+    },
+    projectSubtitle: "",
+    projectOverview: "",
+    budgetNotes: "",
+    currency: "AUD",
+    gstApplicable: true,
+    generatedDate: new Date().toISOString(),
+    authoritativeTotal: 0,
+  };
 }

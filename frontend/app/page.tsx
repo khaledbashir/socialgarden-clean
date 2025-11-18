@@ -1,64 +1,46 @@
+            
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
-import TailwindAdvancedEditor from "@/components/tailwind/advanced-editor";
-import SidebarNav from "@/components/tailwind/sidebar-nav";
-import DashboardChat from "@/components/tailwind/dashboard-chat";
-import WorkspaceChat from "@/components/tailwind/workspace-chat";
-// import PricingTableBuilder from "@/components/tailwind/pricing-table-builder"; // Commented out - unused import causing build errors
-import Menu from "@/components/tailwind/ui/menu";
-import { Button } from "@/components/tailwind/ui/button";
-import { SendToClientModal } from "@/components/tailwind/send-to-client-modal";
-import { ShareLinkModal } from "@/components/tailwind/share-link-modal";
-import { ResizableLayout } from "@/components/tailwind/resizable-layout";
-import { DocumentStatusBar } from "@/components/tailwind/document-status-bar";
-import WorkspaceCreationProgress from "@/components/tailwind/workspace-creation-progress";
-import OnboardingFlow from "@/components/tailwind/onboarding-flow";
-
-import { toast } from "sonner";
-import { Sparkles, Info, ExternalLink, Send } from "lucide-react";
-import { defaultEditorContent } from "@/lib/content";
+import type { ArchitectSOW } from "@/lib/export-utils";
+import { ROLES } from "@/lib/rateCard";
+import { calculatePricingTable } from "@/lib/pricingCalculator";
 import { InteractiveOnboarding } from "@/components/tailwind/interactive-onboarding";
-import { GuidedClientSetup } from "@/components/tailwind/guided-client-setup";
-import { EnhancedDashboard } from "@/components/tailwind/enhanced-dashboard";
-import { StatefulDashboardChat } from "@/components/tailwind/stateful-dashboard-chat";
+import { ResizableLayout } from "@/components/tailwind/resizable-layout";
+import SidebarNav from "@/components/tailwind/sidebar-nav";
+import { SHOW_DASHBOARD_UI } from "@/config/featureFlags";
+import { SHOW_CLIENT_PORTAL_UI } from "@/config/featureFlags";
+import EditorPanel from "@/components/tailwind/editor-panel";
 import DashboardMain from "@/components/tailwind/DashboardMain";
 import DashboardRight from "@/components/tailwind/DashboardRight";
-import { KnowledgeBase } from "@/components/tailwind/knowledge-base";
-import { FloatingDocumentActions } from "@/components/tailwind/document-toolbar";
-import { SHOW_DASHBOARD_UI, SHOW_CLIENT_PORTAL_UI } from "@/config/featureFlags";
-import { calculateTotalInvestment } from "@/lib/sow-utils";
+import HomeWelcome from "@/components/tailwind/home-welcome";
+import WorkspaceChat from "@/components/tailwind/workspace-chat";
+import { SendToClientModal, ShareLinkModal } from "@/components/tailwind/page-modals";
 import { validateAIResponse } from "@/lib/input-validation";
+import { extractBudgetAndDiscount } from "@/lib/page-utils";
+import { extractSOWStructuredJson } from "@/lib/export-utils";
+import { WORKSPACE_CONFIG, getWorkspaceForAgent } from "@/lib/workspace-config";
+import { anythingLLM } from "@/lib/anythingllm";
+import { toast } from "sonner";
+import { calculateTotalInvestment } from "@/lib/sow-utils";
+import SOWPdfExportWrapper from "@/components/sow/SOWPdfExportWrapper";
+import {
+    ensureUnfiledFolder,
+    UNFILED_FOLDER_ID,
+    UNFILED_FOLDER_NAME,
+} from "@/lib/ensure-unfiled-folder";
+import { defaultEditorContent } from "@/lib/content";
+import WorkspaceCreationProgress from "@/components/tailwind/workspace-creation-progress";
+import OnboardingFlow from "@/components/tailwind/onboarding-flow";
 import {
     extractPricingFromContent,
     exportToExcel,
     exportToPDF,
     cleanSOWContent,
 } from "@/lib/export-utils";
-import type { ArchitectSOW } from "@/lib/export-utils";
-import { extractSOWStructuredJson } from "@/lib/export-utils";
-import { anythingLLM } from "@/lib/anythingllm";
-import { ROLES } from "@/lib/rateCard";
-import { calculatePricingTable } from "@/lib/pricingCalculator";
-import { getWorkspaceForAgent, WORKSPACE_CONFIG } from "@/lib/workspace-config";
 import { prepareSOWForNewPDF } from "@/lib/sow-pdf-utils";
-import {
-    ensureUnfiledFolder,
-    UNFILED_FOLDER_ID,
-    UNFILED_FOLDER_NAME,
-} from "@/lib/ensure-unfiled-folder";
-
-// Dynamically import PDF components to avoid SSR issues
-const SOWPdfExportWrapper = dynamic(
-    () => import("@/components/sow/SOWPdfExportWrapper"),
-    { ssr: false },
-);
-
-// API key is now handled server-side in /api/chat route
-
-// 🎯 UTILITY: Extract client/company name from user prompt
+            
 const extractClientName = (prompt: string): string | null => {
     // Common patterns for client mentions:
     // "for ABC Company", "for Company XYZ", "client: ABC Corp", "ABC Corp needs", etc.
@@ -75,10 +57,7 @@ const extractClientName = (prompt: string): string | null => {
             // Clean up the match
             let name = match[1].trim();
             // Remove trailing words that aren't part of company name
-            name = name.replace(
-                /\s+(integration|website|project|campaign|sow|needs|wants|requires)$/i,
-                "",
-            );
+            name = name.replace(/\s+(integration|website|project|campaign|sow|needs|wants|requires)$/i, "");
             if (name.length > 2 && name.length < 50) {
                 return name;
             }
@@ -86,112 +65,6 @@ const extractClientName = (prompt: string): string | null => {
     }
 
     return null;
-};
-
-// 🎯 UTILITY: Extract budget and discount from user prompt
-const extractBudgetAndDiscount = (
-    prompt: string,
-): { budget: number; discount: number } => {
-    let budget = 0;
-    let discount = 0;
-
-    // Extract budget using same patterns as parseBudgetFromMarkdown
-    const budgetPatterns = [
-        /firm\s*\$?\s*([\d\s,\.]+)\s*(k)?\s*aud/i,
-        /(budget|target|total|investment)\s*(?:[:=]|is|of)?\s*(aud\s*)?\$?\s*([\d\s,\.]+)\s*(k)?\s*(aud)?\s*(\+\s*gst|incl\s*gst|ex\s*gst)?/i,
-    ];
-
-    for (const re of budgetPatterns) {
-        const match = prompt.match(re);
-        if (match && match[1]) {
-            const budgetValue =
-                parseFloat(match[1].replace(/[,\s]/g, "")) *
-                (match[2]?.toLowerCase() === "k" ? 1000 : 1);
-            if (!isNaN(budgetValue) && budgetValue > 0) {
-                budget = budgetValue;
-                console.log(
-                    `🎯 Budget extracted from user prompt: $${budgetValue.toLocaleString()}`,
-                );
-                break;
-            }
-        }
-    }
-
-    // 🎯 CRITICAL FIX: Extract discount from user prompt with comprehensive validation
-    // Support formats: "4 percent discount", "discount 4 percent", "9% discount", "discount of 9%", etc.
-    const discountPatterns = [
-        // "discount 4 percent" - the exact format from the failing test case
-        /discount\s+(\d+(?:\.\d+)?)\s+percent/i,
-        // "4 percent discount"
-        /(\d+(?:\.\d+)?)\s*percent\s*discount/i,
-        // "4% discount"
-        /(\d+(?:\.\d+)?)\s*%\s*discount/i,
-        // "discount of 4%"
-        /discount\s*(?:of|:)?\s*(\d+(?:\.\d+)?)\s*%/i,
-        // "discount of 4 percent"
-        /discount\s*(?:of|:)?\s*(\d+(?:\.\d+)?)\s*percent/i,
-        // "with a 4% discount"
-        /with\s*(?:a|an)?\s*(\d+(?:\.\d+)?)\s*(?:%|percent)\s*discount/i,
-        // "apply a 4% discount"
-        /apply\s*(?:a|an)?\s*(\d+(?:\.\d+)?)\s*(?:%|percent)\s*discount/i,
-        // "4 percent off"
-        /(\d+(?:\.\d+)?)\s*percent\s*off/i,
-        // "4% off"
-        /(\d+(?:\.\d+)?)\s*%\s*off/i,
-    ];
-
-    console.log(
-        `🔍 [DISCOUNT DEBUG] Searching for discount in prompt: "${prompt}"`,
-    );
-
-    for (const pattern of discountPatterns) {
-        const match = prompt.match(pattern);
-        if (match) {
-            console.log(
-                `🔍 [DISCOUNT DEBUG] Pattern matched:`,
-                pattern,
-                `Result:`,
-                match,
-            );
-            const discountValue = parseFloat(match[1]);
-
-            console.log(
-                `🔍 [DISCOUNT DEBUG] Extracted discount value: ${discountValue}`,
-            );
-
-            // 🎯 CRITICAL FIX: Comprehensive validation to prevent calculation errors
-            if (!isNaN(discountValue) && discountValue >= 0) {
-                if (discountValue > 100) {
-                    console.error(
-                        `❌ [DISCOUNT ERROR] Impossible discount ${discountValue}% detected, setting to 0%`,
-                    );
-                    discount = 0;
-                } else if (discountValue > 50) {
-                    console.warn(
-                        `⚠️ [DISCOUNT WARNING] High discount ${discountValue}% detected, capping at 50%`,
-                    );
-                    discount = 50;
-                } else {
-                    discount = discountValue;
-                }
-
-                console.log(
-                    `✅ [DISCOUNT SUCCESS] Final discount extracted: ${discount}%`,
-                );
-                break;
-            } else {
-                console.warn(
-                    `⚠️ [DISCOUNT WARNING] Invalid discount value: ${discountValue}, continuing search`,
-                );
-            }
-        }
-    }
-
-    if (discount === 0) {
-        console.log(`ℹ️ [DISCOUNT INFO] No valid discount found in prompt`);
-    }
-
-    return { budget, discount };
 };
 
 // 🎯 UTILITY: Extract and parse V4.1 Multi-Scope JSON or v3.1 format
@@ -3229,6 +3102,13 @@ Ask me questions to get business insights, such as:
                 workspaceId,
                 sowName,
             });
+
+            // 🛡️ CRITICAL: Prevent duplicate creation - check if a temp SOW already exists
+            const hasTempSOW = documents.some((doc) => doc.id.startsWith("temp-"));
+            if (hasTempSOW) {
+                console.warn("⚠️ SOW creation already in progress, ignoring duplicate request");
+                return;
+            }
 
             // Find the folder/workspace in local state (for display only)
             // 🎯 Allow Unfiled folder even if not loaded yet
@@ -6725,6 +6605,15 @@ Ask me questions to get business insights, such as:
                 }
             } catch (error) {
                 console.error("❌ Chat API error:", error);
+                
+                // Log detailed error information for debugging
+                if (error instanceof Error) {
+                    console.error("Error details:", {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack,
+                    });
+                }
 
                 // Check if the error is an AbortError (request was cancelled)
                 if (error instanceof Error && error.name === "AbortError") {
@@ -6741,6 +6630,10 @@ Ask me questions to get business insights, such as:
                     errorMessage =
                         "⏱️ Rate limit exceeded: Please wait a moment before trying again.";
                     toast.error("⏱️ Rate limited - waiting before retry...");
+                } else if (error instanceof Error) {
+                    // Show actual error message for better debugging
+                    errorMessage = `❌ Error: ${error.message}`;
+                    toast.error(`Chat error: ${error.message}`);
                 }
 
                 const errorMsg: ChatMessage = {
@@ -6811,61 +6704,19 @@ Ask me questions to get business insights, such as:
                     }
                     mainPanel={
                         viewMode === "editor" ? (
-                            <div className="w-full h-full flex flex-col">
-                                {/* Document Status Bar - Only show when document is open */}
-                                {currentDoc && (
-                                    <DocumentStatusBar
-                                        title={
-                                            currentDoc.title ||
-                                            "Untitled Statement of Work"
-                                        }
-                                        saveStatus="saved"
-                                        isSaving={false}
-                                        isGrandTotalVisible={
-                                            isGrandTotalVisible
-                                        }
-                                        onToggleGrandTotal={() =>
-                                            setIsGrandTotalVisible(
-                                                !isGrandTotalVisible,
-                                            )
-                                        }
-                                        onExportPDF={handleExportPDF}
-                                        onExportNewPDF={handleExportNewPDF}
-                                        onExportExcel={handleExportExcel}
-                                        onSharePortal={SHOW_CLIENT_PORTAL_UI ? handleSharePortal : undefined}
-                                    />
-                                )}
-
-                                {/* Main Content Area */}
-                                <div
-                                    className="flex-1 overflow-auto"
-                                    data-show-totals={isGrandTotalVisible}
-                                >
-                                    {currentDoc ? (
-                                        <div className="w-full h-full">
-                                            <TailwindAdvancedEditor
-                                                ref={editorRef}
-                                                initialContent={
-                                                    currentDoc.content
-                                                }
-                                                onUpdate={handleUpdateDoc}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center justify-center h-full">
-                                            <div className="text-center">
-                                                <p className="text-gray-400 text-lg mb-4">
-                                                    No document selected
-                                                </p>
-                                                <p className="text-gray-500 text-sm">
-                                                    Create a new workspace to
-                                                    get started
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <EditorPanel
+                                currentDoc={currentDoc}
+                                isGrandTotalVisible={isGrandTotalVisible}
+                                toggleGrandTotal={() => setIsGrandTotalVisible(!isGrandTotalVisible)}
+                                editorRef={editorRef}
+                                handleUpdateDoc={handleUpdateDoc}
+                                handleExportPDF={handleExportPDF}
+                                handleExportNewPDF={handleExportNewPDF}
+                                handleExportExcel={handleExportExcel}
+                                handleSharePortal={SHOW_CLIENT_PORTAL_UI ? handleSharePortal : undefined}
+                                onCreateWorkspace={handleCreateWorkspace}
+                                onOpenOnboarding={() => setShowGuidedSetup(true)}
+                            />
                         ) : viewMode === "dashboard" && SHOW_DASHBOARD_UI ? (
                             <DashboardMain
                                 onOpenInEditor={(sowId: string) => {
@@ -6892,16 +6743,10 @@ Ask me questions to get business insights, such as:
                                 }) : undefined}
                             />
                         ) : (
-                            <div className="flex items-center justify-center h-full">
-                                <div className="text-center">
-                                    <p className="text-gray-400 text-lg mb-4">
-                                        No document selected
-                                    </p>
-                                    <p className="text-gray-500 text-sm">
-                                        Create a new workspace to get started
-                                    </p>
-                                </div>
-                            </div>
+                            <HomeWelcome
+                                onCreateWorkspace={() => handleCreateWorkspace("New Workspace")}
+                                onOpenOnboarding={() => setShowGuidedSetup(true)}
+                            />
                         )
                     }
                     rightPanel={
@@ -6909,7 +6754,7 @@ Ask me questions to get business insights, such as:
                         // Dashboard mode: Query-only Analytics Assistant with workspace dropdown
                         // Editor mode: Full-featured SOW generation with The Architect
                         viewMode === "dashboard" && SHOW_DASHBOARD_UI ? (
-                            <DashboardChat
+                            <DashboardRight
                                 isOpen={agentSidebarOpen}
                                 onToggle={() =>
                                     setAgentSidebarOpen(!agentSidebarOpen)
