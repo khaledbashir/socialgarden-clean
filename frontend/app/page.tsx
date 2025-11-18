@@ -24,6 +24,8 @@ import { InteractiveOnboarding } from "@/components/tailwind/interactive-onboard
 import { GuidedClientSetup } from "@/components/tailwind/guided-client-setup";
 import { EnhancedDashboard } from "@/components/tailwind/enhanced-dashboard";
 import { StatefulDashboardChat } from "@/components/tailwind/stateful-dashboard-chat";
+import DashboardMain from "@/components/tailwind/DashboardMain";
+import DashboardRight from "@/components/tailwind/DashboardRight";
 import { KnowledgeBase } from "@/components/tailwind/knowledge-base";
 import { FloatingDocumentActions } from "@/components/tailwind/document-toolbar";
 import { SHOW_DASHBOARD_UI, SHOW_CLIENT_PORTAL_UI } from "@/config/featureFlags";
@@ -6831,41 +6833,6 @@ Ask me questions to get business insights, such as:
                                         onExportNewPDF={handleExportNewPDF}
                                         onExportExcel={handleExportExcel}
                                         onSharePortal={SHOW_CLIENT_PORTAL_UI ? handleSharePortal : undefined}
-                                                            toast.success(
-                                                                "✅ Portal link copied! SOW is now shareable.",
-                                                            );
-                                                        });
-                                                } else {
-                                                    // Fallback for older browsers
-                                                    const input =
-                                                        document.createElement(
-                                                            "input",
-                                                        );
-                                                    input.value = portalUrl;
-                                                    document.body.appendChild(
-                                                        input,
-                                                    );
-                                                    input.select();
-                                                    document.execCommand(
-                                                        "copy",
-                                                    );
-                                                    document.body.removeChild(
-                                                        input,
-                                                    );
-                                                    toast.success(
-                                                        "✅ Portal link copied! SOW is now shareable.",
-                                                    );
-                                                }
-                                            } catch (error) {
-                                                console.error(
-                                                    "Error sharing portal:",
-                                                    error,
-                                                );
-                                                toast.error(
-                                                    `❌ Error preparing portal: ${error.message}`,
-                                                );
-                                            }
-                                        }}
                                     />
                                 )}
 
@@ -6900,32 +6867,30 @@ Ask me questions to get business insights, such as:
                                 </div>
                             </div>
                         ) : viewMode === "dashboard" && SHOW_DASHBOARD_UI ? (
-                            <div className="h-full bg-[#0e0f0f]">
-                                <EnhancedDashboard
-                                    onOpenInEditor={(sowId: string) => {
-                                        if (!sowId) return;
-                                        try {
-                                            handleSelectDoc(sowId);
-                                        } catch (e) {
-                                            console.warn(
-                                                "⚠️ Failed to open SOW in editor:",
-                                                e,
-                                            );
-                                        }
-                                    }}
-                                    onOpenInPortal={ SHOW_CLIENT_PORTAL_UI ? ((sowId: string) => {
-                                        if (!sowId) return;
-                                        try {
-                                            router.push(`/portal/sow/${sowId}`);
-                                        } catch (e) {
-                                            console.warn(
-                                                "⚠️ Failed to open SOW portal:",
-                                                e,
-                                            );
-                                        }
-                                    }) : undefined }
-                                />
-                            </div>
+                            <DashboardMain
+                                onOpenInEditor={(sowId: string) => {
+                                    if (!sowId) return;
+                                    try {
+                                        handleSelectDoc(sowId);
+                                    } catch (e) {
+                                        console.warn(
+                                            "⚠️ Failed to open SOW in editor:",
+                                            e,
+                                        );
+                                    }
+                                }}
+                                onOpenInPortal={SHOW_CLIENT_PORTAL_UI ? ((sowId: string) => {
+                                    if (!sowId) return;
+                                    try {
+                                        router.push(`/portal/sow/${sowId}`);
+                                    } catch (e) {
+                                        console.warn(
+                                            "⚠️ Failed to open SOW portal:",
+                                            e,
+                                        );
+                                    }
+                                }) : undefined}
+                            />
                         ) : (
                             <div className="flex items-center justify-center h-full">
                                 <div className="text-center">
