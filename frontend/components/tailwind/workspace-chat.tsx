@@ -578,14 +578,30 @@ export default function WorkspaceChat({
                 );
 
                 // Add a system message to the chat
-                const uploadMessage: ChatMessage = {
+                const uploadMessage: {
+                    id: string;
+                    role: "user" | "assistant";
+                    content: string;
+                    timestamp: number;
+                } = {
                     id: Date.now().toString(),
                     role: "assistant",
                     content: `✅ Document "${doc.title || file.name}" has been uploaded and is now available in the knowledge base. You can ask questions about it!`,
                     timestamp: Date.now(),
                 };
 
-                onReplaceChatMessages([...chatMessages, uploadMessage]);
+                // Filter out system messages before passing to onReplaceChatMessages
+                const validMessages = chatMessages
+                    .filter(
+                        (msg) => msg.role === "user" || msg.role === "assistant",
+                    )
+                    .map((msg) => ({
+                        id: msg.id,
+                        role: msg.role as "user" | "assistant",
+                        content: msg.content,
+                        timestamp: msg.timestamp,
+                    }));
+                onReplaceChatMessages([...validMessages, uploadMessage]);
             } else {
                 throw new Error("Upload succeeded but no document was returned");
             }
