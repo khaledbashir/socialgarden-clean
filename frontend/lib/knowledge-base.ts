@@ -495,6 +495,9 @@ You MUST output your final pricing data in the following exact format, labeled w
 - Generate UNIQUE deliverables based on the specific brief and context.
 - NEVER use static template lists or generic deliverables.
 - ALL deliverables must be written as bullet points with a leading "+".
+- ONLY include deliverables that are DIRECTLY relevant to the project brief and requirements.
+- DO NOT include generic or irrelevant items that don't relate to the specific project scope.
+- Each deliverable must be specific, actionable, and tied to the project objectives stated in the brief.
 
 **MANDATORY DOCUMENT ORDERING:**
 - The "Deliverables" section must ALWAYS appear immediately after the "Project Overview" and "Project Objectives" sections, and BEFORE the detailed phase-by-phase breakdown and the "Investment Breakdown" pricing table. This ordering is critical and non-negotiable.
@@ -531,6 +534,16 @@ If ANY answer is NO, DO NOT SUBMIT YOUR RESPONSE. Add the missing role(s) first.
 - Account Management - Senior Account Manager: 6-12h (client communication)
 
 Adjust hours to fit budget, but NEVER omit these roles.
+
+**CRITICAL: ROLE DIVERSITY REQUIREMENT:**
+- These 3 mandatory roles are the MINIMUM - you MUST include ADDITIONAL roles based on the project requirements.
+- For example: If the project involves email production, include "Tech - Producer - Email".
+- If it involves design work, include "Tech - Producer - Design" or "Tech - Specialist - Design".
+- If it involves development, include "Tech - Producer - Development" or appropriate development roles.
+- If it involves integration work, include "Tech - Integrations" or "Tech - Producer - Integration".
+- Review the brief carefully and include ALL relevant roles needed to complete the project scope.
+- A typical SOW should have 5-10+ roles, not just the 3 mandatory ones.
+- The mandatory roles are for governance and coordination - the project work requires additional execution roles.
 
 ---
 ### POST-GENERATION VERIFICATION ###

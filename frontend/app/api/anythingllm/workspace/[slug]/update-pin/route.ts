@@ -12,7 +12,7 @@ function getEnv() {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
     const { baseUrl, apiKey } = getEnv();
@@ -23,7 +23,7 @@ export async function POST(
       );
     }
 
-    const { slug } = params;
+    const { slug } = await params;
     if (!slug) {
       return NextResponse.json(
         { error: 'Workspace slug is required' },

@@ -530,12 +530,32 @@ export default function Page() {
 
             // Proactively load editor content for the new document
             const nextDoc = documents.find((d) => d.id === id);
-            if (nextDoc && editorRef.current) {
+            if (!nextDoc) {
+                console.error("❌ Document not found:", id);
+                toast.error("Document not found. Please refresh the page.");
+                return;
+            }
+            
+            if (editorRef.current) {
                 console.log("📄 Loading content for SOW", id, "...");
-                editorRef.current.commands?.setContent
-                    ? editorRef.current.commands.setContent(nextDoc.content)
-                    : editorRef.current.insertContent(nextDoc.content);
-                console.log("✅ LOAD SUCCESS for", id);
+                try {
+                    // Wait a brief moment to ensure editor is ready
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    if (editorRef.current.commands?.setContent) {
+                        editorRef.current.commands.setContent(nextDoc.content);
+                    } else if (editorRef.current.insertContent) {
+                        editorRef.current.insertContent(nextDoc.content);
+                    } else {
+                        console.warn("⚠️ Editor methods not available, content may not load");
+                    }
+                    console.log("✅ LOAD SUCCESS for", id);
+                } catch (error) {
+                    console.error("❌ Error loading document content:", error);
+                    toast.error("Failed to load document content. Please try again.");
+                }
+            } else {
+                console.warn("⚠️ Editor ref not available yet, content will load when editor initializes");
             }
 
             // Ensure we are in editor view
@@ -547,7 +567,14 @@ export default function Page() {
 
     const handleNewDoc = async (folderId?: string) => {
         const newId = `doc${Date.now()}`;
-        const title = "Untitled SOW";
+        
+        // Generate a unique title to avoid too many "Untitled SOW" entries
+        const untitledCount = documents.filter(d => 
+            d.title.startsWith("Untitled SOW") || d.title === "Untitled SOW"
+        ).length;
+        const title = untitledCount > 0 
+            ? `Untitled SOW ${untitledCount + 1}` 
+            : "Untitled SOW";
 
         // 🎯 DEFAULT TO UNFILED: If no folder specified, use Unfiled folder
         const targetFolderId = folderId || UNFILED_FOLDER_ID;
@@ -1869,13 +1896,26 @@ export default function Page() {
                 });
 
                 if (!response.ok) {
-                    const errorText = await response.text();
+                    let errorText = "";
+                    try {
+                        errorText = await response.text();
+                        // Try to parse as JSON for better error messages
+                        try {
+                            const errorJson = JSON.parse(errorText);
+                            errorText = errorJson.error || errorJson.details || errorText;
+                        } catch {
+                            // Not JSON, use as-is
+                        }
+                    } catch (e) {
+                        errorText = `HTTP ${response.status}: ${response.statusText}`;
+                    }
                     console.error(
                         "❌ Professional PDF service error:",
                         errorText,
                     );
                     toast.error(
-                        `❌ Professional PDF service error: ${response.status}`,
+                        `❌ PDF export failed: ${errorText || `Error ${response.status}`}. Please check the console for details.`,
+                        { duration: 8000 }
                     );
                     return;
                 }
@@ -1917,9 +1957,13 @@ export default function Page() {
                 setShowNewPDFModal(true);
                 toast.success("✅ PDF ready! Click to download.");
             }
-        } catch (error) {
-            console.error("Error preparing new PDF:", error);
-            toast.error(`❌ Error preparing PDF: ${error.message}`);
+        } catch (error: any) {
+            console.error("❌ Error preparing new PDF:", error);
+            const errorMessage = error?.message || error?.toString() || "Unknown error occurred";
+            toast.error(
+                `❌ PDF export failed: ${errorMessage}. Please try again or contact support if the issue persists.`,
+                { duration: 8000 }
+            );
         }
     };
 

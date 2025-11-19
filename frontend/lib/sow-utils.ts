@@ -170,18 +170,26 @@ export function transformScopesToPDFFormat(
   showPricingSummary?: boolean,
 ): PDFExportData {
   const scopes = multiScopeData.scopes.map((scope, index) => {
-    const items = scope.role_allocation.map((role) => ({
-      description: role.description,
-      role: role.role,
-      hours: role.hours,
-      rate: role.rate,
-      cost: role.cost,
-    }));
+    const items = scope.role_allocation.map((role) => {
+      // 🎯 CRITICAL FIX: Validate and prevent negative values
+      const hours = Math.max(0, Number(role.hours) || 0);
+      const rate = Math.max(0, Number(role.rate) || 0);
+      const calculatedCost = hours * rate;
+      const cost = Math.max(0, Number(role.cost) || calculatedCost);
+      
+      return {
+        description: role.description || "",
+        role: role.role || "",
+        hours,
+        rate,
+        cost,
+      };
+    });
 
-    const total = scope.role_allocation.reduce(
-      (sum, role) => sum + role.cost,
+    const total = Math.max(0, items.reduce(
+      (sum, item) => sum + (Number(item.cost) || 0),
       0
-    );
+    ));
 
     return {
       id: `scope-${index + 1}`,
