@@ -128,7 +128,7 @@ export default function SidebarNav({
   onToggleSidebar,
 }: SidebarNavProps) {
   // Map new props to old props for backward compatibility
-  const actualFolders = folders || workspaces;
+  const actualFolders = folders || workspaces || [];
   const actualCurrentFolderId = currentFolderId || currentWorkspaceId;
   const actualCurrentDocumentId = currentDocumentId || currentSOWId;
   const actualOnSelectFolder = onSelectFolder || onSelectWorkspace;
@@ -179,7 +179,7 @@ export default function SidebarNav({
   };
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(folders.map(f => f.id))
+    new Set(actualFolders.map(f => f.id))
   );
   const [allDocsExpanded, setAllDocsExpanded] = useState(false);
   const [foldersExpanded, setFoldersExpanded] = useState(true);
@@ -190,7 +190,7 @@ export default function SidebarNav({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [localFolders, setLocalFolders] = useState(folders);
+  const [localFolders, setLocalFolders] = useState(actualFolders);
   const [localDocuments, setLocalDocuments] = useState(documents);
 
   // 🗑️ Multi-select deletion states
@@ -203,7 +203,7 @@ export default function SidebarNav({
 
   // Get deletable folders (not protected) - calculate inside useMemo to avoid initialization issues
   const { deletableFolders, areAllSelected } = (() => {
-    const deletable = folders.filter(f => !isProtectedFolder(f));
+    const deletable = actualFolders.filter(f => !isProtectedFolder(f));
     const allSelected = deletable.length > 0 && deletable.every(f => selectedFolders.has(f.id));
     return { deletableFolders: deletable, areAllSelected: allSelected };
   })();
@@ -262,9 +262,9 @@ export default function SidebarNav({
 
   // Update local folders and documents when prop changes
   useEffect(() => {
-    setLocalFolders(folders);
+    setLocalFolders(actualFolders);
     setLocalDocuments(documents);
-  }, [folders, documents]);
+  }, [folders, workspaces, documents]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
