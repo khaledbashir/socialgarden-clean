@@ -40,12 +40,13 @@ export async function POST(request: NextRequest) {
             }
 
             // Check if folder has SOWs
-            const [sows] = await query(
+            const sows = await query<{ count: number }>(
                 "SELECT COUNT(*) as count FROM sows WHERE folder_id = ?",
                 [folder.id],
             );
 
-            if (sows[0].count > 0) {
+            const sowCount = sows[0]?.count || 0;
+            if (sowCount > 0) {
                 console.log(
                     `⚠️  Skipping folder "${folder.name}" - has ${sowCount} SOW(s)`,
                 );
@@ -102,13 +103,13 @@ export async function GET(request: NextRequest) {
             }
 
             // Check if folder has SOWs
-            const [sows] = await query(
+            const sows = await query<{ count: number }>(
                 "SELECT COUNT(*) as count FROM sows WHERE folder_id = ?",
                 [folder.id],
             );
 
-            if (sows[0].count > 0) {
-                const sowCount = sows[0]?.count || 0;
+            const sowCount = sows[0]?.count || 0;
+            if (sowCount > 0) {
                 cannotDelete.push({
                     ...folder,
                     reason: `Has ${sowCount} SOW(s)`,
