@@ -620,8 +620,9 @@ If ANY value is negative or invalid, you MUST recalculate with discount_amount =
 
     /**
      * Get full workspace details including documents & threads
+     * This is the "mirror" endpoint - retrieves complete workspace state from AnythingLLM
      */
-    private async getWorkspaceDetails(
+    async getWorkspaceDetails(
         workspaceSlug: string,
     ): Promise<any | null> {
         try {
@@ -1954,6 +1955,76 @@ When asked for analytics, provide clear, actionable insights with specific numbe
         } catch (e) {
             console.error("❌ Error syncing updated SOW in workspaces:", e);
             return false;
+        }
+    }
+
+    /**
+     * Mirror/Sync: Get complete workspace state from AnythingLLM
+     * Returns workspace details including name, slug, settings, and threads
+     * Use this to ensure your database matches AnythingLLM state
+     */
+    async mirrorWorkspace(workspaceSlug: string): Promise<{
+        id: string;
+        name: string;
+        slug: string;
+        threads: Array<{ slug: string; name: string; id: string }>;
+        settings: {
+            openAiTemp?: number;
+            openAiHistory?: number;
+            openAiPrompt?: string;
+        };
+    } | null> {
+        try {
+            const workspace = await this.getWorkspaceDetails(workspaceSlug);
+            if (!workspace) {
+                return null;
+            }
+
+            // Get threads for this workspace
+            const threads = await this.listThreads(workspaceSlug);
+
+            return {
+                id: workspace.id,
+                name: workspace.name,
+                slug: workspace.slug,
+                threads: threads.map((t: any) => ({
+                    slug: t.slug,
+                    name: t.name || t.title || `Thread ${t.slug.slice(0, 8)}`,
+                    id: t.id,
+                })),
+                settings: {
+                    openAiTemp: workspace.openAiTemp,
+                    openAiHistory: workspace.openAiHistory,
+                    openAiPrompt: workspace.openAiPrompt,
+                },
+            };
+        } catch (error) {
+            console.error(`❌ Error mirroring workspace ${workspaceSlug}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Mirror/Sync: Get thread chat history
+     * Returns complete conversation history for a thread
+     */
+    async mirrorThread(
+        workspaceSlug: string,
+        threadSlug: string,
+    ): Promise<Array<{ role: string; content: string; timestamp?: number }> | null> {
+        try {
+            const chats = await this.getThreadChats(workspaceSlug, threadSlug);
+            return chats.map((chat: any) => ({
+                role: chat.role || "user",
+                content: chat.content || chat.message || "",
+                timestamp: chat.timestamp || Date.now(),
+            }));
+        } catch (error) {
+            console.error(
+                `❌ Error mirroring thread ${workspaceSlug}/${threadSlug}:`,
+                error,
+            );
+            return null;
         }
     }
 }
