@@ -1275,7 +1275,8 @@ export default function WorkspaceChat({
                         
                         {/* 🎯 Collapsible Content */}
                         {!isUploadAreaCollapsed && (
-                            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                            <div className="space-y-2">
+                                <div className="space-y-1.5 max-h-48 overflow-y-auto">
                             {pendingFiles.map((fileProgress) => (
                                 <div
                                     key={fileProgress.id}
