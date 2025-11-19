@@ -927,7 +927,8 @@ export default function WorkspaceChat({
 
     // Return JSX
     return (
-        <div className="h-full w-full min-w-0 bg-[#0e0f0f] border-l border-[#0E2E33] overflow-hidden flex flex-col">
+        <React.Fragment>
+            <div className="h-full w-full min-w-0 bg-[#0e0f0f] border-l border-[#0E2E33] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="p-4 border-b border-[#0E2E33] bg-[#0e0f0f] flex-shrink-0">
                 <div className="flex items-center justify-between gap-3">
@@ -1569,5 +1570,6 @@ export default function WorkspaceChat({
                 </div>
             </div>
         </div>
+        </React.Fragment>
     );
 }
