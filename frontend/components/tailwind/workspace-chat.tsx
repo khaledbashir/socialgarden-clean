@@ -93,7 +93,7 @@ export default function WorkspaceChat({
     onClearChat,
     onReplaceChatMessages,
     lastUserPrompt = "",
-}: WorkspaceChatProps): JSX.Element {
+}: WorkspaceChatProps) {
     const [chatInput, setChatInput] = useState("");
     const [workspacePrompt, setWorkspacePrompt] = useState<string>("");
     const [loadingPrompt, setLoadingPrompt] = useState(false);
@@ -925,6 +925,7 @@ export default function WorkspaceChat({
         return date.toLocaleDateString();
     };
 
+    // Return JSX
     return (
         <div className="h-full w-full min-w-0 bg-[#0e0f0f] border-l border-[#0E2E33] overflow-hidden flex flex-col">
             {/* Header */}
