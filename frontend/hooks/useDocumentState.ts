@@ -138,6 +138,8 @@ export function useDocumentState({
                             workspaceSlug: folder.workspace_slug,
                             threadSlug: sow.thread_slug || undefined,
                             syncedAt: sow.updated_at,
+                            vertical: sow.vertical || null,
+                            service_line: sow.service_line || null,
                         });
                     }
                 }
@@ -257,7 +259,7 @@ export function useDocumentState({
                             ? 0
                             : totalInvestment,
                         vertical: currentDoc?.vertical || null,
-                        serviceLine: currentDoc?.serviceLine || null,
+                        service_line: currentDoc?.service_line || null,
                     }),
                 });
 

@@ -468,7 +468,7 @@ export default function Page() {
                         ? 0
                         : totalInvestment,
                     vertical: docMeta?.vertical || null,
-                    serviceLine: docMeta?.serviceLine || null,
+                    service_line: docMeta?.service_line || null,
                 }),
             });
 

@@ -6,6 +6,7 @@ import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import { toast } from "sonner";
+import type { Workspace, SOW } from "@/lib/types/sow";
 import {
   ChevronDown,
   ChevronRight,
@@ -56,28 +57,63 @@ interface Document {
 }
 
 interface SidebarNavProps {
-  folders: Folder[];
+  // New workspace-based props (primary)
+  workspaces: Workspace[];
   documents: Document[];
-  currentFolderId: string | null;
-  currentDocumentId: string | null;
-
-  onSelectFolder: (id: string | null) => void; // null for "All Docs"
-  onSelectDocument: (id: string) => void;
-  onCreateFolder: (name: string) => void;
-  onCreateDocument: (folderId: string | null, name: string) => void; // null for "All Docs"
-  onRenameFolder: (id: string, name: string) => void;
-  onRenameWorkspace?: (id: string, name: string) => void;
-  onDeleteFolder: (id: string) => void;
-  onRenameDocument: (id: string, title: string) => void;
-  onRenameSOW?: (id: string, title: string) => void;
-  onDeleteDocument: (id: string) => void;
-  onMoveDocument: (documentId: string, fromFolderId: string | null, toFolderId: string | null) => void;
+  currentWorkspaceId: string;
+  currentSOWId: string | null;
+  
+  onSelectWorkspace: (id: string) => void;
+  onSelectSOW: (id: string) => void;
+  onRenameSOW: (id: string, title: string) => void;
+  onDeleteSOW: (id: string) => void;
+  onRenameWorkspace: (id: string, name: string) => void;
+  onReorderWorkspaces: (workspaces: Workspace[]) => void;
+  onMoveSOW: (sowId: string, fromWorkspaceId: string, toWorkspaceId: string) => void;
+  onReorderSOWs: (workspaceId: string, sows: SOW[]) => void;
+  onViewChange: (view: "dashboard" | "editor") => void;
+  currentView: "dashboard" | "editor";
+  onCreateWorkspace: (name?: string, type?: "sow" | "client" | "generic") => void;
+  onDeleteWorkspace: (id: string) => void;
+  onCreateSOW: (workspaceId: string, sowName: string) => Promise<void>;
+  
+  // Legacy props for backward compatibility
+  folders?: Folder[];
+  currentFolderId?: string | null;
+  currentDocumentId?: string | null;
+  onSelectFolder?: (id: string | null) => void;
+  onSelectDocument?: (id: string) => void;
+  onCreateFolder?: (name: string) => void;
+  onCreateDocument?: (folderId: string | null, name: string) => void;
+  onRenameFolder?: (id: string, name: string) => void;
+  onDeleteFolder?: (id: string) => void;
+  onRenameDocument?: (id: string, title: string) => void;
+  onDeleteDocument?: (id: string) => void;
+  onMoveDocument?: (documentId: string, fromFolderId: string | null, toFolderId: string | null) => void;
   onToggleSidebar?: () => void;
 }
 
 export default function SidebarNav({
-  folders,
+  // New workspace-based props
+  workspaces,
   documents,
+  currentWorkspaceId,
+  currentSOWId,
+  onSelectWorkspace,
+  onSelectSOW,
+  onRenameSOW,
+  onDeleteSOW,
+  onRenameWorkspace,
+  onReorderWorkspaces,
+  onMoveSOW,
+  onReorderSOWs,
+  onViewChange,
+  currentView,
+  onCreateWorkspace,
+  onDeleteWorkspace,
+  onCreateSOW,
+  // Legacy props
+  folders,
   currentFolderId,
   currentDocumentId,
   onSelectFolder,
@@ -85,14 +121,20 @@ export default function SidebarNav({
   onCreateFolder,
   onCreateDocument,
   onRenameFolder,
-  onRenameWorkspace,
   onDeleteFolder,
   onRenameDocument,
-  onRenameSOW,
   onDeleteDocument,
   onMoveDocument,
   onToggleSidebar,
 }: SidebarNavProps) {
+  // Map new props to old props for backward compatibility
+  const actualFolders = folders || workspaces;
+  const actualCurrentFolderId = currentFolderId || currentWorkspaceId;
+  const actualCurrentDocumentId = currentDocumentId || currentSOWId;
+  const actualOnSelectFolder = onSelectFolder || onSelectWorkspace;
+  const actualOnSelectDocument = onSelectDocument || onSelectSOW;
+  const actualOnRenameDocument = onRenameDocument || onRenameSOW;
+  const actualOnDeleteDocument = onDeleteDocument || onDeleteSOW;
   // Helper functions to categorize folders (must be before usage)
   const isAgentFolder = (folder: any) => {
     const agentSlugs = [

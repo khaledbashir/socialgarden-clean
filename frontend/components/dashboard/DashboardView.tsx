@@ -595,12 +595,12 @@ const DashboardView = ({
                                                         {document.vertical}
                                                     </Badge>
                                                 )}
-                                                {document.serviceLine && (
+                                                {document.service_line && (
                                                     <Badge
                                                         variant="outline"
                                                         className="text-xs"
                                                     >
-                                                        {document.serviceLine}
+                                                        {document.service_line}
                                                     </Badge>
                                                 )}
                                                 {document.lastModified && (

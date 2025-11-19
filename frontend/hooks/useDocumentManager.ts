@@ -176,8 +176,8 @@ export function useDocumentManager(props: UseDocumentManagerProps = {}) {
                               totalInvestment: priceTotals.grandTotal,
                               pricingData: null,
                               clientName: clientName,
-                              vertical: "",
-                              serviceLine: "",
+                              vertical: doc.vertical || null,
+                              service_line: doc.service_line || null,
                           }
                         : doc,
                 ),
