@@ -37,8 +37,8 @@ export interface Document {
   lastModified?: string;
   totalInvestment?: number;
   pricingData?: MultiScopeData | null;
-  vertical?: string;
-  serviceLine?: string;
+  vertical?: 'property' | 'education' | 'finance' | 'healthcare' | 'retail' | 'hospitality' | 'professional-services' | 'technology' | 'other' | null;
+  service_line?: 'crm-implementation' | 'marketing-automation' | 'revops-strategy' | 'managed-services' | 'consulting' | 'training' | 'other' | null;
   clientName?: string;
   clientEmail?: string;
   budgetNotes?: string;
