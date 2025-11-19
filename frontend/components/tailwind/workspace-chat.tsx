@@ -93,7 +93,7 @@ export default function WorkspaceChat({
     onClearChat,
     onReplaceChatMessages,
     lastUserPrompt = "",
-}: WorkspaceChatProps) {
+}: WorkspaceChatProps): JSX.Element {
     const [chatInput, setChatInput] = useState("");
     const [workspacePrompt, setWorkspacePrompt] = useState<string>("");
     const [loadingPrompt, setLoadingPrompt] = useState(false);
