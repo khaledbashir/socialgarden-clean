@@ -29,7 +29,7 @@ export interface Document {
   id: string;
   title: string;
   content: any;
-  folderId?: string;
+  folderId: string | null; // Required field - null means unfiled
   workspaceSlug?: string;
   threadSlug?: string;
   threadId?: string;
