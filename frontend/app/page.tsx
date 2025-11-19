@@ -19,6 +19,7 @@ import DashboardMain from "@/components/tailwind/DashboardMain";
 import DashboardRight from "@/components/tailwind/DashboardRight";
 import HomeWelcome from "@/components/tailwind/home-welcome";
 import WorkspaceChat from "@/components/tailwind/workspace-chat";
+import CreateWorkspaceDialog from "@/components/tailwind/create-workspace-dialog";
 import { SendToClientModal, ShareLinkModal } from "@/components/tailwind/page-modals";
 import { validateAIResponse } from "@/lib/input-validation";
 import { extractBudgetAndDiscount } from "@/lib/page-utils";
@@ -80,8 +81,7 @@ export default function Page() {
     const {
         documents,
         setDocuments,
-        folders,
-        setFolders,
+        // Removed folders - using workspaces only (folders and workspaces are the same)
         currentDoc,
         currentDocId,
         setCurrentDocId,
@@ -274,6 +274,10 @@ export default function Page() {
         }
         return null;
     };
+
+    // Create workspace dialog state
+    const [createWorkspaceDialogOpen, setCreateWorkspaceDialogOpen] = useState(false);
+    const [createWorkspaceType, setCreateWorkspaceType] = useState<"sow" | "client" | "generic">("sow");
 
     // Workspace creation progress state (NEW)
     const [workspaceCreationProgress, setWorkspaceCreationProgress] = useState<{
@@ -549,8 +553,8 @@ export default function Page() {
         const targetFolderId = folderId || UNFILED_FOLDER_ID;
 
         // Find workspace slug from the folder this SOW belongs to
-        const parentFolder = folders.find((f) => f.id === targetFolderId);
-        const workspaceSlug = parentFolder?.workspaceSlug;
+        const parentWorkspace = workspaces.find((w) => w.id === targetFolderId);
+        const workspaceSlug = parentWorkspace?.workspace_slug || parentWorkspace?.workspaceSlug;
 
         // 🎯 Check if this is the Unfiled folder (no workspace needed)
         const isUnfiledFolder = targetFolderId === UNFILED_FOLDER_ID;
@@ -582,7 +586,7 @@ export default function Page() {
                     // 📊 Embed SOW in master 'gen' workspace and master dashboard
                     console.log(`📊 Embedding new SOW in master workspaces`);
                     const sowContent = JSON.stringify(defaultEditorContent);
-                    const clientContext = parentFolder?.name || "unknown";
+                    const clientContext = parentWorkspace?.name || "unknown";
                     await anythingLLM.embedSOWInBothWorkspaces(
                         title,
                         sowContent,
@@ -590,7 +594,7 @@ export default function Page() {
                     );
 
                     toast.success(
-                        `✅ SOW created in ${parentFolder?.name || "workspace"}`,
+                        `✅ SOW created in ${parentWorkspace?.name || "workspace"}`,
                     );
                 } else {
                     console.warn(
@@ -776,21 +780,25 @@ export default function Page() {
             const savedFolder = await response.json();
             console.log("✅ Folder saved to database:", savedFolder);
 
-            const newFolder: Folder = {
+            // Create workspace (folders and workspaces are the same)
+            const newWorkspace: Workspace = {
                 id: savedFolder.id,
                 name: name,
+                sows: [],
+                workspace_slug: workspace.slug,
+                slug: workspace.slug,
                 workspaceSlug: workspace.slug,
                 workspaceId: workspace.id,
                 embedId,
                 syncedAt: new Date().toISOString(),
             };
 
-            setFolders((prev) => [...prev, newFolder]);
+            setWorkspaces((prev) => [...prev, newWorkspace]);
             toast.success(`✅ Workspace "${name}" created!`);
 
-            // 🎯 AUTO-CREATE FIRST SOW IN NEW FOLDER
+            // 🎯 AUTO-CREATE FIRST SOW IN NEW WORKSPACE
             // This creates an empty SOW and opens it immediately
-            await handleNewDoc(newFolder.id);
+            await handleNewDoc(newWorkspace.id);
         } catch (error) {
             console.error("Error creating folder:", error);
             toast.error(`❌ Failed to create folder: ${error.message}`);
@@ -798,10 +806,10 @@ export default function Page() {
     };
 
     const handleRenameFolder = async (id: string, name: string) => {
-        const folder = folders.find((f) => f.id === id);
+        const workspace = workspaces.find((w) => w.id === id);
 
         try {
-            // 💾 Update folder in DATABASE
+            // 💾 Update workspace in DATABASE (folders table)
             const response = await fetch(`/api/folders/${id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
@@ -809,19 +817,20 @@ export default function Page() {
             });
 
             if (!response.ok) {
-                throw new Error("Failed to update folder in database");
+                throw new Error("Failed to update workspace in database");
             }
 
             // 🏢 Update AnythingLLM workspace name if it exists
-            if (folder?.workspaceSlug) {
-                await anythingLLM.updateWorkspace(folder.workspaceSlug, name);
+            const workspaceSlug = workspace?.workspace_slug || workspace?.workspaceSlug;
+            if (workspaceSlug) {
+                await anythingLLM.updateWorkspace(workspaceSlug, name);
             }
 
-            setFolders((prev) =>
-                prev.map((f) =>
-                    f.id === id
-                        ? { ...f, name, syncedAt: new Date().toISOString() }
-                        : f,
+            setWorkspaces((prev) =>
+                prev.map((w) =>
+                    w.id === id
+                        ? { ...w, name, syncedAt: new Date().toISOString() }
+                        : w,
                 ),
             );
             toast.success(`✅ Folder renamed to "${name}"`);
@@ -832,36 +841,37 @@ export default function Page() {
     };
 
     const handleDeleteFolder = async (id: string) => {
-        const folder = folders.find((f) => f.id === id);
+        const workspace = workspaces.find((w) => w.id === id);
 
-        // Also delete subfolders and docs in folder
+        // Also delete sub-workspaces and docs in workspace
         const toDelete = [id];
-        const deleteRecursive = (folderId: string) => {
-            folders
-                .filter((f) => f.parentId === folderId)
-                .forEach((f) => {
-                    toDelete.push(f.id);
-                    deleteRecursive(f.id);
+        const deleteRecursive = (workspaceId: string) => {
+            workspaces
+                .filter((w) => w.parentId === workspaceId)
+                .forEach((w) => {
+                    toDelete.push(w.id);
+                    deleteRecursive(w.id);
                 });
         };
         deleteRecursive(id);
 
         try {
-            // 💾 Delete folder from DATABASE
+            // 💾 Delete workspace from DATABASE (folders table)
             const response = await fetch(`/api/folders/${id}`, {
                 method: "DELETE",
             });
 
             if (!response.ok) {
-                throw new Error("Failed to delete folder from database");
+                throw new Error("Failed to delete workspace from database");
             }
 
             // 🏢 Delete AnythingLLM workspace (cascades to all threads)
-            if (folder?.workspaceSlug) {
-                await anythingLLM.deleteWorkspace(folder.workspaceSlug);
+            const workspaceSlug = workspace?.workspace_slug || workspace?.workspaceSlug;
+            if (workspaceSlug) {
+                await anythingLLM.deleteWorkspace(workspaceSlug);
             }
 
-            setFolders((prev) => prev.filter((f) => !toDelete.includes(f.id)));
+            setWorkspaces((prev) => prev.filter((w) => !toDelete.includes(w.id)));
             setDocuments((prev) =>
                 prev.filter(
                     (d) => !d.folderId || !toDelete.includes(d.folderId),
@@ -945,25 +955,20 @@ export default function Page() {
                 currentStep: 2,
             }));
 
-            // Create folder in local state
-            const newFolder: Folder = {
-                id: folderId,
-                name: workspaceName,
-                workspaceSlug: workspace.slug, // Always 'gen'
-                workspaceId: workspace.id,
-                embedId: embedId,
-                syncedAt: new Date().toISOString(),
-            };
-
-            setFolders((prev) => [...prev, newFolder]);
-
-            // Create workspace in local state
+            // Create workspace in local state (folders and workspaces are the same)
             const newWorkspace: Workspace = {
                 id: folderId,
                 name: workspaceName,
                 sows: [],
                 workspace_slug: workspace.slug,
+                slug: workspace.slug,
+                workspaceSlug: workspace.slug,
+                workspaceId: workspace.id,
+                embedId: embedId,
+                syncedAt: new Date().toISOString(),
             };
+
+            setWorkspaces((prev) => [...prev, newWorkspace]);
 
             // IMMEDIATELY CREATE A BLANK SOW
             const sowTitle = `New SOW for ${workspaceName}`;
@@ -1147,14 +1152,16 @@ export default function Page() {
                     const { sows: dbSOWs } = await sowsRes.json();
 
                     const workspacesWithSOWs: Workspace[] = [];
-                    const foldersFromDB: Folder[] = [];
                     const documentsFromDB: Document[] = [];
 
+                    // Convert folders from database to workspaces (they're the same thing)
                     for (const folder of foldersData) {
                         const folderSOWs = dbSOWs.filter(
                             (sow: any) => sow.folder_id === folder.id,
                         );
-                        workspacesWithSOWs.push({
+                        
+                        // Create workspace with all metadata
+                        const workspace: Workspace = {
                             id: folder.id,
                             name: folder.name,
                             sows: folderSOWs.map((sow: any) => ({
@@ -1165,16 +1172,14 @@ export default function Page() {
                                 service_line: sow.service_line || null,
                             })),
                             workspace_slug: folder.workspace_slug,
-                        });
-
-                        foldersFromDB.push({
-                            id: folder.id,
-                            name: folder.name,
-                            workspaceSlug: folder.workspace_slug,
+                            slug: folder.workspace_slug,
+                            workspaceSlug: folder.workspace_slug, // For compatibility
                             workspaceId: folder.workspace_id,
                             embedId: folder.embed_id,
                             syncedAt: folder.updated_at || folder.created_at,
-                        });
+                        };
+                        
+                        workspacesWithSOWs.push(workspace);
 
                         for (const sow of folderSOWs) {
                             let parsedContent = defaultEditorContent;
@@ -1201,7 +1206,7 @@ export default function Page() {
                     }
 
                     setWorkspaces(workspacesWithSOWs);
-                    setFolders(foldersFromDB);
+                    // Folders and workspaces are the same - use workspaces only
                     setDocuments(documentsFromDB);
                 }
             } catch (e) {
@@ -1789,6 +1794,24 @@ export default function Page() {
                 currentDoc.content;
             console.log("📝 [PDF Export] Editor JSON:", editorJSON);
 
+            // 🎯 Extract showTotal flag from pricing table node (if exists) - same as standard PDF export
+            let showPricingSummary = true; // Default to true
+            if (currentDoc.content?.content) {
+                const pricingTableNode = currentDoc.content.content.find(
+                    (node: any) => node.type === "editablePricingTable",
+                );
+                if (pricingTableNode && pricingTableNode.attrs) {
+                    showPricingSummary =
+                        pricingTableNode.attrs.showTotal !== undefined
+                            ? pricingTableNode.attrs.showTotal
+                            : true;
+                    console.log(
+                        "🎯 [Professional PDF] Show Pricing Summary:",
+                        showPricingSummary,
+                    );
+                }
+            }
+
             // 🎯 Check for multi-scope data in state
             if (
                 multiScopePricingData &&
@@ -1819,6 +1842,7 @@ export default function Page() {
                         modifiedMultiScopeData,
                         currentDoc, // Pass current document for clientName extraction
                         userPromptDiscount, // Pass the user prompt discount
+                        showPricingSummary, // 🎯 Pass showTotal flag for professional PDF
                     );
                 } else {
                     // Transform V4.1 multi-scope data to backend format
@@ -1826,6 +1850,7 @@ export default function Page() {
                         multiScopePricingData,
                         currentDoc, // Pass current document for clientName extraction
                         userPromptDiscount, // Pass the user prompt discount
+                        showPricingSummary, // 🎯 Pass showTotal flag for professional PDF
                     );
                 }
 
@@ -1993,8 +2018,9 @@ export default function Page() {
         }
         toast.info("📤 Preparing portal link...");
         try {
-            const currentFolder = folders.find((f) => f.id === currentDoc.folderId);
-            if (!currentFolder || !currentFolder.workspaceSlug) {
+            const currentWorkspace = workspaces.find((w) => w.id === currentDoc.folderId);
+            const workspaceSlug = currentWorkspace?.workspace_slug || currentWorkspace?.workspaceSlug;
+            if (!currentWorkspace || !workspaceSlug) {
                 toast.error("❌ No workspace found for this SOW");
                 return;
             }
@@ -2005,7 +2031,7 @@ export default function Page() {
                 return;
             }
 
-            const clientContext = currentFolder?.name || "unknown";
+            const clientContext = currentWorkspace?.name || "unknown";
             await anythingLLM.embedSOWInBothWorkspaces(currentDoc.title, htmlContent, clientContext);
 
             const portalUrl = `${window.location.origin}/portal/sow/${currentDoc.id}`;
@@ -2092,7 +2118,14 @@ export default function Page() {
                         onReorderSOWs={handleReorderSOWs}
                         onViewChange={handleViewChange}
                         currentView={viewMode}
-                        onCreateWorkspace={handleCreateWorkspace}
+                        onCreateWorkspace={(name?: string, type?: "sow" | "client" | "generic") => {
+                            if (name) {
+                                handleCreateWorkspace(name, type || "sow");
+                            } else {
+                                setCreateWorkspaceType(type || "sow");
+                                setCreateWorkspaceDialogOpen(true);
+                            }
+                        }}
                         onDeleteWorkspace={handleDeleteWorkspace}
                         onCreateSOW={handleCreateSOW}
                     />
@@ -2104,13 +2137,24 @@ export default function Page() {
                         <DashboardMain
                             workspaces={workspaces}
                             sows={documents}
-                            folders={folders}
+                            folders={workspaces.map(w => ({
+                                id: w.id,
+                                name: w.name,
+                                workspaceSlug: w.workspaceSlug || w.workspace_slug || w.slug || '',
+                                workspaceId: w.workspaceId,
+                                embedId: w.embedId,
+                                parentId: w.parentId,
+                                syncedAt: w.syncedAt,
+                                sowIds: w.sows?.map(s => s.id) || [],
+                            }))}
                             onSelectSOW={handleSelectDoc}
                             onCreateSOW={handleCreateSOW}
                             onDeleteSOW={handleDeleteDoc}
                             onRenameSOW={handleRenameSOW}
                             onMoveSOW={handleMoveSOW}
-                            onCreateWorkspace={handleCreateWorkspace}
+                            onCreateWorkspace={async (name: string, type?: "sow" | "client" | "generic") => {
+                                await handleCreateWorkspace(name, type || "sow");
+                            }}
                             onDeleteWorkspace={handleDeleteWorkspace}
                             onRenameWorkspace={handleRenameWorkspace}
                         />
@@ -2128,36 +2172,52 @@ export default function Page() {
                             currentDoc={currentDoc}
                             editorRef={editorRef}
                             onContentChange={setLatestEditorJSON}
+                            handleUpdateDoc={(content: any) => {
+                                // Trigger auto-save by updating latestEditorJSON
+                                setLatestEditorJSON(content);
+                            }}
                             onShare={handleShare}
                             onExportPDF={handleExportPDF}
                             onExportNewPDF={handleExportNewPDF}
                             onExportExcel={handleExportExcel}
                             onSharePortal={handleSharePortal}
                             onOpenAIChat={handleOpenAIChat}
+                            isGrandTotalVisible={isGrandTotalVisible}
+                            toggleGrandTotal={setIsGrandTotalVisible}
+                            onCreateWorkspace={() => {
+                                setCreateWorkspaceType("sow");
+                                setCreateWorkspaceDialogOpen(true);
+                            }}
                         />
                     ) : (
                         <HomeWelcome
-                            onCreateWorkspace={() => handleNewDoc(UNFILED_FOLDER_ID)}
+                            onCreateWorkspace={() => {
+                                setCreateWorkspaceType("sow");
+                                setCreateWorkspaceDialogOpen(true);
+                            }}
                             onOpenOnboarding={() => setShowOnboarding(true)}
                         />
                     ))}
                 </>
                 }
                 rightPanel={
-                    <WorkspaceChat
-                        isOpen={agentSidebarOpen}
-                        onToggle={() => setAgentSidebarOpen(!agentSidebarOpen)}
-                        chatMessages={chatMessages}
-                        onSendMessage={handleSendMessage}
-                        isLoading={isChatLoading}
-                        streamingMessageId={streamingMessageId}
-                        onInsertToEditor={handleInsertContent}
-                        editorWorkspaceSlug={currentDoc?.workspaceSlug || ""}
-                        editorThreadSlug={currentDoc?.threadSlug}
-                        onEditorThreadChange={handleEditorThreadChange}
-                        onClearChat={() => setChatMessages([])}
-                        onReplaceChatMessages={setChatMessages}
-                    />
+                    // Only show chat when in editor mode with a document, or in dashboard mode
+                    (viewMode === "editor" && currentDoc) || viewMode === "dashboard" ? (
+                        <WorkspaceChat
+                            isOpen={agentSidebarOpen}
+                            onToggle={() => setAgentSidebarOpen(!agentSidebarOpen)}
+                            chatMessages={chatMessages}
+                            onSendMessage={handleSendMessage}
+                            isLoading={isChatLoading}
+                            streamingMessageId={streamingMessageId}
+                            onInsertToEditor={handleInsertContent}
+                            editorWorkspaceSlug={currentDoc?.workspaceSlug || ""}
+                            editorThreadSlug={currentDoc?.threadSlug}
+                            onEditorThreadChange={handleEditorThreadChange}
+                            onClearChat={() => setChatMessages([])}
+                            onReplaceChatMessages={setChatMessages}
+                        />
+                    ) : null
                 }
                 sidebarOpen={sidebarOpen}
                 aiChatOpen={agentSidebarOpen}
@@ -2178,6 +2238,12 @@ export default function Page() {
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
                 shareData={shareModalData}
+            />
+            <CreateWorkspaceDialog
+                isOpen={createWorkspaceDialogOpen}
+                onClose={() => setCreateWorkspaceDialogOpen(false)}
+                onCreateWorkspace={handleCreateWorkspace}
+                defaultType={createWorkspaceType}
             />
             <WorkspaceCreationProgress
                 isOpen={workspaceCreationProgress.isOpen}

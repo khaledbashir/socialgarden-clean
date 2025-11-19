@@ -11,7 +11,9 @@ import {
     Mic,
     Settings,
     History,
+    Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import type { ChatMessage } from "@/types";
 import { Button } from "@/components/tailwind/ui/button";
 import { Textarea } from "@/components/tailwind/ui/textarea";
@@ -69,6 +71,8 @@ const ChatInterface = ({
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -234,6 +238,114 @@ const ChatInterface = ({
             e.preventDefault();
             handleSendMessage();
         }
+    };
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        const maxSize = 50 * 1024 * 1024; // 50MB limit
+
+        if (file.size > maxSize) {
+            toast.error("File size exceeds 50MB limit");
+            return;
+        }
+
+        // Validate file type
+        const allowedTypes = [
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain",
+            "text/markdown",
+        ];
+        const allowedExtensions = [".pdf", ".doc", ".docx", ".txt", ".md"];
+
+        const isValidType =
+            allowedTypes.includes(file.type) ||
+            allowedExtensions.some((ext) =>
+                file.name.toLowerCase().endsWith(ext),
+            );
+
+        if (!isValidType) {
+            toast.error(
+                "Unsupported file type. Please upload PDF, Word, or text files.",
+            );
+            return;
+        }
+
+        setUploading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("workspaceSlug", workspaceSlug);
+
+            // Add metadata
+            const metadata = {
+                title: file.name,
+                docAuthor: "User Upload",
+                description: `Document uploaded via chat interface`,
+                docSource: "Chat Upload",
+            };
+            formData.append("metadata", JSON.stringify(metadata));
+
+            const response = await fetch("/api/anythingllm/document/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error ||
+                        `Upload failed: ${response.status} ${response.statusText}`,
+                );
+            }
+
+            const data = await response.json();
+
+            if (data.success && data.documents && data.documents.length > 0) {
+                const doc = data.documents[0];
+                toast.success(
+                    `Document "${doc.title || file.name}" uploaded successfully and added to workspace!`,
+                );
+
+                // Add a system message to the chat
+                const uploadMessage: ChatMessage = {
+                    id: Date.now().toString(),
+                    role: "assistant",
+                    content: `✅ Document "${doc.title || file.name}" has been uploaded and is now available in the knowledge base. You can ask questions about it!`,
+                    timestamp: Date.now(),
+                };
+
+                if (onReplaceChatMessages) {
+                    onReplaceChatMessages([...(messagesProp ?? []), uploadMessage]);
+                } else {
+                    setInternalMessages((prev) => [...prev, uploadMessage]);
+                }
+            } else {
+                throw new Error("Upload succeeded but no document was returned");
+            }
+        } catch (error) {
+            console.error("File upload error:", error);
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : "Failed to upload document";
+            toast.error(errorMessage);
+        } finally {
+            setUploading(false);
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+        }
+    };
+
+    const handleUploadClick = () => {
+        fileInputRef.current?.click();
     };
 
     return (
@@ -411,9 +523,28 @@ const ChatInterface = ({
             </ScrollArea>
 
             <div className="p-3 border-t">
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.txt,.md,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+                    disabled={uploading}
+                />
                 <div className="flex items-end space-x-2">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <Paperclip className="h-4 w-4" />
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={handleUploadClick}
+                        disabled={uploading}
+                        title="Upload document (PDF, Word, Text)"
+                    >
+                        {uploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Paperclip className="h-4 w-4" />
+                        )}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                         <Mic className="h-4 w-4" />
