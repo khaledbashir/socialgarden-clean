@@ -2179,8 +2179,8 @@ export default function Page() {
                             onShare={handleShare}
                             onExportPDF={handleExportPDF}
                             onExportNewPDF={handleExportNewPDF}
-                            onExportExcel={handleExportExcel}
-                            onSharePortal={handleSharePortal}
+                            onExportExcel={undefined}
+                            onSharePortal={undefined}
                             onOpenAIChat={handleOpenAIChat}
                             isGrandTotalVisible={isGrandTotalVisible}
                             toggleGrandTotal={setIsGrandTotalVisible}
