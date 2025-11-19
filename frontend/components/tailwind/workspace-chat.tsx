@@ -1186,6 +1186,40 @@ export default function WorkspaceChat({
                             );
                         })
                     )}
+                    
+                    {/* 🎯 Thinking UI - Show when AI is generating */}
+                    {isLoading && (
+                        <div className="flex gap-3 justify-start">
+                            <div className="relative w-full max-w-[85%] min-w-0 rounded-lg p-4 bg-[#0E2E33] text-white border border-[#1b5e5e]">
+                                <div className="space-y-3">
+                                    {/* Thinking Accordion */}
+                                    <div className="bg-[#0e0f0f] border border-[#1b5e5e] rounded-lg overflow-hidden">
+                                        <div className="px-4 py-3 bg-[#0E2E33] border-b border-[#1b5e5e]">
+                                            <div className="flex items-center gap-2">
+                                                <Loader2 className="h-4 w-4 animate-spin text-[#1CBF79]" />
+                                                <span className="text-sm font-medium text-white">AI is thinking...</span>
+                                            </div>
+                                        </div>
+                                        <div className="px-4 py-3 space-y-2">
+                                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                                                <div className="w-1.5 h-1.5 bg-[#1CBF79] rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
+                                                <span>Analyzing your request...</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                                                <div className="w-1.5 h-1.5 bg-[#1CBF79] rounded-full animate-pulse" style={{ animationDelay: '200ms' }}></div>
+                                                <span>Checking rate card and budget...</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                                                <div className="w-1.5 h-1.5 bg-[#1CBF79] rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></div>
+                                                <span>Drafting SOW content...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     <div ref={chatEndRef} />
                 </div>
             </ScrollArea>

@@ -34,6 +34,31 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         })),
     );
 
+    // 🔒 CRITICAL FIX: Watch for node.attrs.rows changes and update initialRowsRef
+    // This ensures the component reacts to new JSON data from AI
+    useEffect(() => {
+        const currentRows = node.attrs.rows || [];
+        const currentRowsStr = JSON.stringify(currentRows);
+        const storedRowsStr = JSON.stringify(initialRowsRef.current.map(r => ({ role: r.role, hours: r.hours, rate: r.rate, total: r.total })));
+        
+        // Only update if rows actually changed (not just a reference change)
+        if (currentRowsStr !== storedRowsStr && currentRows.length > 0) {
+            console.log("🔄 [Pricing Table] Detected node.attrs.rows change, updating initialRowsRef", {
+                oldCount: initialRowsRef.current.length,
+                newCount: currentRows.length,
+                newRows: currentRows.slice(0, 3).map((r: any) => ({ role: r.role, hours: r.hours, rate: r.rate }))
+            });
+            
+            initialRowsRef.current = currentRows.map((row: any, idx: number) => ({
+                ...row,
+                id: row.id || `row-${idx}-${Date.now()}`,
+            }));
+            
+            // Force re-render by updating state
+            setIsUserModified(false); // Reset user modification flag so new data can populate
+        }
+    }, [node.attrs.rows]);
+
     // 🔒 CRITICAL FIX: Use useMemo to enforce roles BEFORE first render
     // This ensures rows are compliant from the very first render - no flicker
     const enforcedRows = useMemo(() => {
@@ -45,6 +70,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         try {
             console.log(
                 "🔒 [Pricing Table] Applying mandatory role enforcement via useMemo...",
+                { inputRowsCount: initialRowsRef.current.length }
             );
             const compliantRows = enforceMandatoryRoles(
                 initialRowsRef.current,
@@ -70,7 +96,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
             console.error("❌ [Pricing Table] Enforcement failed:", error);
             return initialRowsRef.current;
         }
-    }, [roles]); // Recalculate only when roles change
+    }, [roles, node.attrs.rows]); // Recalculate when roles OR node.attrs.rows change
 
     // State for rows (initialized from enforcedRows)
     const [rows, setRows] = useState<PricingRow[]>(enforcedRows);
@@ -111,6 +137,10 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     useEffect(() => {
         // Only auto-update rows if user hasn't manually modified them
         if (enforcedRows.length > 0 && !isUserModified) {
+            console.log("🔄 [Pricing Table] Updating rows from enforcedRows", {
+                count: enforcedRows.length,
+                sample: enforcedRows.slice(0, 2).map(r => ({ role: r.role, hours: r.hours, rate: r.rate }))
+            });
             setRows(enforcedRows);
         }
     }, [enforcedRows, isUserModified]);

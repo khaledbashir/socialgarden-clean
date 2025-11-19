@@ -2247,6 +2247,7 @@ export default function Page() {
                                 setCreateWorkspaceDialogOpen(true);
                             }}
                             onOpenOnboarding={() => setShowOnboarding(true)}
+                            workspaceCount={workspaces.length}
                         />
                     ))}
                 </>
