@@ -9,10 +9,10 @@ export default function EditorPanel({
     toggleGrandTotal,
     editorRef,
     handleUpdateDoc,
-    handleExportPDF,
-    handleExportNewPDF,
-    handleExportExcel,
-    handleSharePortal,
+    onExportPDF, // Accept onExportPDF from parent
+    onExportNewPDF, // Accept onExportNewPDF from parent
+    onExportExcel, // Accept onExportExcel from parent
+    onSharePortal, // Accept onSharePortal from parent
     onCreateWorkspace,
     onOpenOnboarding,
 }: any) {
@@ -26,10 +26,10 @@ export default function EditorPanel({
                     isSaving={false}
                     isGrandTotalVisible={isGrandTotalVisible}
                     onToggleGrandTotal={toggleGrandTotal}
-                    onExportPDF={handleExportPDF}
-                    onExportNewPDF={handleExportNewPDF}
-                    onExportExcel={handleExportExcel}
-                    onSharePortal={handleSharePortal}
+                    onExportPDF={onExportPDF}
+                    onExportNewPDF={onExportNewPDF}
+                    onExportExcel={onExportExcel}
+                    onSharePortal={onSharePortal}
                 />
             )}
 
@@ -45,7 +45,13 @@ export default function EditorPanel({
                     </div>
                 ) : (
                     <HomeWelcome
-                        onCreateWorkspace={() => onCreateWorkspace?.("New Workspace")}
+                        onCreateWorkspace={() => {
+                            // Open dialog - parent component should handle this
+                            if (typeof onCreateWorkspace === 'function') {
+                                // If it accepts no args, it's the dialog opener
+                                onCreateWorkspace();
+                            }
+                        }}
                         onOpenOnboarding={() => onOpenOnboarding?.()}
                     />
                 )}

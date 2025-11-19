@@ -17,30 +17,34 @@ export default function HomeWelcome({
                         <Sparkles className="h-6 w-6 text-indigo-600" />
                     </div>
                 </div>
-                <h2 className="mt-6 text-2xl font-semibold text-gray-900">
-                    Welcome back!
+                <h2 className="mt-6 text-2xl font-semibold text-gray-900 dark:text-white">
+                    Welcome to Social Garden SOW Generator
                 </h2>
-                <p className="mt-2 text-sm text-gray-500">
-                    The dashboard is currently hidden. You can create a new workspace, open an existing document, or run the guided onboarding to get started.
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Get started by creating a workspace for each client. Then you can create as many SOWs as you need within each workspace.
                 </p>
 
                 <div className="mt-6 flex items-center justify-center gap-3">
-                    <Button onClick={onCreateWorkspace} variant="default">
-                        Create Workspace
+                    <Button 
+                        onClick={onCreateWorkspace} 
+                        className="bg-[#1CBF79] hover:bg-[#15a366] text-white"
+                    >
+                        Create Your First Workspace
                     </Button>
                     <Button
                         variant="ghost"
                         onClick={onOpenOnboarding}
                         title="Open the onboarding flow"
+                        className="dark:text-gray-300"
                     >
                         Guided Tour
                     </Button>
                 </div>
 
-                <div className="mt-6 text-xs text-gray-400">
+                <div className="mt-6 text-xs text-gray-400 dark:text-gray-500">
                     <p>
-                        Tip: Use workspaces to organise your projects and the
-                        World Architect to generate high-quality SOWs.
+                        💡 <strong>Best Practice:</strong> Create one workspace per client. 
+                        Then use the <strong>+</strong> button next to the workspace name to create SOWs for that client.
                     </p>
                 </div>
             </div>

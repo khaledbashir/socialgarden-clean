@@ -167,6 +167,7 @@ export function transformScopesToPDFFormat(
   multiScopeData: MultiScopeData,
   currentDocOrTitle: any = "Statement of Work",
   userPromptDiscount?: number,
+  showPricingSummary?: boolean,
 ): PDFExportData {
   const scopes = multiScopeData.scopes.map((scope, index) => {
     const items = scope.role_allocation.map((role) => ({
@@ -212,5 +213,6 @@ export function transformScopesToPDFFormat(
     gstApplicable: true,
     generatedDate: new Date().toISOString(),
     authoritativeTotal: 0,
+    showPricingSummary: showPricingSummary !== undefined ? showPricingSummary : true, // Default to true for backward compatibility
   };
 }

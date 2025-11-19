@@ -25,7 +25,7 @@ export function useDocumentState({
     setShowGuidedSetup: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
     const [documents, setDocuments] = useState<Document[]>([]);
-    const [folders, setFolders] = useState<Folder[]>([]);
+    // Removed folders state - using workspaces only (folders and workspaces are the same)
     const [currentDocId, setCurrentDocId] = useState<string | null>(null);
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string>("");
@@ -67,11 +67,11 @@ export function useDocumentState({
 
                 const workspacesWithSOWs: Workspace[] = [];
                 const documentsFromDB: Document[] = [];
-                const foldersFromDB: Folder[] = [];
 
+                // Convert folders from database to workspaces (they're the same thing)
                 for (const folder of foldersData) {
                     console.log(
-                        `📁 Processing folder: ${folder.name} (ID: ${folder.id})`,
+                        `📁 Processing workspace: ${folder.name} (ID: ${folder.id})`,
                     );
 
                     const folderSOWs = dbSOWs
@@ -95,24 +95,23 @@ export function useDocumentState({
                     }));
 
                     console.log(
-                        `   ✓ Found ${sows.length} SOWs in this folder`,
+                        `   ✓ Found ${sows.length} SOWs in this workspace`,
                     );
 
-                    workspacesWithSOWs.push({
+                    // Create workspace with all metadata
+                    const workspace: Workspace = {
                         id: folder.id,
                         name: folder.name,
                         sows: sows,
                         workspace_slug: folder.workspace_slug,
-                    });
-
-                    foldersFromDB.push({
-                        id: folder.id,
-                        name: folder.name,
+                        slug: folder.workspace_slug,
                         workspaceSlug: folder.workspace_slug,
                         workspaceId: folder.workspace_id,
                         embedId: folder.embed_id,
                         syncedAt: folder.updated_at || folder.created_at,
-                    });
+                    };
+
+                    workspacesWithSOWs.push(workspace);
 
                     for (const sow of folderSOWs) {
                         let parsedContent = defaultEditorContent;
@@ -150,7 +149,7 @@ export function useDocumentState({
                 console.log("✅ Total SOWs loaded:", documentsFromDB.length);
 
                 setWorkspaces(workspacesWithSOWs);
-                setFolders(foldersFromDB);
+                // Folders and workspaces are the same - use workspaces only
                 setDocuments(documentsFromDB);
 
                 if (workspacesWithSOWs.length > 0 && !currentWorkspaceId) {
@@ -243,11 +242,16 @@ export function useDocumentState({
 
                 const currentDoc = documents.find((d) => d.id === currentDocId);
 
+                // Ensure content is properly serialized as JSON string
+                const contentToSave = typeof editorContent === 'string' 
+                    ? editorContent 
+                    : JSON.stringify(editorContent);
+
                 const response = await fetch(`/api/sow/${currentDocId}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        content: editorContent,
+                        content: contentToSave,
                         title: currentDoc?.title || "Untitled SOW",
                         total_investment: isNaN(totalInvestment)
                             ? 0
@@ -307,8 +311,7 @@ export function useDocumentState({
     return {
         documents,
         setDocuments,
-        folders,
-        setFolders,
+        // Removed folders - using workspaces only
         currentDoc,
         currentDocId,
         setCurrentDocId,

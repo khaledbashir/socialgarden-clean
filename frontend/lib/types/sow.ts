@@ -47,6 +47,8 @@ export interface Document {
   service?: string;
 }
 
+// Folder interface kept for backward compatibility but deprecated
+// Use Workspace instead - folders and workspaces are the same thing
 export interface Folder {
   id: string;
   name: string;
@@ -62,8 +64,13 @@ export interface Workspace {
   id: string;
   name: string;
   sows: SOW[];
-  workspace_slug?: string;
-  slug?: string;
+  workspace_slug?: string; // AnythingLLM workspace slug
+  slug?: string; // Alias for workspace_slug
+  workspaceSlug?: string; // Alias for workspace_slug (for compatibility)
+  workspaceId?: string; // AnythingLLM workspace ID
+  embedId?: string | number; // Embed ID
+  parentId?: string | number; // For nested workspaces (if needed)
+  syncedAt?: string; // Last sync timestamp
 }
 
 export interface SOW {
@@ -140,6 +147,7 @@ export interface PDFExportData {
   gstApplicable: boolean;
   generatedDate: string;
   authoritativeTotal: number;
+  showPricingSummary?: boolean; // 🎯 Control visibility of pricing summary in professional PDF
 }
 
 export interface StructuredSOW {

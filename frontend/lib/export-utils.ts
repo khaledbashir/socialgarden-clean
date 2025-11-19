@@ -513,12 +513,28 @@ export function extractPricingFromHTML(html: string): PricingRow[] {
 export function tiptapToHTML(content: any): string {
   if (!content || typeof content !== 'object') return '';
 
-  // Replace editablePricingTable nodes by equivalent sequence: heading + table
+  // Replace editablePricingTable nodes by equivalent sequence: heading + table + summary
   const transform = (node: any): any => {
     if (!node) return node;
     if (Array.isArray(node)) return node.map(transform);
     if (node.type === 'editablePricingTable') {
       const rows = Array.isArray(node?.attrs?.rows) ? node.attrs.rows : [];
+      const discount = Number(node?.attrs?.discount) || 0;
+      const showTotal = node?.attrs?.showTotal !== undefined ? node.attrs.showTotal : true;
+      
+      // Calculate totals
+      const subtotal = rows.reduce((sum: number, r: any) => {
+        const hours = Number(r?.hours) || 0;
+        const rate = Number(r?.rate) || 0;
+        return sum + (hours * rate);
+      }, 0);
+      
+      const discountAmount = subtotal * (discount / 100);
+      const subtotalAfterDiscount = subtotal - discountAmount;
+      const gst = subtotalAfterDiscount * 0.1;
+      const total = subtotalAfterDiscount + gst;
+      const roundedTotal = Math.round(total / 100) * 100; // Round to nearest $100
+      
       const headerRow = {
         type: 'tableRow',
         content: ['Role', 'Description', 'Hours', 'Rate (AUD)', 'Cost (AUD, ex GST)'].map((h) => ({
@@ -539,10 +555,27 @@ export function tiptapToHTML(content: any): string {
           content: [{ type: 'paragraph', content: [{ type: 'text', text: txt }] }],
         })),
       }));
-      return {
-        type: 'table',
-        content: [headerRow, ...bodyRows],
+      
+      // Create pricing table node with summary metadata
+      const pricingTableNode = {
+        type: 'pricingTableWithSummary',
+        attrs: {
+          showTotal,
+          subtotal,
+          discount,
+          discountAmount,
+          subtotalAfterDiscount,
+          gst,
+          total,
+          roundedTotal,
+        },
+        content: [{
+          type: 'table',
+          content: [headerRow, ...bodyRows],
+        }],
       };
+      
+      return pricingTableNode;
     }
     if (Array.isArray(node.content)) {
       return { ...node, content: node.content.map(transform) };
@@ -613,8 +646,45 @@ export function tiptapToHTML(content: any): string {
         return `<th>${(node.content || []).map(serialize).join('')}</th>`;
       case 'tableCell':
         return `<td>${(node.content || []).map(serialize).join('')}</td>`;
+      case 'pricingTableWithSummary': {
+        // Render pricing table with conditional summary section
+        const tableHTML = (node.content || []).map(serialize).join('');
+        const showTotal = node.attrs?.showTotal !== undefined ? node.attrs.showTotal : true;
+        const subtotal = Number(node.attrs?.subtotal) || 0;
+        const discount = Number(node.attrs?.discount) || 0;
+        const discountAmount = Number(node.attrs?.discountAmount) || 0;
+        const subtotalAfterDiscount = Number(node.attrs?.subtotalAfterDiscount) || 0;
+        const gst = Number(node.attrs?.gst) || 0;
+        const total = Number(node.attrs?.total) || 0;
+        const roundedTotal = Number(node.attrs?.roundedTotal) || 0;
+        
+        let html = '<h3>Project Pricing</h3>';
+        html += tableHTML;
+        
+        // 🎯 SMART PDF EXPORT: Only show summary section if showTotal is true
+        if (showTotal) {
+          html += '<h4 style="margin-top: 20px;">Summary</h4>';
+          html += '<table class="summary-table" style="width: 100%; border-collapse: collapse;">';
+          const formatMoney = (amt: number) => `$${amt.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          
+          html += `<tr><td style="text-align: right; padding-right: 12px;"><strong>Subtotal (ex GST):</strong></td><td style="text-align: right;" class="num">${formatMoney(subtotal)} <span style="color:#6b7280; font-size: 0.85em;">+GST</span></td></tr>`;
+          
+          if (discount > 0) {
+            html += `<tr><td style="text-align: right; padding-right: 12px; color: #dc2626;"><strong>Discount (${discount}%):</strong></td><td style="text-align: right; color: #dc2626;" class="num">-${formatMoney(discountAmount)}</td></tr>`;
+            html += `<tr><td style="text-align: right; padding-right: 12px;"><strong>After Discount (ex GST):</strong></td><td style="text-align: right;" class="num">${formatMoney(subtotalAfterDiscount)} <span style="color:#6b7280; font-size: 0.85em;">+GST</span></td></tr>`;
+          }
+          
+          html += `<tr><td style="text-align: right; padding-right: 12px;"><strong>GST (10%):</strong></td><td style="text-align: right;" class="num">${formatMoney(gst)}</td></tr>`;
+          html += `<tr><td style="text-align: right; padding-right: 12px;"><strong>Total (incl GST, unrounded):</strong></td><td style="text-align: right;" class="num">${formatMoney(total)}</td></tr>`;
+          html += `<tr style="border-top: 2px solid #2C823D;"><td style="text-align: right; padding-right: 12px; padding-top: 8px;"><strong>Total Project Value (incl GST, rounded):</strong></td><td style="text-align: right; padding-top: 8px; color: #2C823D; font-size: 18px;" class="num"><strong>${formatMoney(roundedTotal)}</strong></td></tr>`;
+          html += '</table>';
+          html += '<p style="margin-top: 12px; font-size: 0.85em; color: #6b7280;">All prices are in Australian Dollars (AUD). GST is calculated at 10% on the subtotal after discount.</p>';
+        }
+        
+        return html;
+      }
       case 'editablePricingTable':
-        // Our transform already turned this into a normal table node, but be
+        // Our transform already turned this into a pricingTableWithSummary node, but be
         // defensive in case an editablePricingTable remains.
         const rows = Array.isArray(node?.attrs?.rows) ? node.attrs.rows : [];
         const header = `<tr>${['Role','Description','Hours','Rate (AUD)','Cost (AUD, ex GST)'].map(h=>`<th>${h}</th>`).join('')}</tr>`;

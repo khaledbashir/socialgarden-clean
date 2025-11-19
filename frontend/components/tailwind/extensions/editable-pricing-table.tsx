@@ -87,30 +87,45 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     }, [enforcedRows, isUserModified]);
 
     // 🎯 CRITICAL FIX: Sync discount state with node.attrs.discount when it changes
+    // Use ref to track if we're updating from internal state change to prevent loop
+    const isInternalUpdateRef = useRef(false);
+    
     useEffect(() => {
+        // Skip if this is an internal update (we're the ones changing it)
+        if (isInternalUpdateRef.current) {
+            isInternalUpdateRef.current = false;
+            return;
+        }
+        
+        // Only sync if node.attrs actually changed from external source
         if (
             node.attrs.discount !== undefined &&
             node.attrs.discount !== discount
         ) {
             console.log(
-                `🔍 [DISCOUNT DEBUG] Updating discount from ${discount}% to ${node.attrs.discount}%`,
+                `🔍 [DISCOUNT DEBUG] Syncing discount from node.attrs: ${node.attrs.discount}%`,
             );
             setDiscount(node.attrs.discount);
         }
-    }, [node.attrs.discount, discount]);
+    }, [node.attrs.discount]); // Removed discount from deps to prevent loop
 
     // 🎯 Sync showTotal state with node.attrs.showTotal when it changes
     useEffect(() => {
+        // Skip if this is an internal update
+        if (isInternalUpdateRef.current) {
+            return;
+        }
+        
         if (
             node.attrs.showTotal !== undefined &&
             node.attrs.showTotal !== showTotal
         ) {
             console.log(
-                `🔍 [SHOW TOTAL DEBUG] Updating showTotal from ${showTotal} to ${node.attrs.showTotal}`,
+                `🔍 [SHOW TOTAL DEBUG] Syncing showTotal from node.attrs: ${node.attrs.showTotal}`,
             );
             setShowTotal(node.attrs.showTotal);
         }
-    }, [node.attrs.showTotal, showTotal]);
+    }, [node.attrs.showTotal]); // Removed showTotal from deps to prevent loop
 
     // Drag and drop state
     const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
@@ -145,13 +160,31 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         fetchRoles();
     }, []);
 
+    // 🔒 CRITICAL FIX: Prevent infinite loop by checking if values actually changed
+    // and using useRef to track previous values
+    const prevValuesRef = useRef({ rows, discount, showTotal });
+    
     useEffect(() => {
-        // Defer updateAttributes to a microtask to avoid flushSync errors
-        // This prevents calling updateAttributes from within a React lifecycle
-        Promise.resolve().then(() => {
-            updateAttributes({ rows, discount, showTotal });
-        });
-    }, [rows, discount, showTotal, updateAttributes]);
+        // Only update if values actually changed
+        const prev = prevValuesRef.current;
+        const rowsChanged = JSON.stringify(prev.rows) !== JSON.stringify(rows);
+        const discountChanged = prev.discount !== discount;
+        const showTotalChanged = prev.showTotal !== showTotal;
+        
+        if (rowsChanged || discountChanged || showTotalChanged) {
+            // Mark as internal update to prevent sync loop
+            isInternalUpdateRef.current = true;
+            
+            // Update ref before calling updateAttributes
+            prevValuesRef.current = { rows, discount, showTotal };
+            
+            // Defer updateAttributes to a microtask to avoid flushSync errors
+            // This prevents calling updateAttributes from within a React lifecycle
+            Promise.resolve().then(() => {
+                updateAttributes({ rows, discount, showTotal });
+            });
+        }
+    }, [rows, discount, showTotal]); // Removed updateAttributes from deps to prevent loop
 
     const updateRow = (
         id: string,
@@ -535,7 +568,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                         className="border border-border px-3 py-2 text-right text-sm font-semibold"
                                         style={{ width: "15%" }}
                                     >
-                                        ${(row.hours * row.rate).toFixed(2)}{" "}
+                                        ${((Number(row.hours) || 0) * (Number(row.rate) || 0)).toFixed(2)}{" "}
                                         +GST
                                     </td>
                                     <td
@@ -592,9 +625,9 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                 />
                             </div>
                             <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
-                                <span>Subtotal:</span>
+                                <span>Subtotal (ex GST):</span>
                                 <span className="font-semibold">
-                                    ${calculateSubtotal().toFixed(2)} +GST
+                                    ${calculateSubtotal().toFixed(2)}
                                 </span>
                             </div>
                             {discount > 0 && (
@@ -602,18 +635,13 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                     <div className="flex justify-between text-sm text-red-600">
                                         <span>Discount ({discount}%):</span>
                                         <span>
-                                            -${calculateDiscount().toFixed(2)}{" "}
-                                            +GST
+                                            -${calculateDiscount().toFixed(2)}
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
-                                        <span>After Discount:</span>
+                                        <span>After Discount (ex GST):</span>
                                         <span className="font-semibold">
-                                            $
-                                            {calculateSubtotalAfterDiscount().toFixed(
-                                                2,
-                                            )}{" "}
-                                            +GST
+                                            ${calculateSubtotalAfterDiscount().toFixed(2)}
                                         </span>
                                     </div>
                                 </>
@@ -625,7 +653,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                             <div className="flex justify-between text-base font-bold text-foreground dark:text-gray-100 border-t border-border pt-2 mt-2">
                                 <span>Total Project Value:</span>
                                 <span className="text-[#0e2e33] dark:text-[#1CBF79]">
-                                    ${calculateTotal().toFixed(2)} +GST
+                                    ${calculateTotal().toFixed(2)} incl GST
                                 </span>
                             </div>
                         </div>

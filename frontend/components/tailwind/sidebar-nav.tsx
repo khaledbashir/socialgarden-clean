@@ -41,6 +41,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Document } from "@/lib/types/sow"; // Import Document type
+import { RoleGuard } from "./role-guard";
 
 // SOWTagSelector removed from sidebar - keep the component for editor usage if needed
 
@@ -90,7 +91,7 @@ interface SidebarNavProps {
     onSelectWorkspace: (id: string) => void;
     onSelectSOW: (id: string) => void;
     onCreateWorkspace: (
-        name: string,
+        name?: string,
         type?: "sow" | "client" | "generic",
     ) => void;
     onCreateSOW: (workspaceId: string, name: string) => void;
@@ -579,8 +580,33 @@ export default function SidebarNav({
 
                     {/* Action Buttons - ALWAYS VISIBLE with guaranteed space */}
                     <div className="flex gap-1.5 flex-shrink-0 ml-2">
-                        {/* Add New Doc */}
-                        {/* New SOW creation moved to global button in header */}
+                        {/* Add New SOW to this Workspace */}
+                        {!isDeleteMode && (
+                            <button
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (isCreatingSOW) return;
+                                    setIsCreatingSOW(true);
+                                    try {
+                                        await onCreateSOW(
+                                            workspace.id,
+                                            "Untitled SOW",
+                                        );
+                                    } finally {
+                                        setIsCreatingSOW(false);
+                                    }
+                                }}
+                                disabled={isCreatingSOW}
+                                className="p-1.5 bg-gray-700/50 hover:bg-[#1CBF79]/30 rounded text-[#1CBF79] hover:text-white transition-all disabled:opacity-50"
+                                title="Create new SOW in this workspace"
+                            >
+                                {isCreatingSOW ? (
+                                    <div className="w-4 h-4 border-2 border-[#1CBF79] border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <Plus className="w-4 h-4" />
+                                )}
+                            </button>
+                        )}
 
                         {/* Rename */}
                         {!isDeleteMode && (
@@ -597,33 +623,35 @@ export default function SidebarNav({
                             </button>
                         )}
 
-                        {/* Delete (single delete when not in delete mode) */}
+                        {/* Delete (single delete when not in delete mode) - Admin only */}
                         {!isDeleteMode && !isProtectedWorkspace(workspace) && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setConfirmDialog({
-                                        open: true,
-                                        title: `Delete Workspace?`,
-                                        message: `Delete "${workspace.name}" and all SOWs inside? This cannot be undone.`,
-                                        onConfirm: () => {
-                                            // Optimistic UI update to keep counts accurate immediately
-                                            setLocalWorkspaces((prev) =>
-                                                prev.filter(
-                                                    (ws) =>
-                                                        ws.id !== workspace.id,
-                                                ),
-                                            );
-                                            onDeleteWorkspace(workspace.id);
-                                            toast.success("Workspace deleted");
-                                        },
-                                    });
-                                }}
-                                className="p-1.5 bg-gray-700/50 hover:bg-red-500/30 rounded text-red-400 hover:text-white transition-all"
-                                title="Delete"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
+                            <RoleGuard requireAdmin>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setConfirmDialog({
+                                            open: true,
+                                            title: `Delete Workspace?`,
+                                            message: `Delete "${workspace.name}" and all SOWs inside? This cannot be undone.`,
+                                            onConfirm: () => {
+                                                // Optimistic UI update to keep counts accurate immediately
+                                                setLocalWorkspaces((prev) =>
+                                                    prev.filter(
+                                                        (ws) =>
+                                                            ws.id !== workspace.id,
+                                                    ),
+                                                );
+                                                onDeleteWorkspace(workspace.id);
+                                                toast.success("Workspace deleted");
+                                            },
+                                        });
+                                    }}
+                                    className="p-1.5 bg-gray-700/50 hover:bg-red-500/30 rounded text-red-400 hover:text-white transition-all"
+                                    title="Delete"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </RoleGuard>
                         )}
 
                         {/* Protected Badge */}
@@ -734,25 +762,27 @@ export default function SidebarNav({
                             <Edit3 className="w-4 h-4" />
                         </button>
 
-                        {/* Delete */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setConfirmDialog({
-                                    open: true,
-                                    title: `Delete SOW?`,
-                                    message: `Delete "${sow.name}"? This cannot be undone.`,
-                                    onConfirm: () => {
-                                        onDeleteSOW(sow.id);
-                                        toast.success("SOW deleted");
-                                    },
-                                });
-                            }}
-                            className="p-1 text-red-400 hover:bg-red-500/30 hover:text-red-300 rounded transition-all flex-shrink-0"
-                            title="Delete SOW"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+                        {/* Delete - Admin only */}
+                        <RoleGuard requireAdmin>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmDialog({
+                                        open: true,
+                                        title: `Delete SOW?`,
+                                        message: `Delete "${sow.name}"? This cannot be undone.`,
+                                        onConfirm: () => {
+                                            onDeleteSOW(sow.id);
+                                            toast.success("SOW deleted");
+                                        },
+                                    });
+                                }}
+                                className="p-1 text-red-400 hover:bg-red-500/30 hover:text-red-300 rounded transition-all flex-shrink-0"
+                                title="Delete SOW"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </RoleGuard>
                     </div>
                 </div>
 
@@ -800,53 +830,16 @@ export default function SidebarNav({
 
                 {/* Dashboard clear filter removed */}
 
-                {/* Primary New SOW CTA */}
-                <div className="px-4 pb-3">
-                    <button
-                        onClick={async () => {
-                            if (isCreatingSOW) return; // Prevent duplicate clicks
-
-                            // 🎯 ALWAYS CREATE IN UNFILED - No folder selection needed!
-                            console.log(
-                                "🆕 New SOW button clicked - creating in Unfiled",
-                            );
-
-                            setIsCreatingSOW(true);
-                            try {
-                                await onCreateSOW(
-                                    UNFILED_FOLDER_ID,
-                                    "Untitled SOW",
-                                );
-                            } finally {
-                                setIsCreatingSOW(false);
-                            }
-                        }}
-                        disabled={isCreatingSOW}
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] disabled:bg-[#0d8c4a] disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
-                    >
-                        {isCreatingSOW ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                Creating...
-                            </>
-                        ) : (
-                            <>
-                                <Plus className="w-4 h-4" />
-                                New SOW
-                            </>
-                        )}
-                    </button>
-                </div>
-
-                {/* Requirements link hidden per request */}
+                {/* Workspace-first flow: Users must create a workspace first, then create SOWs within it */}
+                {/* Removed standalone "New SOW" button - SOWs are created from within workspaces */}
             </div>
 
-            {/* FOLDERS SECTION */}
+            {/* WORKSPACES SECTION */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Search Bar */}
                 <div className="flex-shrink-0 px-4 py-3 border-b border-gray-800">
                     <Input
-                        placeholder="Search folders..."
+                        placeholder="Search workspaces..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="h-8 text-xs bg-gray-900 border-gray-700 text-gray-300 placeholder:text-gray-600"
@@ -856,64 +849,66 @@ export default function SidebarNav({
                 {/* Folders Header */}
                 <div className="flex-shrink-0 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                        Folders
+                        Workspaces
                     </h3>
                     <div className="flex items-center gap-1">
-                        {/* 🗑️ Delete Mode Toggle */}
-                        {!isDeleteMode ? (
-                            <>
-                                <button
-                                    onClick={() => setIsDeleteMode(true)}
-                                    className="p-1 hover:bg-gray-800 rounded transition-colors text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                                    title="Multi-delete mode (select folders to delete)"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </>
-                        ) : (
-                            // 🗑️ Delete Mode UI
-                            <>
-                                <button
-                                    onClick={() => setIsDeleteMode(false)}
-                                    className="p-1 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-gray-300"
-                                    title="Cancel delete mode"
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                </button>
+                        {/* 🗑️ Delete Mode Toggle - Admin only */}
+                        <RoleGuard requireAdmin>
+                            {!isDeleteMode ? (
+                                <>
+                                    <button
+                                        onClick={() => setIsDeleteMode(true)}
+                                        className="p-1 hover:bg-gray-800 rounded transition-colors text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                        title="Multi-delete mode (select workspaces to delete)"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </>
+                            ) : (
+                                // 🗑️ Delete Mode UI
+                                <>
+                                    <button
+                                        onClick={() => setIsDeleteMode(false)}
+                                        className="p-1 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-gray-300"
+                                        title="Cancel delete mode"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </button>
 
-                                {/* Select All checkbox */}
-                                <label className="flex items-center gap-1.5 px-2 py-1 cursor-pointer hover:bg-gray-800/50 rounded transition-colors">
-                                    <input
-                                        type="checkbox"
-                                        checked={areAllSelected}
-                                        onChange={handleSelectAll}
-                                        className="w-3.5 h-3.5 rounded border-gray-600 text-blue-500 focus:ring-0 cursor-pointer"
-                                    />
-                                    <span className="text-xs text-gray-400">
-                                        Select All
-                                    </span>
-                                </label>
-
-                                {selectedFolders.size > 0 && (
-                                    <>
-                                        <span className="text-xs text-gray-400 mx-1">
-                                            {selectedFolders.size} selected
+                                    {/* Select All checkbox */}
+                                    <label className="flex items-center gap-1.5 px-2 py-1 cursor-pointer hover:bg-gray-800/50 rounded transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            checked={areAllSelected}
+                                            onChange={handleSelectAll}
+                                            className="w-3.5 h-3.5 rounded border-gray-600 text-blue-500 focus:ring-0 cursor-pointer"
+                                        />
+                                        <span className="text-xs text-gray-400">
+                                            Select All
                                         </span>
-                                        <button
-                                            onClick={handleBulkDelete}
-                                            className="p-1 hover:bg-red-900/50 rounded transition-colors text-red-400 hover:text-red-300"
-                                            title={`Delete ${selectedFolders.size} folder(s)`}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </>
-                                )}
-                            </>
-                        )}
+                                    </label>
+
+                                    {selectedFolders.size > 0 && (
+                                        <>
+                                            <span className="text-xs text-gray-400 mx-1">
+                                                {selectedFolders.size} selected
+                                            </span>
+                                            <button
+                                                onClick={handleBulkDelete}
+                                                className="p-1 hover:bg-red-900/50 rounded transition-colors text-red-400 hover:text-red-300"
+                                                title={`Delete ${selectedFolders.size} workspace(s)`}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </RoleGuard>
                     </div>
                 </div>
 
-                {/* Folders List - Categorized */}
+                {/* Workspaces List - Categorized */}
                 <ScrollArea className="flex-1">
                     <div className="p-2 space-y-2">
                         <DndContext
@@ -975,7 +970,7 @@ export default function SidebarNav({
                                 );
                             })()}
 
-                            {/* CLIENT FOLDERS CATEGORY */}
+                            {/* CLIENT WORKSPACES CATEGORY */}
                             {(() => {
                                 const clientWorkspaces = localWorkspaces.filter(
                                     (w) =>
@@ -1020,7 +1015,7 @@ export default function SidebarNav({
                                                     <ChevronRight className="w-4 h-4 text-gray-500" />
                                                 )}
                                                 <LayoutDashboard className="w-4 h-4 text-[#1CBF79]" />
-                                                <span>CLIENT FOLDERS</span>
+                                                <span>CLIENT WORKSPACES</span>
                                                 <span className="ml-auto text-xs text-gray-500">
                                                     ({clientWorkspaces.length})
                                                 </span>
@@ -1028,10 +1023,8 @@ export default function SidebarNav({
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    onCreateWorkspace(
-                                                        "New Client Folder",
-                                                        "client",
-                                                    );
+                                                    // Open dialog for client workspace
+                                                    onCreateWorkspace(undefined, "client");
                                                 }}
                                                 className="p-1.5 hover:bg-gray-800/60 rounded-md text-gray-300 hover:text-white"
                                                 title="New client workspace"
@@ -1256,10 +1249,8 @@ export default function SidebarNav({
                                     </p>
                                     <button
                                         onClick={() =>
-                                            onCreateWorkspace(
-                                                "New Client Workspace",
-                                                "client",
-                                            )
+                                            // Open dialog for client workspace
+                                            onCreateWorkspace(undefined, "client")
                                         }
                                         className="inline-flex items-center px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] text-white text-sm font-medium rounded-lg transition-colors"
                                     >

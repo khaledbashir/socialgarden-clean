@@ -52,8 +52,8 @@ async function handlePDFGeneration(body: any) {
     }
     
     // PDF generation handler - converts SOW documents to PDF via backend service
-    // Use environment variable with fallback to localhost for local dev
-    const pdfServiceUrl = process.env.NEXT_PUBLIC_PDF_SERVICE_URL || 'http://localhost:8000';
+    // Use environment variable with fallback to EasyPanel backend URL
+    const pdfServiceUrl = process.env.NEXT_PUBLIC_PDF_SERVICE_URL || 'https://ahmad-socialgarden-backend.840tjq.easypanel.host';
     console.log('🔗 [PDF Service] Using URL:', pdfServiceUrl);
     
     

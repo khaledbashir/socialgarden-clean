@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { Pencil, Trash2, Plus, Save, X, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useRouter } from "next/navigation";
 
 interface RateCardRole {
     id: string;
@@ -18,10 +20,36 @@ interface FormData {
 }
 
 export default function RateCardManagementPage() {
+    const router = useRouter();
+    const { role, loading: roleLoading, isAdmin } = useUserRole();
     const [roles, setRoles] = useState<RateCardRole[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+
+    // Redirect non-admin users
+    useEffect(() => {
+        if (!roleLoading && !isAdmin) {
+            router.push("/");
+        }
+    }, [roleLoading, isAdmin, router]);
+
+    // Don't render content until role is loaded
+    if (roleLoading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="mt-4 text-slate-600">Checking permissions...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Don't render if not admin
+    if (!isAdmin) {
+        return null;
+    }
 
     // Form state
     const [showForm, setShowForm] = useState(false);

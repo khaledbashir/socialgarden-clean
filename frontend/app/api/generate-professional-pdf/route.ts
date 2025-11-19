@@ -89,6 +89,10 @@ export async function POST(request: NextRequest) {
                         generatedDate:
                             body.generatedDate || new Date().toISOString(),
                         discount: validateDiscount(body.discount),
+                        show_pricing_summary:
+                            body.showPricingSummary !== undefined
+                                ? body.showPricingSummary
+                                : true, // 🎯 Pass showTotal flag to backend for professional PDF
                     }),
                 },
             );
