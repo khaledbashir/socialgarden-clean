@@ -33,6 +33,7 @@ import {
 } from "@/components/tailwind/ui/dialog";
 import { ScrollArea } from "@/components/tailwind/ui/scroll-area";
 import { Badge } from "@/components/tailwind/ui/badge";
+import { handleDocumentUploadAndPin } from "@/lib/document-pinning";
 
 const ChatInterface = ({
     workspaceSlug,
@@ -308,15 +309,22 @@ const ChatInterface = ({
 
             if (data.success && data.documents && data.documents.length > 0) {
                 const doc = data.documents[0];
+
+                // Step 2: Pin the document to the workspace (Step 1 was the upload)
+                const { pinned } = await handleDocumentUploadAndPin(
+                    data,
+                    workspaceSlug,
+                );
+
                 toast.success(
-                    `Document "${doc.title || file.name}" uploaded successfully and added to workspace!`,
+                    `Document "${doc.title || file.name}" uploaded successfully${pinned ? " and pinned" : ""} to workspace!`,
                 );
 
                 // Add a system message to the chat
                 const uploadMessage: ChatMessage = {
                     id: Date.now().toString(),
                     role: "assistant",
-                    content: `✅ Document "${doc.title || file.name}" has been uploaded and is now available in the knowledge base. You can ask questions about it!`,
+                    content: `✅ Document "${doc.title || file.name}" has been uploaded${pinned ? " and pinned" : ""} and is now available in the knowledge base. You can ask questions about it!`,
                     timestamp: Date.now(),
                 };
 

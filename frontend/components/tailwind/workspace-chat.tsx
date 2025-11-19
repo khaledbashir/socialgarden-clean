@@ -15,11 +15,26 @@ import {
     SelectTrigger,
     SelectValue,
 } from "./ui/select";
-import { ChevronRight, Send, Bot, Plus, Loader2, Paperclip } from "lucide-react";
+import {
+    ChevronRight,
+    Send,
+    Bot,
+    Plus,
+    Loader2,
+    Paperclip,
+    X,
+    CheckCircle2,
+    AlertCircle,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { StreamingThoughtAccordion } from "./streaming-thought-accordion";
 import { cleanSOWContent } from "@/lib/export-utils";
+import {
+    handleDocumentUploadAndPin,
+    uploadAndPinSingleFile,
+    type FileUploadProgress,
+} from "@/lib/document-pinning";
 
 interface ChatMessage {
     id: string;
@@ -91,6 +106,10 @@ export default function WorkspaceChat({
         Array<{ name: string; mime: string; contentString: string }>
     >([]);
     const [uploading, setUploading] = useState(false);
+
+    // 📄 DOCUMENT UPLOAD STATE (Multi-file support)
+    const [pendingFiles, setPendingFiles] = useState<FileUploadProgress[]>([]);
+    const [isDragOver, setIsDragOver] = useState(false);
 
     // ⚙️ ADVANCED FEATURES STATE
     const [showSettings, setShowSettings] = useState(false);
@@ -508,12 +527,10 @@ export default function WorkspaceChat({
         setAttachments((prev) => prev.filter((_, i) => i !== index));
     };
 
-    // Document upload to workspace
-    const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    // Handle file selection (multiple files)
+    const handleFileSelection = (files: FileList | null) => {
+        if (!files || files.length === 0) return;
 
-        // Validate file type
         const validTypes = [
             "application/pdf",
             "application/msword",
@@ -522,107 +539,188 @@ export default function WorkspaceChat({
             "text/markdown",
         ];
         const validExtensions = [".pdf", ".doc", ".docx", ".txt", ".md"];
-        const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
-        const isValidType =
-            validTypes.includes(file.type) || validExtensions.includes(fileExtension);
-
-        if (!isValidType) {
-            toast.error(
-                "Unsupported file type. Please upload PDF, Word, or text files.",
-            );
-            return;
-        }
-
-        // Check file size (50MB limit)
         const maxSize = 50 * 1024 * 1024; // 50MB
-        if (file.size > maxSize) {
-            toast.error("File size exceeds 50MB limit.");
-            return;
+
+        const newFiles: FileUploadProgress[] = Array.from(files)
+            .filter((file) => {
+                const fileExtension = file.name
+                    .toLowerCase()
+                    .substring(file.name.lastIndexOf("."));
+                const isValidType =
+                    validTypes.includes(file.type) ||
+                    validExtensions.includes(fileExtension);
+
+                if (!isValidType) {
+                    toast.error(
+                        `"${file.name}" is not a supported file type. Please upload PDF, Word, or text files.`,
+                    );
+                    return false;
+                }
+
+                if (file.size > maxSize) {
+                    toast.error(
+                        `"${file.name}" exceeds 50MB limit and will be skipped.`,
+                    );
+                    return false;
+                }
+
+                return true;
+            })
+            .map((file) => ({
+                id: `${Date.now()}-${Math.random()}`,
+                file,
+                status: "pending" as const,
+                progress: 0,
+            }));
+
+        if (newFiles.length > 0) {
+            setPendingFiles((prev) => [...prev, ...newFiles]);
         }
+    };
+
+    // Document upload handler (legacy single-file support)
+    const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        handleFileSelection(e.target.files);
+        // Reset input to allow selecting the same file again
+        if (e.target) {
+            e.target.value = "";
+        }
+    };
+
+    // Drag and drop handlers
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+            handleFileSelection(files);
+        }
+    };
+
+    // Remove file from pending list
+    const removePendingFile = (fileId: string) => {
+        setPendingFiles((prev) => prev.filter((f) => f.id !== fileId));
+    };
+
+    // Process batch upload
+    const handleBatchUpload = async () => {
+        if (pendingFiles.length === 0 || !editorWorkspaceSlug) return;
+
+        const filesToUpload = pendingFiles.filter((f) => f.status === "pending");
+        if (filesToUpload.length === 0) return;
 
         setUploading(true);
 
-        try {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("workspaceSlug", editorWorkspaceSlug);
+        const successMessages: string[] = [];
+        const errorMessages: string[] = [];
 
-            // Add metadata
-            const metadata = {
-                title: file.name,
-                docAuthor: "User Upload",
-                description: `Document uploaded via workspace chat`,
-                docSource: "Workspace Chat Upload",
-            };
-            formData.append("metadata", JSON.stringify(metadata));
+        // Process each file sequentially
+        for (const fileProgress of filesToUpload) {
+            // Update status to uploading
+            setPendingFiles((prev) =>
+                prev.map((f) =>
+                    f.id === fileProgress.id
+                        ? { ...f, status: "uploading", progress: 0 }
+                        : f,
+                ),
+            );
 
-            const response = await fetch("/api/anythingllm/document/upload", {
-                method: "POST",
-                body: formData,
-            });
+            const result = await uploadAndPinSingleFile(
+                fileProgress.file,
+                editorWorkspaceSlug,
+                (progress) => {
+                    // Update progress in real-time
+                    setPendingFiles((prev) =>
+                        prev.map((f) =>
+                            f.id === fileProgress.id ? progress : f,
+                        ),
+                    );
+                },
+            );
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(
-                    errorData.error ||
-                        `Upload failed: ${response.status} ${response.statusText}`,
-                );
-            }
-
-            const data = await response.json();
-
-            if (data.success && data.documents && data.documents.length > 0) {
-                const doc = data.documents[0];
-                toast.success(
-                    `Document "${doc.title || file.name}" uploaded successfully and added to workspace!`,
-                );
-
-                // Add a system message to the chat
-                const uploadMessage: {
-                    id: string;
-                    role: "user" | "assistant";
-                    content: string;
-                    timestamp: number;
-                } = {
-                    id: Date.now().toString(),
-                    role: "assistant",
-                    content: `✅ Document "${doc.title || file.name}" has been uploaded and is now available in the knowledge base. You can ask questions about it!`,
-                    timestamp: Date.now(),
-                };
-
-                // Filter out system messages before passing to onReplaceChatMessages
-                const validMessages = chatMessages
-                    .filter(
-                        (msg) => msg.role === "user" || msg.role === "assistant",
-                    )
-                    .map((msg) => ({
-                        id: msg.id,
-                        role: msg.role as "user" | "assistant",
-                        content: msg.content,
-                        timestamp: msg.timestamp,
-                    }));
-                onReplaceChatMessages([...validMessages, uploadMessage]);
+            if (result.success) {
+                successMessages.push(fileProgress.file.name);
             } else {
-                throw new Error("Upload succeeded but no document was returned");
-            }
-        } catch (error) {
-            console.error("File upload error:", error);
-            const errorMessage =
-                error instanceof Error
-                    ? error.message
-                    : "Failed to upload document";
-            toast.error(errorMessage);
-        } finally {
-            setUploading(false);
-            // Reset file input
-            if (documentUploadInputRef.current) {
-                documentUploadInputRef.current.value = "";
+                errorMessages.push(
+                    `${fileProgress.file.name}: ${result.error || "Unknown error"}`,
+                );
             }
         }
+
+        // Show summary toast
+        if (successMessages.length > 0) {
+            toast.success(
+                `${successMessages.length} document(s) uploaded and pinned successfully!`,
+            );
+        }
+        if (errorMessages.length > 0) {
+            toast.error(
+                `${errorMessages.length} document(s) failed to upload. Check the file list for details.`,
+            );
+        }
+
+        // Add summary message to chat
+        if (successMessages.length > 0) {
+            const summaryMessage: {
+                id: string;
+                role: "user" | "assistant";
+                content: string;
+                timestamp: number;
+            } = {
+                id: Date.now().toString(),
+                role: "assistant",
+                content: `✅ ${successMessages.length} document(s) have been uploaded and pinned to the workspace. They are now available in the knowledge base:\n\n${successMessages.map((name) => `• ${name}`).join("\n")}`,
+                timestamp: Date.now(),
+            };
+
+            const validMessages = chatMessages
+                .filter(
+                    (msg) => msg.role === "user" || msg.role === "assistant",
+                )
+                .map((msg) => ({
+                    id: msg.id,
+                    role: msg.role as "user" | "assistant",
+                    content: msg.content,
+                    timestamp: msg.timestamp,
+                }));
+            onReplaceChatMessages([...validMessages, summaryMessage]);
+        }
+
+        // Clear completed files after a delay
+        setTimeout(() => {
+            setPendingFiles((prev) =>
+                prev.filter((f) => f.status !== "success" && f.status !== "error"),
+            );
+        }, 5000);
+
+        setUploading(false);
     };
 
     const handleDocumentUploadClick = () => {
         documentUploadInputRef.current?.click();
+    };
+
+    // Format file size
+    const formatFileSize = (bytes: number): string => {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
     };
 
     const insertText = (text: string) => {
@@ -971,6 +1069,155 @@ export default function WorkspaceChat({
 
             {/* Input Area */}
             <div className="p-5 border-t border-[#0E2E33] bg-[#0e0f0f] space-y-3">
+                {/* Pending Files List with Drag-and-Drop */}
+                {pendingFiles.length > 0 && (
+                    <div className="space-y-2">
+                        <div className="text-xs text-gray-400 font-medium">
+                            {pendingFiles.length} file(s) ready to upload
+                        </div>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                            {pendingFiles.map((fileProgress) => (
+                                <div
+                                    key={fileProgress.id}
+                                    className="flex items-center gap-2 bg-[#0E2E33] px-3 py-2 rounded text-xs border border-[#1b5e5e]"
+                                >
+                                    {/* Status Icon */}
+                                    <div className="flex-shrink-0">
+                                        {fileProgress.status === "pending" && (
+                                            <div className="w-4 h-4 rounded-full border-2 border-gray-400" />
+                                        )}
+                                        {fileProgress.status === "uploading" && (
+                                            <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                                        )}
+                                        {fileProgress.status === "pinning" && (
+                                            <Loader2 className="w-4 h-4 animate-spin text-yellow-400" />
+                                        )}
+                                        {fileProgress.status === "success" && (
+                                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                        )}
+                                        {fileProgress.status === "error" && (
+                                            <AlertCircle className="w-4 h-4 text-red-500" />
+                                        )}
+                                    </div>
+
+                                    {/* File Info */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="truncate text-white font-medium">
+                                                {fileProgress.file.name}
+                                            </span>
+                                            <span className="text-gray-400 flex-shrink-0">
+                                                {formatFileSize(fileProgress.file.size)}
+                                            </span>
+                                        </div>
+                                        {/* Progress Bar */}
+                                        {(fileProgress.status === "uploading" ||
+                                            fileProgress.status === "pinning") && (
+                                            <div className="mt-1.5 w-full bg-[#1b1b1e] rounded-full h-1">
+                                                <div
+                                                    className="bg-[#15a366] h-1 rounded-full transition-all duration-300"
+                                                    style={{
+                                                        width: `${fileProgress.progress}%`,
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                        {/* Status Text */}
+                                        <div className="mt-1 text-[10px] text-gray-400">
+                                            {fileProgress.status === "pending" &&
+                                                "Ready to upload"}
+                                            {fileProgress.status === "uploading" &&
+                                                `Uploading... ${fileProgress.progress}%`}
+                                            {fileProgress.status === "pinning" &&
+                                                "Pinning to workspace..."}
+                                            {fileProgress.status === "success" && (
+                                                <span className="text-green-400">
+                                                    ✅ Uploaded & pinned
+                                                    {fileProgress.wordCount &&
+                                                        ` • ${fileProgress.wordCount} words`}
+                                                    {fileProgress.tokenCount &&
+                                                        ` • ~${fileProgress.tokenCount} tokens`}
+                                                </span>
+                                            )}
+                                            {fileProgress.status === "error" && (
+                                                <span className="text-red-400">
+                                                    ❌ {fileProgress.error || "Upload failed"}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Remove Button */}
+                                    {(fileProgress.status === "pending" ||
+                                        fileProgress.status === "error") && (
+                                        <button
+                                            onClick={() =>
+                                                removePendingFile(fileProgress.id)
+                                            }
+                                            className="flex-shrink-0 p-1 hover:bg-[#1b1b1e] rounded transition-colors"
+                                            title="Remove file"
+                                        >
+                                            <X className="w-3.5 h-3.5 text-gray-400 hover:text-red-400" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Upload Button */}
+                        {pendingFiles.some((f) => f.status === "pending") && (
+                            <Button
+                                onClick={handleBatchUpload}
+                                disabled={uploading || !editorWorkspaceSlug}
+                                size="sm"
+                                className="w-full bg-[#15a366] hover:bg-[#10a35a] text-white text-sm font-semibold"
+                            >
+                                {uploading ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        Uploading...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Paperclip className="h-4 w-4 mr-2" />
+                                        Upload {pendingFiles.filter((f) => f.status === "pending").length} Document(s)
+                                    </>
+                                )}
+                            </Button>
+                        )}
+                    </div>
+                )}
+
+                {/* Drag and Drop Area */}
+                {pendingFiles.length === 0 && (
+                    <div
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
+                            isDragOver
+                                ? "border-[#15a366] bg-[#0E2E33]/50"
+                                : "border-[#0E2E33] bg-transparent"
+                        }`}
+                    >
+                        <div className="text-center text-sm text-gray-400">
+                            <Paperclip className="w-5 h-5 mx-auto mb-2 opacity-50" />
+                            <span>
+                                Drag and drop documents here, or{" "}
+                                <button
+                                    onClick={handleDocumentUploadClick}
+                                    className="text-[#15a366] hover:underline"
+                                >
+                                    click to browse
+                                </button>
+                            </span>
+                            <div className="text-xs text-gray-500 mt-1">
+                                PDF, Word, or text files (max 50MB each)
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Attachments Preview */}
                 {attachments.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -1036,10 +1283,11 @@ export default function WorkspaceChat({
                                 accept="image/*,.pdf,.txt,.doc,.docx"
                             />
 
-                            {/* Document upload input (for workspace document upload) */}
+                            {/* Document upload input (for workspace document upload) - Multiple files */}
                             <input
                                 ref={documentUploadInputRef}
                                 type="file"
+                                multiple
                                 onChange={handleDocumentUpload}
                                 className="hidden"
                                 accept=".pdf,.doc,.docx,.txt,.md,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
