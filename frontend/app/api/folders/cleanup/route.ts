@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
             if (sows[0].count > 0) {
                 console.log(
-                    `⚠️  Skipping folder "${folder.name}" - has ${sows[0].count} SOW(s)`,
+                    `⚠️  Skipping folder "${folder.name}" - has ${sowCount} SOW(s)`,
                 );
                 continue;
             }
@@ -108,9 +108,10 @@ export async function GET(request: NextRequest) {
             );
 
             if (sows[0].count > 0) {
+                const sowCount = sows[0]?.count || 0;
                 cannotDelete.push({
                     ...folder,
-                    reason: `Has ${sows[0].count} SOW(s)`,
+                    reason: `Has ${sowCount} SOW(s)`,
                 });
             } else {
                 canDelete.push({
