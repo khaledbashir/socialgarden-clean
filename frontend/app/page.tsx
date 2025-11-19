@@ -554,7 +554,7 @@ export default function Page() {
 
         // Find workspace slug from the folder this SOW belongs to
         const parentWorkspace = workspaces.find((w) => w.id === targetFolderId);
-        const workspaceSlug = parentWorkspace?.workspace_slug || parentWorkspace?.workspaceSlug;
+        const workspaceSlug = parentWorkspace?.workspace_slug || parentWorkspace?.slug;
 
         // 🎯 Check if this is the Unfiled folder (no workspace needed)
         const isUnfiledFolder = targetFolderId === UNFILED_FOLDER_ID;
