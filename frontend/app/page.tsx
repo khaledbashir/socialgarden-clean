@@ -2258,6 +2258,7 @@ export default function Page() {
                             onEditorThreadChange={handleEditorThreadChange}
                             onClearChat={() => setChatMessages([])}
                             onReplaceChatMessages={setChatMessages}
+                            lastUserPrompt={lastUserPrompt}
                         />
                     ) : null
                 }

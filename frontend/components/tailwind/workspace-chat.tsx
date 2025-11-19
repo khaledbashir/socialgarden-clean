@@ -25,6 +25,11 @@ import {
     X,
     CheckCircle2,
     AlertCircle,
+    RotateCcw,
+    Copy,
+    Check,
+    Save,
+    Undo2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -71,6 +76,7 @@ interface WorkspaceChatProps {
             timestamp: number;
         }>,
     ) => void;
+    lastUserPrompt?: string; // Last user message for retry functionality
 }
 
 export default function WorkspaceChat({
@@ -86,6 +92,7 @@ export default function WorkspaceChat({
     onEditorThreadChange,
     onClearChat,
     onReplaceChatMessages,
+    lastUserPrompt = "",
 }: WorkspaceChatProps) {
     const [chatInput, setChatInput] = useState("");
     const [workspacePrompt, setWorkspacePrompt] = useState<string>("");
@@ -122,6 +129,10 @@ export default function WorkspaceChat({
     const documentUploadInputRef = useRef<HTMLInputElement>(null);
     const [showAllMessages, setShowAllMessages] = useState(false);
     const MAX_MESSAGES = 100; // windowing to reduce render cost
+    
+    // 🎯 Copy button state
+    const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+    const [copiedJsonId, setCopiedJsonId] = useState<string | null>(null);
 
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
@@ -398,6 +409,86 @@ export default function WorkspaceChat({
         } catch (error) {
             console.error("❌ Failed to delete thread:", error);
             toast.error("Failed to delete thread");
+        }
+    };
+
+    // 🎯 Retry handler - resend last user message
+    const handleRetry = async () => {
+        // Get the last user message from chat history (more reliable than lastUserPrompt)
+        const lastUserMessage = [...chatMessages]
+            .reverse()
+            .find((m) => m.role === "user");
+        
+        const messageToRetry = lastUserMessage?.content || lastUserPrompt;
+        
+        if (!messageToRetry.trim() || isLoading) {
+            if (!messageToRetry.trim()) {
+                toast.error("No previous message to retry");
+            }
+            return;
+        }
+
+        // 🔥 CRITICAL FIX: Auto-create thread if none exists
+        let threadSlug = currentThreadSlug;
+        if (!threadSlug) {
+            console.log(
+                "🆕 No thread exists - creating one automatically before retry",
+            );
+            threadSlug = await handleNewThread();
+            if (!threadSlug) {
+                toast.error("Failed to create chat thread");
+                return;
+            }
+        }
+
+        console.log("🔄 Retrying last message:", {
+            message: messageToRetry,
+            threadSlug,
+            workspaceSlug: editorWorkspaceSlug,
+        });
+
+        onSendMessage(messageToRetry, threadSlug, []);
+    };
+
+    // 🎯 Copy prose content
+    const handleCopyProse = async (content: string, messageId: string) => {
+        // Remove JSON blocks and thinking tags for prose copy
+        let proseContent = content;
+        proseContent = proseContent.replace(/```json[\s\S]*?```/gi, '').trim();
+        proseContent = proseContent.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
+        proseContent = proseContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        proseContent = proseContent.replace(/<AI_THINK>[\s\S]*?<\/AI_THINK>/gi, '').trim();
+        proseContent = proseContent.replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '').trim();
+
+        try {
+            await navigator.clipboard.writeText(proseContent);
+            setCopiedMessageId(messageId);
+            toast.success("Prose copied to clipboard");
+            setTimeout(() => setCopiedMessageId(null), 2000);
+        } catch (error) {
+            console.error("Failed to copy:", error);
+            toast.error("Failed to copy to clipboard");
+        }
+    };
+
+    // 🎯 Copy JSON content
+    const handleCopyJSON = async (content: string, messageId: string) => {
+        // Extract JSON block
+        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/i);
+        if (!jsonMatch || !jsonMatch[1]) {
+            toast.error("No JSON block found in this message");
+            return;
+        }
+
+        try {
+            const jsonContent = jsonMatch[1].trim();
+            await navigator.clipboard.writeText(jsonContent);
+            setCopiedJsonId(messageId);
+            toast.success("JSON copied to clipboard");
+            setTimeout(() => setCopiedJsonId(null), 2000);
+        } catch (error) {
+            console.error("Failed to copy JSON:", error);
+            toast.error("Failed to copy JSON to clipboard");
         }
     };
 
@@ -992,6 +1083,52 @@ export default function WorkspaceChat({
                                             <p className="text-xs mt-1 opacity-70 flex-1">
                                                 {formatTimestamp(msg.timestamp)}
                                             </p>
+                                            
+                                            {/* 🎯 Action buttons for assistant messages */}
+                                            {msg.role === "assistant" && (
+                                                <div className="flex gap-1.5 items-center">
+                                                    {/* Copy Prose Button */}
+                                                    <button
+                                                        onClick={() => handleCopyProse(msg.content, msg.id)}
+                                                        className="p-1.5 hover:bg-[#1b5e5e] rounded transition-colors"
+                                                        title="Copy prose content"
+                                                    >
+                                                        {copiedMessageId === msg.id ? (
+                                                            <Check className="w-3.5 h-3.5 text-green-400" />
+                                                        ) : (
+                                                            <Copy className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
+                                                        )}
+                                                    </button>
+                                                    
+                                                    {/* Copy JSON Button (only if JSON exists) */}
+                                                    {/```json/i.test(msg.content) && (
+                                                        <button
+                                                            onClick={() => handleCopyJSON(msg.content, msg.id)}
+                                                            className="p-1.5 hover:bg-[#1b5e5e] rounded transition-colors"
+                                                            title="Copy JSON block"
+                                                        >
+                                                            {copiedJsonId === msg.id ? (
+                                                                <Check className="w-3.5 h-3.5 text-green-400" />
+                                                            ) : (
+                                                                <Copy className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                            
+                                            {/* 🎯 Retry button for user messages (if it's the last user message) */}
+                                            {msg.role === "user" && 
+                                             chatMessages[chatMessages.length - 1]?.id === msg.id && (
+                                                <button
+                                                    onClick={handleRetry}
+                                                    disabled={isLoading}
+                                                    className="p-1.5 hover:bg-[#1b5e5e] rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Retry this message"
+                                                >
+                                                    <RotateCcw className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

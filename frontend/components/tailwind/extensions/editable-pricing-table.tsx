@@ -3,6 +3,8 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { toast } from "sonner";
+import { Save, Undo2 } from "lucide-react";
 import {
     enforceMandatoryRoles,
     validateMandatoryRoles,
@@ -74,6 +76,33 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     const [rows, setRows] = useState<PricingRow[]>(enforcedRows);
     const [discount, setDiscount] = useState(node.attrs.discount || 0);
     const [showTotal, setShowTotal] = useState(node.attrs.showTotal !== false); // Default to true
+    
+    // 🎯 Save/Revert metadata tracking
+    const [mode, setMode] = useState<'view' | 'edit'>(node.attrs.mode || 'view');
+    const aiGeneratedDataRef = useRef<{ rows: PricingRow[]; discount: number } | null>(
+        node.attrs.aiGeneratedData ? JSON.parse(node.attrs.aiGeneratedData) : null
+    );
+    
+    // 🎯 Store AI-generated data on initial load if not already stored
+    useEffect(() => {
+        // Store AI data if:
+        // 1. Not already stored
+        // 2. We have rows (table is populated)
+        // 3. Mode is 'view' (not yet edited) OR mode is not set (initial state)
+        // 4. Rate card is loaded (so we have valid data)
+        if (!aiGeneratedDataRef.current && rows.length > 0 && (mode === 'view' || !node.attrs.mode) && roles.length > 0) {
+            console.log("💾 [Pricing Table] Storing initial AI-generated data");
+            aiGeneratedDataRef.current = {
+                rows: JSON.parse(JSON.stringify(rows)),
+                discount,
+            };
+            // Persist to node attributes
+            updateAttributes({
+                aiGeneratedData: JSON.stringify(aiGeneratedDataRef.current),
+                mode: 'view',
+            });
+        }
+    }, [rows.length, mode, roles.length]); // Re-check when rows are populated or roles load
 
     // Update rows when enforcedRows changes (after rate card loads)
     // BUT: Don't overwrite if user has manually added rows
@@ -192,6 +221,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         value: string | number,
     ) => {
         setIsUserModified(true); // Mark as user-modified
+        setMode('edit'); // Switch to edit mode when user makes changes
         setRows((prev) =>
             prev.map((row) => {
                 if (row.id !== id) return row;
@@ -407,18 +437,82 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                             </p>
                         )}
                     </div>
-                    <button
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log("🔘 [Pricing Table] Add Role button clicked");
-                            addRow();
-                        }}
-                        className="px-3 py-1 bg-[#0E0F0F] text-white rounded text-sm hover:bg-[#0E0F0F]/80 transition-colors cursor-pointer"
-                        type="button"
-                    >
-                        + Add Role
-                    </button>
+                    <div className="flex gap-2 items-center">
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log("🔘 [Pricing Table] Add Role button clicked");
+                                addRow();
+                            }}
+                            className="px-3 py-1 bg-[#0E0F0F] text-white rounded text-sm hover:bg-[#0E0F0F]/80 transition-colors cursor-pointer"
+                            type="button"
+                        >
+                            + Add Role
+                        </button>
+                        
+                        {/* 🎯 Save/Revert buttons for metadata tracking */}
+                        {mode === 'view' && aiGeneratedDataRef.current && (
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    console.log("🔄 [Pricing Table] Reverting to AI-generated data");
+                                    const aiData = JSON.parse(JSON.stringify(aiGeneratedDataRef.current!));
+                                    setRows(aiData.rows);
+                                    setDiscount(aiData.discount);
+                                    setMode('view');
+                                    // Update node attributes
+                                    updateAttributes({
+                                        rows: aiData.rows,
+                                        discount: aiData.discount,
+                                        mode: 'view',
+                                    });
+                                    toast.success("✅ Reverted to AI-generated values");
+                                }}
+                                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors cursor-pointer flex items-center gap-1.5"
+                                type="button"
+                                title="Revert to original AI-generated values"
+                            >
+                                <Undo2 className="w-3.5 h-3.5" />
+                                Revert to AI
+                            </button>
+                        )}
+                        
+                        {mode === 'edit' && (
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    console.log("💾 [Pricing Table] Saving edits and storing AI data");
+                                    // Ensure AI-generated data is stored (should already be set on initial load)
+                                    if (!aiGeneratedDataRef.current) {
+                                        // Fallback: if somehow AI data wasn't stored, use current state
+                                        // This shouldn't happen, but provides safety
+                                        console.warn("⚠️ [Pricing Table] AI data not found, using current state as fallback");
+                                        aiGeneratedDataRef.current = {
+                                            rows: JSON.parse(JSON.stringify(rows)),
+                                            discount,
+                                        };
+                                    }
+                                    // Update node attributes with current edited state and metadata
+                                    updateAttributes({
+                                        rows,
+                                        discount,
+                                        mode: 'edit',
+                                        aiGeneratedData: JSON.stringify(aiGeneratedDataRef.current),
+                                    });
+                                    toast.success("✅ Edits saved with metadata tracking");
+                                }}
+                                className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors cursor-pointer flex items-center gap-1.5"
+                                type="button"
+                                title="Save edits and track original AI values"
+                            >
+                                <Save className="w-3.5 h-3.5" />
+                                Save Edits
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="overflow-x-auto mb-4">
                     <table className="w-full border-collapse">
