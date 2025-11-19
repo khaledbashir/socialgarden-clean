@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   page: {
     padding: 36,
     fontSize: 10,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Plus Jakarta Sans', // Sam's requirement: Use Plus Jakarta Sans font
     backgroundColor: '#FFFFFF',
     color: palette.text,
   },
