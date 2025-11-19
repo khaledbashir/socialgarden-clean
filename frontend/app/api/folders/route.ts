@@ -41,6 +41,15 @@ export async function POST(request: NextRequest) {
                   ? parseInt(embedId, 10)
                   : null;
 
+        // 🛑 VALIDATION: workspaceSlug is mandatory
+        if (!workspaceSlug) {
+             console.error("❌ Missing workspaceSlug in create folder request");
+             return NextResponse.json(
+                { error: "workspaceSlug is required" },
+                { status: 400 }
+             );
+        }
+
         // 🔧 CRITICAL FIX: Handle duplicate workspace_slug gracefully
         // If workspace_slug already exists, don't insert duplicate - return existing folder info
         if (workspaceSlug) {

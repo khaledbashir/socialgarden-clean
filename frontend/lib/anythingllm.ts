@@ -340,18 +340,21 @@ You MUST include a DIVERSE set of roles based on the project requirements. The 3
 **MANDATORY ROLE SELECTION PROCESS:**
 1. Start with the 3 mandatory governance roles (minimal hours: 5-15h, 3-10h, 6-12h respectively)
 2. Analyze the brief and uploaded documents to identify ALL work types needed
-3. For EACH work type, select the appropriate role(s) from the OFFICIAL_RATE_CARD:
+3. **CRITICAL: EXECUTION ROLE MAPPING** - You MUST map specific deliverables to execution roles:
+   - "Chatbot" or "AI Agent" → Include "Tech - Producer - Chat Bot Build"
+   - "Audit" or "Review" → Include "Tech - Sr. Consultant - Audit" or "Tech - Specialist - Research"
+   - "Build", "Develop", "Setup" → Include "Tech - Producer - Development" or "Tech - Specialist - Complex Workflow"
    - Email work → Include "Tech - Producer - Email" or "Tech - Specialist - Email"
    - Design work → Include "Tech - Producer - Design" or "Design - Digital Asset (Onshore)"
-   - Development work → Include "Tech - Producer - Development" or "Dev (or Tech) - Landing Page (Onshore)"
    - Integration work → Include "Tech - Integrations" or "Tech - Producer - Integration"
-   - Copywriting → Include "Tech - Producer - Copywriting" or "Content - Copywriter"
-   - Reporting/Analytics → Include "Tech - Producer - Reporting" or "Tech - Specialist - Reporting"
-   - Testing → Include "Tech - Producer - Testing" or "Tech - Specialist - Testing"
-   - Training → Include "Tech - Producer - Training" or "Tech - Specialist - Training"
    - Strategy work → Include appropriate Consultant or Strategy roles
-4. A typical SOW should have 5-10+ roles, NOT just the 3 mandatory ones
-5. For retainer agreements, include ongoing service roles like "Tech - Producer - Support & Monitoring"
+4. **BUDGET & TIMELINE CALIBRATION:**
+   - Check the Budget: A $45k budget implies ~200-250 hours of work.
+   - Check the Timeline: An 8-week timeline implies substantial effort (not just 20 hours).
+   - **FAILURE CONDITION:** Generating a $5k SOW for a $45k budget is a CRITICAL FAILURE.
+   - You MUST scale the hours for "Producer" and "Specialist" roles to match the budget and timeline.
+5. A typical SOW should have 5-10+ roles. For a $20k+ project, aim for 100+ total hours.
+6. For retainer agreements, include ongoing service roles like "Tech - Producer - Support & Monitoring"
 
 **USING UPLOADED DOCUMENTS:**
 - If the user has uploaded PDF documents (briefs, Fathom notes, requirements), you MUST reference them
@@ -894,8 +897,10 @@ Metadata:
             );
 
             if (!workspaceEmbedResponse.ok) {
+                const errorText = await workspaceEmbedResponse.text();
+                console.error(`❌ Embedding failed: ${workspaceEmbedResponse.status} ${errorText}`);
                 throw new Error(
-                    `Failed to embed document in workspace: ${workspaceEmbedResponse.statusText}`,
+                    `Failed to embed document in workspace: ${workspaceEmbedResponse.status} ${errorText}`,
                 );
             }
 
