@@ -89,3 +89,4 @@ tsconfig.tsbuildinfo
 Thumbs.db
 docs/archive/old-root-app/node_modules/
 .env
+backups/*.sql

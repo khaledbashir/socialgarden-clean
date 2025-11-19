@@ -17,12 +17,12 @@ NEXT_PUBLIC_API_URL=https://sow.qandu.me
 
 # AnythingLLM Integration (REQUIRED - Missing in your current config!)
 NEXT_PUBLIC_ANYTHINGLLM_URL=https://ahmad-anything-llm.840tjq.easypanel.host
-NEXT_PUBLIC_ANYTHINGLLM_API_KEY=0G0WTZ3-6ZX4D20-H35VBRG-9059WPA
+NEXT_PUBLIC_ANYTHINGLLM_API_KEY=your_anythingllm_api_key_here
 
 # PDF Service
 NEXT_PUBLIC_PDF_SERVICE_URL=https://ahmad-socialgarden-backend.840tjq.easypanel.host
 
 # AI Provider Configuration (OpenRouter)
-OPENROUTER_API_KEY=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
+OPENROUTER_API_KEY=your_openrouter_api_key_here
 OPENROUTER_MODEL_PREF=moonshotai/kimi-k2-instruct
 
