@@ -6,1364 +6,857 @@ import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import { toast } from "sonner";
-import { UNFILED_FOLDER_ID } from "@/lib/ensure-unfiled-folder";
 import {
-    ChevronDown,
-    ChevronRight,
-    FileText,
-    Plus,
-    Trash2,
-    Edit3,
-    LayoutDashboard,
-    Sparkles,
-    ChevronLeft,
-    GripVertical,
-    Settings,
-    CheckCircle2,
-    Loader2,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Plus,
+  Trash2,
+  Edit3,
+  LayoutDashboard,
+  Sparkles,
+  ChevronLeft,
+  GripVertical,
+  Settings,
+  CheckCircle2,
 } from "lucide-react";
 import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragEndEvent,
-    DragOverlay,
-    DragStartEvent,
-} from "@dnd-kit/core";
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+} from '@dnd-kit/core';
 import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    useSortable,
-    verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { Document } from "@/lib/types/sow"; // Import Document type
-import { RoleGuard } from "./role-guard";
-
-// SOWTagSelector removed from sidebar - keep the component for editor usage if needed
-
-interface SOW {
-    id: string;
-    name: string;
-    workspaceId: string;
-    vertical?:
-        | "property"
-        | "education"
-        | "finance"
-        | "healthcare"
-        | "retail"
-        | "hospitality"
-        | "professional-services"
-        | "technology"
-        | "other"
-        | null;
-    service_line?:
-        | "crm-implementation"
-        | "marketing-automation"
-        | "revops-strategy"
-        | "managed-services"
-        | "consulting"
-        | "training"
-        | "other"
-        | null;
-}
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Folder {
-    id: string;
-    name: string;
-    sows: SOW[];
-    workspace_slug?: string;
-    slug?: string;
+  id: string;
+  name: string;
+  workspace_slug?: string;
+  slug?: string;
+}
+
+interface Document {
+  id: string;
+  title: string;
+  folderId: string | null; // null means it's in "All Docs"
+  vertical?: 'property' | 'education' | 'finance' | 'healthcare' | 'retail' | 'hospitality' | 'professional-services' | 'technology' | 'other' | null;
+  service_line?: 'crm-implementation' | 'marketing-automation' | 'revops-strategy' | 'managed-services' | 'consulting' | 'training' | 'other' | null;
 }
 
 interface SidebarNavProps {
-    currentView: "dashboard" | "editor" | "ai-management";
-    onViewChange: (view: "dashboard" | "editor" | "ai-management") => void;
+  folders: Folder[];
+  documents: Document[];
+  currentFolderId: string | null;
+  currentDocumentId: string | null;
 
-    documents: Document[]; // Add documents prop
-    workspaces: Folder[];
-    currentWorkspaceId: string;
-    currentSOWId: string | null;
-
-    onSelectWorkspace: (id: string) => void;
-    onSelectSOW: (id: string) => void;
-    onCreateWorkspace: (
-        name?: string,
-        type?: "sow" | "client" | "generic",
-    ) => void;
-    onCreateSOW: (workspaceId: string, name: string) => void;
-    onRenameWorkspace: (id: string, name: string) => void;
-    onDeleteWorkspace: (id: string) => void;
-    onRenameSOW: (id: string, title: string) => void;
-    onDeleteSOW: (id: string) => void;
-    onToggleSidebar?: () => void;
-    onReorderWorkspaces?: (workspaces: Folder[]) => void;
-    onReorderSOWs?: (workspaceId: string, sows: SOW[]) => void;
-    // Move SOW between folders
-    onMoveSOW?: (
-        sowId: string,
-        fromWorkspaceId: string,
-        toWorkspaceId: string,
-        toIndex?: number,
-    ) => void;
-
-    // Show/hide Dashboard link (for feature toggling)
-    showDashboardLink?: boolean;
+  onSelectFolder: (id: string | null) => void; // null for "All Docs"
+  onSelectDocument: (id: string) => void;
+  onCreateFolder: (name: string) => void;
+  onCreateDocument: (folderId: string | null, name: string) => void; // null for "All Docs"
+  onRenameFolder: (id: string, name: string) => void;
+  onRenameWorkspace?: (id: string, name: string) => void;
+  onDeleteFolder: (id: string) => void;
+  onRenameDocument: (id: string, title: string) => void;
+  onRenameSOW?: (id: string, title: string) => void;
+  onDeleteDocument: (id: string) => void;
+  onMoveDocument: (documentId: string, fromFolderId: string | null, toFolderId: string | null) => void;
+  onToggleSidebar?: () => void;
 }
 
 export default function SidebarNav({
-    currentView,
-    onViewChange,
-    workspaces,
-    currentWorkspaceId,
-    currentSOWId,
-    onSelectWorkspace,
-    onSelectSOW,
-    onCreateWorkspace,
-    onCreateSOW,
-    onRenameWorkspace,
-    onDeleteWorkspace,
-    onRenameSOW,
-    onDeleteSOW,
-    onToggleSidebar,
-    onReorderWorkspaces,
-    onReorderSOWs,
-    onMoveSOW,
-    showDashboardLink,
+  folders,
+  documents,
+  currentFolderId,
+  currentDocumentId,
+  onSelectFolder,
+  onSelectDocument,
+  onCreateFolder,
+  onCreateDocument,
+  onRenameFolder,
+  onRenameWorkspace,
+  onDeleteFolder,
+  onRenameDocument,
+  onRenameSOW,
+  onDeleteDocument,
+  onMoveDocument,
+  onToggleSidebar,
 }: SidebarNavProps) {
-    // Helper functions to categorize folders (must be before usage)
-    const isAgentWorkspace = (workspace: any) => {
-        const agentSlugs = [
-            "gen-the-architect",
-            "property-marketing-pro",
-            "ad-copy-machine",
-            "crm-communication-specialist",
-            "case-study-crafter",
-            "landing-page-persuader",
-            "seo-content-strategist",
-            "proposal-audit-specialist",
-            "proposal-and-audit-specialist",
-        ];
-        const slug = workspace.workspace_slug || workspace.slug;
-        const matchBySlug = slug && agentSlugs.includes(slug);
-        const matchByName = agentSlugs.some((s) =>
-            workspace.name.toLowerCase().includes(s.replace(/-/g, " ")),
-        );
-        return matchBySlug || matchByName;
-    };
+  // Helper functions to categorize folders (must be before usage)
+  const isAgentFolder = (folder: any) => {
+    const agentSlugs = [
+      'gen-the-architect',
+      'property-marketing-pro',
+      'ad-copy-machine',
+      'crm-communication-specialist',
+      'case-study-crafter',
+      'landing-page-persuader',
+      'seo-content-strategist',
+      'proposal-audit-specialist',
+      'proposal-and-audit-specialist'
+    ];
+    const slug = folder.workspace_slug || folder.slug;
+    const matchBySlug = slug && agentSlugs.includes(slug);
+    const matchByName = agentSlugs.some(s => folder.name.toLowerCase().includes(s.replace(/-/g, ' ')));
+    return matchBySlug || matchByName;
+  };
 
-    const isSystemWorkspace = (workspace: any) => {
-        const systemSlugs = [
-            "default-client",
-            "sow-master-dashboard",
-            "gen",
-            "sql",
-            "sow-master-dashboard-63003769",
-            "pop",
-        ];
-        const slug = workspace.workspace_slug || workspace.slug;
-        const matchBySlug = slug && systemSlugs.includes(slug);
-        const matchByName = systemSlugs.some((s) =>
-            workspace.name.toLowerCase().includes(s.replace(/-/g, " ")),
-        );
-        return matchBySlug || matchByName;
-    };
+  const isSystemFolder = (folder: any) => {
+    const systemSlugs = [
+      'default-client',
+      'sow-master-dashboard',
+      'gen',
+      'sql',
+      'sow-master-dashboard-63003769',
+      'pop'
+    ];
+    const slug = folder.workspace_slug || folder.slug;
+    const matchBySlug = slug && systemSlugs.includes(slug);
+    const matchByName = systemSlugs.some(s => folder.name.toLowerCase().includes(s.replace(/-/g, ' ')));
+    return matchBySlug || matchByName;
+  };
 
-    // 🗑️ Check if folder is protected (cannot be deleted)
-    const isProtectedWorkspace = (workspace: any) => {
-        // Protect system folders
-        if (isSystemWorkspace(workspace)) return true;
-        // Protect agent folders
-        if (isAgentWorkspace(workspace)) return true;
-        return false;
-    };
+  // 🗑️ Check if folder is protected (cannot be deleted)
+  const isProtectedFolder = (folder: any) => {
+    // Protect system folders
+    if (isSystemFolder(folder)) return true;
+    // Protect agent folders
+    if (isAgentFolder(folder)) return true;
+    return false;
+  };
 
-    const [expandedWorkspaces, setExpandedWorkspaces] = useState<Set<string>>(
-        new Set(workspaces.map((w) => w.id)),
-    );
-    const [renamingId, setRenamingId] = useState<string | null>(null);
-    const [renameValue, setRenameValue] = useState("");
-    const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
-    const [newWorkspaceName, setNewWorkspaceName] = useState("");
-    const [newWorkspaceType, setNewWorkspaceType] = useState<
-        "sow" | "client" | "generic"
-    >("sow"); // 🎯 Workspace type selector
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set(folders.map(f => f.id))
+  );
+  const [allDocsExpanded, setAllDocsExpanded] = useState(false);
+  const [foldersExpanded, setFoldersExpanded] = useState(true);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
 
-    const [searchQuery, setSearchQuery] = useState("");
-    const [activeId, setActiveId] = useState<string | null>(null);
-    const [localWorkspaces, setLocalWorkspaces] = useState(workspaces);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [localFolders, setLocalFolders] = useState(folders);
+  const [localDocuments, setLocalDocuments] = useState(documents);
 
-    // 🗑️ Multi-select deletion states
-    const [selectedFolders, setSelectedFolders] = useState<Set<string>>(
-        new Set(),
-    );
-    const [isDeleteMode, setIsDeleteMode] = useState(false);
-    const [confirmDialog, setConfirmDialog] = useState<{
-        open: boolean;
-        title: string;
-        message: string;
-        onConfirm: () => void;
-    } | null>(null);
-    const [isCleaningUp, setIsCleaningUp] = useState(false);
+  // 🗑️ Multi-select deletion states
+  const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
 
-    // 🆕 Loading state for New SOW button
-    const [isCreatingSOW, setIsCreatingSOW] = useState(false);
+  // 🆕 Loading state for New Document button
+  const [isCreatingDocument, setIsCreatingDocument] = useState(false);
 
-    // Get deletable folders (not protected) - calculate inside useMemo to avoid initialization issues
-    const { deletableFolders, areAllSelected } = (() => {
-        const deletable = workspaces.filter((w) => !isProtectedWorkspace(w));
-        const allSelected =
-            deletable.length > 0 &&
-            deletable.every((w) => selectedFolders.has(w.id));
-        return { deletableFolders: deletable, areAllSelected: allSelected };
-    })();
+  // Get deletable folders (not protected) - calculate inside useMemo to avoid initialization issues
+  const { deletableFolders, areAllSelected } = (() => {
+    const deletable = folders.filter(f => !isProtectedFolder(f));
+    const allSelected = deletable.length > 0 && deletable.every(f => selectedFolders.has(f.id));
+    return { deletableFolders: deletable, areAllSelected: allSelected };
+  })();
 
-    // Select/deselect all handler
-    const handleSelectAll = () => {
-        if (areAllSelected) {
-            setSelectedFolders(new Set());
-        } else {
-            const allDeletableIds = new Set(deletableFolders.map((w) => w.id));
-            setSelectedFolders(allDeletableIds);
-        }
-    };
+  // Toggle folder selection for bulk delete
+  const toggleFolderSelection = (folderId: string) => {
+    setSelectedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
+  };
 
-    // Category expansion states
-    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-        // Default: show Clients only to avoid confusion about protected counts
-        new Set(["clients"]),
-    );
+  // Bulk delete selected folders
+  const handleBulkDelete = async () => {
+    if (selectedFolders.size === 0) return;
 
-    // Update local folders when prop changes
-    useEffect(() => {
-        setLocalWorkspaces(workspaces);
-    }, [workspaces]);
+    setConfirmDialog({
+      open: true,
+      title: `Delete ${selectedFolders.size} Folder(s)?`,
+      message: `This will delete the folders and move all documents to "All Docs". This cannot be undone.`,
+      onConfirm: async () => {
+        // Move all documents from selected folders to "All Docs"
+        const foldersToDelete = Array.from(selectedFolders);
+        const docsToMove = localDocuments.filter(d => foldersToDelete.includes(d.folderId || ''));
 
-    // 🗑️ Handle multi-select toggle
-    const toggleFolderSelection = (workspaceId: string) => {
-        const newSelected = new Set(selectedFolders);
-        if (newSelected.has(workspaceId)) {
-            newSelected.delete(workspaceId);
-        } else {
-            newSelected.add(workspaceId);
-        }
-        setSelectedFolders(newSelected);
-    };
-
-    // 🗑️ Handle bulk delete
-    const handleBulkDelete = async () => {
-        const selectedFoldersList = Array.from(selectedFolders);
-
-        if (selectedFoldersList.length === 0) {
-            toast.error("No folders selected");
-            return;
+        for (const doc of docsToMove) {
+          await onMoveDocument(doc.id, doc.folderId, null);
         }
 
-        const protectedCount = selectedFoldersList.filter((id) =>
-            isProtectedWorkspace(localWorkspaces.find((w) => w.id === id)!),
-        ).length;
-
-        if (protectedCount > 0) {
-            toast.error(
-                `Cannot delete ${protectedCount} protected folder(s). Only client folders can be deleted.`,
-            );
-            return;
+        // Delete folders
+        for (const folderId of foldersToDelete) {
+          await onDeleteFolder(folderId);
         }
 
-        setConfirmDialog({
-            open: true,
-            title: `Delete ${selectedFoldersList.length} Folder(s)?`,
-            message: `This will delete all SOWs inside. This cannot be undone.`,
-            onConfirm: async () => {
-                // Optimistically update local UI to reflect deletions immediately
-                setLocalWorkspaces((prev) =>
-                    prev.filter((w) => !selectedFoldersList.includes(w.id)),
-                );
+        setSelectedFolders(new Set());
+        toast.success(`${foldersToDelete.length} folder(s) deleted, documents moved to All Docs`);
+      }
+    });
+  };
 
-                for (const workspaceId of selectedFoldersList) {
-                    try {
-                        onDeleteWorkspace(workspaceId);
-                    } catch (error) {
-                        console.error(
-                            `Failed to delete folder ${workspaceId}:`,
-                            error,
-                        );
-                    }
-                }
-                setSelectedFolders(new Set());
-                setIsDeleteMode(false);
-                toast.success(
-                    `Deleted ${selectedFoldersList.length} folder(s)`,
-                );
-            },
-        });
-    };
-
-    const toggleCategory = (category: string) => {
-        const newExpanded = new Set(expandedCategories);
-        if (newExpanded.has(category)) {
-            newExpanded.delete(category);
-        } else {
-            newExpanded.add(category);
-        }
-        setExpandedCategories(newExpanded);
-    };
-
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8, // Require 8px of movement to start drag
-            },
-        }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        }),
-    );
-
-    const toggleWorkspace = (id: string) => {
-        const newExpanded = new Set(expandedWorkspaces);
-        if (newExpanded.has(id)) {
-            newExpanded.delete(id);
-        } else {
-            newExpanded.add(id);
-        }
-        setExpandedWorkspaces(newExpanded);
-    };
-
-    const handleRename = (id: string, isWorkspace: boolean) => {
-        if (renameValue.trim()) {
-            if (isWorkspace) {
-                onRenameWorkspace(id, renameValue);
-            } else {
-                onRenameSOW(id, renameValue);
-            }
-            setRenamingId(null);
-            setRenameValue("");
-        }
-    };
-
-    const handleDragStart = (event: DragStartEvent) => {
-        setActiveId(event.active.id as string);
-    };
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        setActiveId(null);
-
-        if (!over || active.id === over.id) return;
-
-        // Check if dragging workspace or SOW
-        const activeWorkspace = localWorkspaces.find((w) => w.id === active.id);
-        const overWorkspace = localWorkspaces.find((w) => w.id === over.id);
-
-        if (activeWorkspace && overWorkspace) {
-            // Reordering workspaces
-            const oldIndex = localWorkspaces.findIndex(
-                (w) => w.id === active.id,
-            );
-            const newIndex = localWorkspaces.findIndex((w) => w.id === over.id);
-            const reordered = arrayMove(localWorkspaces, oldIndex, newIndex);
-            setLocalWorkspaces(reordered);
-            onReorderWorkspaces?.(reordered);
-        } else {
-            // Dragging a SOW
-            const activeSOW = localWorkspaces
-                .flatMap((w) => w.sows)
-                .find((s) => s.id === active.id);
-            const overSOW = localWorkspaces
-                .flatMap((w) => w.sows)
-                .find((s) => s.id === over.id);
-
-            // Case A: Move SOW within the same workspace (reorder)
-            if (
-                activeSOW &&
-                overSOW &&
-                activeSOW.workspaceId === overSOW.workspaceId
-            ) {
-                const workspaceId = activeSOW.workspaceId;
-                const workspace = localWorkspaces.find(
-                    (w) => w.id === workspaceId,
-                );
-                if (workspace) {
-                    const oldIndex = workspace.sows.findIndex(
-                        (s) => s.id === active.id,
-                    );
-                    const newIndex = workspace.sows.findIndex(
-                        (s) => s.id === over.id,
-                    );
-                    const reorderedSOWs = arrayMove(
-                        workspace.sows,
-                        oldIndex,
-                        newIndex,
-                    );
-                    const updatedWorkspaces = localWorkspaces.map((w) =>
-                        w.id === workspaceId
-                            ? { ...w, sows: reorderedSOWs }
-                            : w,
-                    );
-                    setLocalWorkspaces(updatedWorkspaces);
-                    onReorderSOWs?.(workspaceId, reorderedSOWs);
-                }
-                return;
-            }
-
-            // Case B: Dropped over a workspace: move SOW across folders to top
-            if (activeSOW && overWorkspace) {
-                const fromId = activeSOW.workspaceId;
-                const toId = overWorkspace.id;
-                if (fromId !== toId) {
-                    const updated = localWorkspaces.map((w) => {
-                        if (w.id === fromId) {
-                            return {
-                                ...w,
-                                sows: w.sows.filter(
-                                    (s) => s.id !== activeSOW.id,
-                                ),
-                            };
-                        }
-                        if (w.id === toId) {
-                            return {
-                                ...w,
-                                sows: [
-                                    { ...activeSOW, workspaceId: toId },
-                                    ...w.sows,
-                                ],
-                            };
-                        }
-                        return w;
-                    });
-                    setLocalWorkspaces(updated);
-                    onMoveSOW?.(activeSOW.id, fromId, toId, 0);
-                }
-                return;
-            }
-
-            // Case C: Dropped over a SOW in a different workspace: move and position before target
-            if (
-                activeSOW &&
-                overSOW &&
-                activeSOW.workspaceId !== overSOW.workspaceId
-            ) {
-                const fromId = activeSOW.workspaceId;
-                const toId = overSOW.workspaceId;
-                const targetWs = localWorkspaces.find((w) => w.id === toId);
-                if (!targetWs) return;
-                const targetIndex = targetWs.sows.findIndex(
-                    (s) => s.id === overSOW.id,
-                );
-                const updated = localWorkspaces.map((w) => {
-                    if (w.id === fromId) {
-                        return {
-                            ...w,
-                            sows: w.sows.filter((s) => s.id !== activeSOW.id),
-                        };
-                    }
-                    if (w.id === toId) {
-                        const newSows = [...w.sows];
-                        newSows.splice(Math.max(0, targetIndex), 0, {
-                            ...activeSOW,
-                            workspaceId: toId,
-                        });
-                        return { ...w, sows: newSows };
-                    }
-                    return w;
-                });
-                setLocalWorkspaces(updated);
-                onMoveSOW?.(
-                    activeSOW.id,
-                    fromId,
-                    toId,
-                    Math.max(0, targetIndex),
-                );
-                return;
-            }
-        }
-    };
-
-    // Sortable Folder Component
-    function SortableWorkspaceItem({ workspace }: { workspace: Folder }) {
-        const {
-            attributes,
-            listeners,
-            setNodeRef,
-            transform,
-            transition,
-            isDragging,
-        } = useSortable({ id: workspace.id });
-
-        const style = {
-            transform: CSS.Transform.toString(transform),
-            transition,
-            opacity: isDragging ? 0.5 : 1,
-        };
-
-        const isExpanded = expandedWorkspaces.has(workspace.id);
-
-        return (
-            <div ref={setNodeRef} style={style}>
-                {/* Workspace Item */}
-                <div className="flex items-center gap-1 px-2 py-1 hover:bg-gray-800/50 rounded-lg group relative">
-                    {/* 🗑️ Multi-select Checkbox (only for client workspaces in delete mode) */}
-                    {isDeleteMode && !isProtectedWorkspace(workspace) && (
-                        <input
-                            type="checkbox"
-                            checked={selectedFolders.has(workspace.id)}
-                            onChange={() => toggleFolderSelection(workspace.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 cursor-pointer flex-shrink-0"
-                            title="Select for deletion"
-                        />
-                    )}
-
-                    {/* Drag Handle */}
-                    <button
-                        {...attributes}
-                        {...listeners}
-                        className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0 cursor-grab active:cursor-grabbing opacity-30 group-hover:opacity-100"
-                        title="Drag to reorder"
-                    >
-                        <GripVertical className="w-4 h-4 text-gray-500" />
-                    </button>
-
-                    {/* Toggle Arrow */}
-                    <button
-                        onClick={() => toggleWorkspace(workspace.id)}
-                        className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0"
-                    >
-                        {isExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-gray-500" />
-                        ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-500" />
-                        )}
-                    </button>
-
-                    {/* Workspace Name (truncated to 5 chars max) */}
-                    <div className="flex-1 min-w-0 max-w-[80px]">
-                        {renamingId === workspace.id ? (
-                            <Input
-                                value={renameValue}
-                                onChange={(e) => setRenameValue(e.target.value)}
-                                onBlur={() => handleRename(workspace.id, true)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                        handleRename(workspace.id, true);
-                                }}
-                                className="h-6 py-0 text-xs bg-gray-800 border-gray-600"
-                                autoFocus
-                                onClick={(e) => e.stopPropagation()}
-                            />
-                        ) : (
-                            <button
-                                onClick={() => {
-                                    onSelectWorkspace(workspace.id);
-                                }}
-                                className={`w-full text-left px-2 py-1 text-sm transition-colors flex items-center gap-1 ${
-                                    currentWorkspaceId === workspace.id
-                                        ? "text-[#1CBF79] font-medium"
-                                        : "text-gray-300 hover:text-white"
-                                }`}
-                                title={workspace.name}
-                            >
-                                <span>
-                                    {workspace.name.length > 5
-                                        ? workspace.name.substring(0, 5) + "..."
-                                        : workspace.name}
-                                </span>
-                                <span className="ml-1 text-xs text-gray-500">
-                                    ({workspace.sows.length})
-                                </span>
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Action Buttons - ALWAYS VISIBLE with guaranteed space */}
-                    <div className="flex gap-1.5 flex-shrink-0 ml-2">
-                        {/* Add New SOW to this Workspace */}
-                        {!isDeleteMode && (
-                            <button
-                                onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if (isCreatingSOW) return;
-                                    setIsCreatingSOW(true);
-                                    try {
-                                        await onCreateSOW(
-                                            workspace.id,
-                                            "Untitled SOW",
-                                        );
-                                    } finally {
-                                        setIsCreatingSOW(false);
-                                    }
-                                }}
-                                disabled={isCreatingSOW}
-                                className="p-1.5 bg-gray-700/50 hover:bg-[#1CBF79]/30 rounded text-[#1CBF79] hover:text-white transition-all disabled:opacity-50"
-                                title="Create new SOW in this workspace"
-                            >
-                                {isCreatingSOW ? (
-                                    <div className="w-4 h-4 border-2 border-[#1CBF79] border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                    <Plus className="w-4 h-4" />
-                                )}
-                            </button>
-                        )}
-
-                        {/* Rename */}
-                        {!isDeleteMode && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setRenamingId(workspace.id);
-                                    setRenameValue(workspace.name);
-                                }}
-                                className="p-1.5 bg-gray-700/50 hover:bg-blue-500/30 rounded text-blue-400 hover:text-white transition-all"
-                                title="Rename"
-                            >
-                                <Edit3 className="w-4 h-4" />
-                            </button>
-                        )}
-
-                        {/* Delete (single delete when not in delete mode) - Admin only */}
-                        {!isDeleteMode && !isProtectedWorkspace(workspace) && (
-                            <RoleGuard requireAdmin>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setConfirmDialog({
-                                            open: true,
-                                            title: `Delete Workspace?`,
-                                            message: `Delete "${workspace.name}" and all SOWs inside? This cannot be undone.`,
-                                            onConfirm: () => {
-                                                // Optimistic UI update to keep counts accurate immediately
-                                                setLocalWorkspaces((prev) =>
-                                                    prev.filter(
-                                                        (ws) =>
-                                                            ws.id !== workspace.id,
-                                                    ),
-                                                );
-                                                onDeleteWorkspace(workspace.id);
-                                                toast.success("Workspace deleted");
-                                            },
-                                        });
-                                    }}
-                                    className="p-1.5 bg-gray-700/50 hover:bg-red-500/30 rounded text-red-400 hover:text-white transition-all"
-                                    title="Delete"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </RoleGuard>
-                        )}
-
-                        {/* Protected Badge */}
-                        {isProtectedWorkspace(workspace) && (
-                            <div className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-300 rounded">
-                                🔒 Protected
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* SOWs in Workspace (when expanded) */}
-                {isExpanded && (
-                    <div className="ml-6 space-y-0.5">
-                        <SortableContext
-                            items={workspace.sows.map((s) => s.id)}
-                            strategy={verticalListSortingStrategy}
-                        >
-                            {workspace.sows.map((sow) => (
-                                <SortableSOWItem key={sow.id} sow={sow} />
-                            ))}
-                        </SortableContext>
-                    </div>
-                )}
-            </div>
-        );
+  // Toggle folder expansion
+  const toggleFolder = (folderId: string) => {
+    const newExpanded = new Set(expandedFolders);
+    if (newExpanded.has(folderId)) {
+      newExpanded.delete(folderId);
+    } else {
+      newExpanded.add(folderId);
     }
+    setExpandedFolders(newExpanded);
+  };
 
-    // Sortable SOW Component
-    function SortableSOWItem({ sow }: { sow: SOW }) {
-        const {
-            attributes,
-            listeners,
-            setNodeRef,
-            transform,
-            transition,
-            isDragging,
-        } = useSortable({ id: sow.id });
+  // Update local folders and documents when prop changes
+  useEffect(() => {
+    setLocalFolders(folders);
+    setLocalDocuments(documents);
+  }, [folders, documents]);
 
-        const style = {
-            transform: CSS.Transform.toString(transform),
-            transition,
-            opacity: isDragging ? 0.5 : 1,
-        };
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement to start drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-        return (
-            <div
-                ref={setNodeRef}
-                style={style}
-                className={`space-y-1 px-2 py-1.5 rounded-lg group transition-colors ${
-                    currentSOWId === sow.id
-                        ? "bg-[#0e2e33] text-white"
-                        : "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
-                }`}
-            >
-                {/* SOW Item Row */}
-                <div className="flex items-center gap-2">
-                    {/* Doc Icon */}
-                    <FileText className="w-4 h-4 flex-shrink-0" />
-
-                    {/* SOW Name - Clickable, max 5 chars with "..." */}
-                    <div className="flex-1 min-w-0 max-w-[60px]">
-                        {renamingId === sow.id ? (
-                            <Input
-                                value={renameValue}
-                                onChange={(e) => setRenameValue(e.target.value)}
-                                onBlur={() => handleRename(sow.id, false)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                        handleRename(sow.id, false);
-                                }}
-                                className="h-6 py-0 text-xs bg-gray-800 border-gray-600"
-                                autoFocus
-                                onClick={(e) => e.stopPropagation()}
-                            />
-                        ) : (
-                            <button
-                                onClick={() => {
-                                    console.log(
-                                        "🔍 SOW clicked:",
-                                        sow.id,
-                                        sow.name,
-                                    );
-                                    onSelectSOW(sow.id);
-                                }}
-                                className="w-full text-left text-xs hover:text-[#1CBF79] transition-colors"
-                                title={sow.name}
-                            >
-                                {sow.name.length > 5
-                                    ? sow.name.substring(0, 5) + "..."
-                                    : sow.name}
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Action Buttons - ALWAYS VISIBLE */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
-                        {/* Rename */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setRenamingId(sow.id);
-                                setRenameValue(sow.name);
-                            }}
-                            className="p-1 text-blue-400 hover:bg-blue-500/30 hover:text-blue-300 rounded transition-all flex-shrink-0"
-                            title="Rename SOW"
-                        >
-                            <Edit3 className="w-4 h-4" />
-                        </button>
-
-                        {/* Delete - Admin only */}
-                        <RoleGuard requireAdmin>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setConfirmDialog({
-                                        open: true,
-                                        title: `Delete SOW?`,
-                                        message: `Delete "${sow.name}"? This cannot be undone.`,
-                                        onConfirm: () => {
-                                            onDeleteSOW(sow.id);
-                                            toast.success("SOW deleted");
-                                        },
-                                    });
-                                }}
-                                className="p-1 text-red-400 hover:bg-red-500/30 hover:text-red-300 rounded transition-all flex-shrink-0"
-                                title="Delete SOW"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </RoleGuard>
-                    </div>
-                </div>
-
-                {/* Tag Selector removed from sidebar per request */}
-            </div>
-        );
+  const toggleWorkspace = (id: string) => {
+    const newExpanded = new Set(expandedFolders);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
     }
+    setExpandedFolders(newExpanded);
+  };
+
+  const handleRename = (id: string, isWorkspace: boolean) => {
+    if (renameValue.trim()) {
+      if (isWorkspace) {
+        onRenameWorkspace(id, renameValue);
+      } else {
+        onRenameSOW(id, renameValue);
+      }
+      setRenamingId(null);
+      setRenameValue("");
+    }
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over || active.id === over.id) return;
+
+    // Check if dragging folder or document
+    const activeFolder = localFolders.find(f => f.id === active.id);
+    const overFolder = localFolders.find(f => f.id === over.id);
+    const activeDocument = localDocuments.find(d => d.id === active.id);
+
+    if (activeFolder && overFolder) {
+      // Reordering folders
+      const oldIndex = localFolders.findIndex(f => f.id === active.id);
+      const newIndex = localFolders.findIndex(f => f.id === over.id);
+      const reordered = arrayMove(localFolders, oldIndex, newIndex);
+      setLocalFolders(reordered);
+      // TODO: Add reorder folders callback if needed
+    } else if (activeDocument) {
+      // Moving document to a folder or to "All Docs"
+      let targetFolderId: string | null = null;
+
+      if (overFolder) {
+        targetFolderId = overFolder.id;
+      } else if (over.id === 'all-docs') {
+        targetFolderId = null;
+      }
+
+      if (targetFolderId !== activeDocument.folderId) {
+        // Update local state optimistically
+        setLocalDocuments(prev => prev.map(d =>
+          d.id === activeDocument.id ? { ...d, folderId: targetFolderId } : d
+        ));
+        onMoveDocument(activeDocument.id, activeDocument.folderId, targetFolderId);
+      }
+    }
+  };
+
+  // Sortable Folder Component
+  function SortableFolderItem({ folder }: { folder: Folder }) {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: folder.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    const isExpanded = expandedFolders.has(folder.id);
+    const folderDocuments = localDocuments.filter(d => d.folderId === folder.id);
 
     return (
-        <div className="w-80 h-full bg-[#0E0F0F] border-r border-gray-800 flex flex-col relative sidebar-nav-container">
-            {/* COLLAPSE BUTTON - Top Right Corner */}
-            {onToggleSidebar && (
-                <button
-                    onClick={onToggleSidebar}
-                    className="absolute top-4 right-4 p-1 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-gray-300 z-10"
-                    title="Collapse sidebar"
-                    aria-label="Collapse sidebar"
-                >
-                    <ChevronLeft className="w-5 h-5" />
-                </button>
+      <div ref={setNodeRef} style={style}>
+        {/* Folder Item */}
+        <div className="flex items-center gap-1 px-2 py-1 hover:bg-gray-800/50 rounded-lg group relative">
+          {/* 🗑️ Multi-select Checkbox (only for client folders in delete mode) */}
+          {isDeleteMode && !isProtectedFolder(folder) && (
+            <input
+              type="checkbox"
+              checked={selectedFolders.has(folder.id)}
+              onChange={() => toggleFolderSelection(folder.id)}
+              onClick={(e) => e.stopPropagation()}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 cursor-pointer flex-shrink-0"
+              title="Select for deletion"
+            />
+          )}
+
+          {/* Drag Handle */}
+          <button
+            {...attributes}
+            {...listeners}
+            className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0 cursor-grab active:cursor-grabbing opacity-30 group-hover:opacity-100"
+            title="Drag to reorder"
+          >
+            <GripVertical className="w-4 h-4 text-gray-500" />
+          </button>
+
+          {/* Toggle Arrow */}
+          <button
+            onClick={() => toggleFolder(folder.id)}
+            className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0"
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4 text-gray-500" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-gray-500" />
+            )}
+          </button>
+
+          {/* Folder Name (truncated to 5 chars max) */}
+          <div className="flex-1 min-w-0 max-w-[80px]">
+            {renamingId === folder.id ? (
+              <Input
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={() => handleRename(folder.id, true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRename(folder.id, true);
+                }}
+                className="h-6 py-0 text-xs bg-gray-800 border-gray-600"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <button
+                onClick={() => {
+                  onSelectFolder(folder.id);
+                }}
+                className={`w-full text-left px-2 py-1 text-sm transition-colors flex items-center gap-1 ${
+                  currentFolderId === folder.id
+                    ? 'text-[#1CBF79] font-medium'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+                title={folder.name}
+              >
+                <span>{folder.name.length > 5 ? folder.name.substring(0, 5) + '...' : folder.name}</span>
+                <span className="ml-1 text-xs text-gray-500">({folderDocuments.length})</span>
+              </button>
+            )}
+          </div>
+
+          {/* Action Buttons - ALWAYS VISIBLE with guaranteed space */}
+          <div className="flex gap-1.5 flex-shrink-0 ml-2">
+            {/* Add New Doc in Folder */}
+            {!isDeleteMode && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateDocument(folder.id, 'Untitled Document');
+                }}
+                className="p-1.5 bg-gray-700/50 hover:bg-green-500/30 rounded text-green-400 hover:text-white transition-all"
+                title="New document in this folder"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
             )}
 
-            {/* LOGO HEADER */}
-            <div className="flex-shrink-0 p-6 border-b border-gray-800">
-                <h2 className="text-xl font-bold text-white">Social Garden</h2>
-            </div>
-
-            {/* STATIC LINKS SECTION */}
-            <div className="flex-shrink-0 p-4 space-y-2 border-b border-gray-800">
-                {/* Dashboard Link */}
-                {showDashboardLink && (
-                <button
-                    onClick={() => onViewChange("dashboard")}
-                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
-                        currentView === "dashboard"
-                            ? "bg-[#0e2e33] text-white"
-                            : "text-gray-400 hover:text-gray-300 hover:bg-gray-900/50"
-                    }`}
-                >
-                    <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
-                    <span className="text-sm font-medium">Dashboard</span>
-                    {/* Dashboard filters removed */}
-                </button>
-                )}
-
-                {/* Dashboard clear filter removed */}
-
-                {/* Workspace-first flow: Users must create a workspace first, then create SOWs within it */}
-                {/* Removed standalone "New SOW" button - SOWs are created from within workspaces */}
-            </div>
-
-            {/* WORKSPACES SECTION */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Search Bar */}
-                <div className="flex-shrink-0 px-4 py-3 border-b border-gray-800">
-                    <Input
-                        placeholder="Search workspaces..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="h-8 text-xs bg-gray-900 border-gray-700 text-gray-300 placeholder:text-gray-600"
-                    />
-                </div>
-
-                {/* Folders Header */}
-                <div className="flex-shrink-0 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                        Workspaces
-                    </h3>
-                    <div className="flex items-center gap-1">
-                        {/* 🗑️ Delete Mode Toggle - Admin only */}
-                        <RoleGuard requireAdmin>
-                            {!isDeleteMode ? (
-                                <>
-                                    <button
-                                        onClick={() => setIsDeleteMode(true)}
-                                        className="p-1 hover:bg-gray-800 rounded transition-colors text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                                        title="Multi-delete mode (select workspaces to delete)"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </>
-                            ) : (
-                                // 🗑️ Delete Mode UI
-                                <>
-                                    <button
-                                        onClick={() => setIsDeleteMode(false)}
-                                        className="p-1 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-gray-300"
-                                        title="Cancel delete mode"
-                                    >
-                                        <ChevronLeft className="w-4 h-4" />
-                                    </button>
-
-                                    {/* Select All checkbox */}
-                                    <label className="flex items-center gap-1.5 px-2 py-1 cursor-pointer hover:bg-gray-800/50 rounded transition-colors">
-                                        <input
-                                            type="checkbox"
-                                            checked={areAllSelected}
-                                            onChange={handleSelectAll}
-                                            className="w-3.5 h-3.5 rounded border-gray-600 text-blue-500 focus:ring-0 cursor-pointer"
-                                        />
-                                        <span className="text-xs text-gray-400">
-                                            Select All
-                                        </span>
-                                    </label>
-
-                                    {selectedFolders.size > 0 && (
-                                        <>
-                                            <span className="text-xs text-gray-400 mx-1">
-                                                {selectedFolders.size} selected
-                                            </span>
-                                            <button
-                                                onClick={handleBulkDelete}
-                                                className="p-1 hover:bg-red-900/50 rounded transition-colors text-red-400 hover:text-red-300"
-                                                title={`Delete ${selectedFolders.size} workspace(s)`}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </>
-                                    )}
-                                </>
-                            )}
-                        </RoleGuard>
-                    </div>
-                </div>
-
-                {/* Workspaces List - Categorized */}
-                <ScrollArea className="flex-1">
-                    <div className="p-2 space-y-2">
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
-                        >
-                            {/* 🎯 UNFILED SECTION - Always at top, always expanded */}
-                            {(() => {
-                                const unfiledFolder = localWorkspaces.find(
-                                    (w) => w.id === UNFILED_FOLDER_ID,
-                                );
-
-                                if (!unfiledFolder) return null;
-
-                                return (
-                                    <div className="space-y-1 mb-4 pb-3 border-b border-gray-800">
-                                        <div className="w-full flex items-center gap-2 px-2 py-1.5">
-                                            <div className="flex-1 flex items-center gap-2 text-sm font-medium text-gray-400">
-                                                <FileText className="w-4 h-4 text-orange-400" />
-                                                <span>UNFILED</span>
-                                                <span className="ml-auto text-xs text-gray-500">
-                                                    ({unfiledFolder.sows.length}
-                                                    )
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {unfiledFolder.sows.length > 0 ? (
-                                            <div className="ml-2 space-y-0.5">
-                                                <SortableContext
-                                                    items={unfiledFolder.sows.map(
-                                                        (s) => s.id,
-                                                    )}
-                                                    strategy={
-                                                        verticalListSortingStrategy
-                                                    }
-                                                >
-                                                    {unfiledFolder.sows.map(
-                                                        (sow) => (
-                                                            <SortableSOWItem
-                                                                key={sow.id}
-                                                                sow={sow}
-                                                            />
-                                                        ),
-                                                    )}
-                                                </SortableContext>
-                                            </div>
-                                        ) : (
-                                            <div className="px-4 py-3 text-center">
-                                                <p className="text-xs text-gray-600">
-                                                    Click "New SOW" to get
-                                                    started
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })()}
-
-                            {/* CLIENT WORKSPACES CATEGORY */}
-                            {(() => {
-                                const clientWorkspaces = localWorkspaces.filter(
-                                    (w) =>
-                                        w.id !== UNFILED_FOLDER_ID &&
-                                        !isAgentWorkspace(w) &&
-                                        !isSystemWorkspace(w) &&
-                                        (w.name
-                                            .toLowerCase()
-                                            .includes(
-                                                searchQuery.toLowerCase(),
-                                            ) ||
-                                            w.sows.some((sow) =>
-                                                sow.name
-                                                    .toLowerCase()
-                                                    .includes(
-                                                        searchQuery.toLowerCase(),
-                                                    ),
-                                            )),
-                                );
-
-                                if (
-                                    clientWorkspaces.length === 0 &&
-                                    searchQuery === ""
-                                ) {
-                                    return null;
-                                }
-
-                                return (
-                                    <div className="space-y-1">
-                                        <div className="w-full flex items-center gap-2">
-                                            <button
-                                                onClick={() =>
-                                                    toggleCategory("clients")
-                                                }
-                                                className="flex-1 flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800/50 rounded-lg transition-colors"
-                                            >
-                                                {expandedCategories.has(
-                                                    "clients",
-                                                ) ? (
-                                                    <ChevronDown className="w-4 h-4 text-gray-500" />
-                                                ) : (
-                                                    <ChevronRight className="w-4 h-4 text-gray-500" />
-                                                )}
-                                                <LayoutDashboard className="w-4 h-4 text-[#1CBF79]" />
-                                                <span>CLIENT WORKSPACES</span>
-                                                <span className="ml-auto text-xs text-gray-500">
-                                                    ({clientWorkspaces.length})
-                                                </span>
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    // Open dialog for client workspace
-                                                    onCreateWorkspace(undefined, "client");
-                                                }}
-                                                className="p-1.5 hover:bg-gray-800/60 rounded-md text-gray-300 hover:text-white"
-                                                title="New client workspace"
-                                            >
-                                                <Plus className="w-4 h-4" />
-                                            </button>
-                                            {clientWorkspaces.length > 0 && (
-                                                <button
-                                                    onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        if (
-                                                            !confirm(
-                                                                `Delete ${clientWorkspaces.length} empty workspace(s)?\n\nThis will only delete workspaces with no SOWs.`,
-                                                            )
-                                                        ) {
-                                                            return;
-                                                        }
-                                                        setIsCleaningUp(true);
-                                                        try {
-                                                            const response =
-                                                                await fetch(
-                                                                    "/api/folders/cleanup",
-                                                                    {
-                                                                        method: "POST",
-                                                                        headers: {
-                                                                            "Content-Type":
-                                                                                "application/json",
-                                                                        },
-                                                                        body: JSON.stringify({
-                                                                            confirm:
-                                                                                "CLEANUP_ALL",
-                                                                        }),
-                                                                    },
-                                                                );
-                                                            if (response.ok) {
-                                                                const result =
-                                                                    await response.json();
-                                                                alert(
-                                                                    `✅ Cleaned up ${result.deleted} empty workspace(s)!\n\nPlease refresh the page.`,
-                                                                );
-                                                                window.location.reload();
-                                                            } else {
-                                                                const error =
-                                                                    await response.json();
-                                                                alert(
-                                                                    `❌ Cleanup failed: ${error.error || "Unknown error"}`,
-                                                                );
-                                                            }
-                                                        } catch (error) {
-                                                            alert(
-                                                                `❌ Cleanup failed: ${error}`,
-                                                            );
-                                                        } finally {
-                                                            setIsCleaningUp(false);
-                                                        }
-                                                    }}
-                                                    disabled={isCleaningUp}
-                                                    className="p-1.5 hover:bg-red-900/60 rounded-md text-gray-300 hover:text-red-300 disabled:opacity-50"
-                                                    title="Clean up empty workspaces"
-                                                >
-                                                    {isCleaningUp ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <Trash2 className="w-4 h-4" />
-                                                    )}
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {expandedCategories.has("clients") && (
-                                            <div className="ml-2 space-y-0.5">
-                                                <SortableContext
-                                                    items={clientWorkspaces.map(
-                                                        (w) => w.id,
-                                                    )}
-                                                    strategy={
-                                                        verticalListSortingStrategy
-                                                    }
-                                                >
-                                                    {clientWorkspaces.map(
-                                                        (workspace) => (
-                                                            <SortableWorkspaceItem
-                                                                key={
-                                                                    workspace.id
-                                                                }
-                                                                workspace={
-                                                                    workspace
-                                                                }
-                                                            />
-                                                        ),
-                                                    )}
-                                                </SortableContext>
-
-                                                {clientWorkspaces.length ===
-                                                    0 && (
-                                                    <div className="px-4 py-4 text-center">
-                                                        <p className="text-xs text-gray-600">
-                                                            No client workspaces
-                                                            yet
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })()}
-
-                            {/* AI AGENTS CATEGORY */}
-                            {(() => {
-                                const agentWorkspaces = localWorkspaces.filter(
-                                    (w) =>
-                                        isAgentWorkspace(w) &&
-                                        w.name
-                                            .toLowerCase()
-                                            .includes(
-                                                searchQuery.toLowerCase(),
-                                            ),
-                                );
-
-                                if (agentWorkspaces.length === 0) {
-                                    return null;
-                                }
-
-                                return (
-                                    <div className="space-y-1">
-                                        <button
-                                            onClick={() =>
-                                                toggleCategory("agents")
-                                            }
-                                            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800/50 rounded-lg transition-colors"
-                                        >
-                                            {expandedCategories.has(
-                                                "agents",
-                                            ) ? (
-                                                <ChevronDown className="w-4 h-4 text-gray-500" />
-                                            ) : (
-                                                <ChevronRight className="w-4 h-4 text-gray-500" />
-                                            )}
-                                            <Sparkles className="w-4 h-4 text-purple-400" />
-                                            <span>AI AGENTS</span>
-                                            <span className="ml-auto text-xs text-gray-500">
-                                                ({agentWorkspaces.length})
-                                            </span>
-                                        </button>
-
-                                        {expandedCategories.has("agents") && (
-                                            <div className="ml-2 space-y-0.5">
-                                                {agentWorkspaces.map(
-                                                    (workspace) => (
-                                                        <div
-                                                            key={workspace.id}
-                                                            className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-800/50 rounded-lg group"
-                                                        >
-                                                            <button
-                                                                onClick={() =>
-                                                                    onSelectWorkspace(
-                                                                        workspace.id,
-                                                                    )
-                                                                }
-                                                                className={`flex-1 text-left text-xs transition-colors truncate ${
-                                                                    currentWorkspaceId ===
-                                                                    workspace.id
-                                                                        ? "text-purple-400 font-medium"
-                                                                        : "text-gray-400 hover:text-white"
-                                                                }`}
-                                                                title={
-                                                                    workspace.name
-                                                                }
-                                                            >
-                                                                {workspace.name}
-                                                            </button>
-                                                        </div>
-                                                    ),
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })()}
-
-                            {/* SYSTEM TOOLS CATEGORY */}
-                            {(() => {
-                                const systemWorkspaces = localWorkspaces.filter(
-                                    (w) =>
-                                        isSystemWorkspace(w) &&
-                                        w.name
-                                            .toLowerCase()
-                                            .includes(
-                                                searchQuery.toLowerCase(),
-                                            ),
-                                );
-
-                                if (systemWorkspaces.length === 0) {
-                                    return null;
-                                }
-
-                                return (
-                                    <div className="space-y-1">
-                                        <button
-                                            onClick={() =>
-                                                toggleCategory("system")
-                                            }
-                                            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800/50 rounded-lg transition-colors"
-                                        >
-                                            {expandedCategories.has(
-                                                "system",
-                                            ) ? (
-                                                <ChevronDown className="w-4 h-4 text-gray-500" />
-                                            ) : (
-                                                <ChevronRight className="w-4 h-4 text-gray-500" />
-                                            )}
-                                            <span className="text-blue-400">
-                                                ⚙️
-                                            </span>
-                                            <span>SYSTEM TOOLS</span>
-                                            <span className="ml-auto text-xs text-gray-500">
-                                                ({systemWorkspaces.length})
-                                            </span>
-                                        </button>
-
-                                        {expandedCategories.has("system") && (
-                                            <div className="ml-2 space-y-0.5">
-                                                {systemWorkspaces.map(
-                                                    (workspace) => (
-                                                        <div
-                                                            key={workspace.id}
-                                                            className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-800/50 rounded-lg group"
-                                                        >
-                                                            <button
-                                                                onClick={() =>
-                                                                    onSelectWorkspace(
-                                                                        workspace.id,
-                                                                    )
-                                                                }
-                                                                className={`flex-1 text-left text-xs transition-colors truncate ${
-                                                                    currentWorkspaceId ===
-                                                                    workspace.id
-                                                                        ? "text-blue-400 font-medium"
-                                                                        : "text-gray-400 hover:text-white"
-                                                                }`}
-                                                                title={
-                                                                    workspace.name
-                                                                }
-                                                            >
-                                                                {workspace.name}
-                                                            </button>
-                                                        </div>
-                                                    ),
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })()}
-                        </DndContext>
-
-                        {localWorkspaces.length === 0 && (
-                            <div className="px-4 py-8 text-center">
-                                <div className="text-center py-8">
-                                    <div className="text-gray-400 mb-4">
-                                        <svg
-                                            className="w-12 h-12 mx-auto mb-3"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={1.5}
-                                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                                            />
-                                        </svg>
-                                    </div>
-                                    <h3 className="text-sm font-medium text-gray-300 mb-2">
-                                        Ready to create your first SOW?
-                                    </h3>
-                                    <p className="text-xs text-gray-500 mb-4">
-                                        Start by creating a client workspace,
-                                        then generate professional Statements of
-                                        Work with AI assistance.
-                                    </p>
-                                    <button
-                                        onClick={() =>
-                                            // Open dialog for client workspace
-                                            onCreateWorkspace(undefined, "client")
-                                        }
-                                        className="inline-flex items-center px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] text-white text-sm font-medium rounded-lg transition-colors"
-                                    >
-                                        <Plus className="w-4 h-4 mr-2" />
-                                        Create Your First Workspace
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </ScrollArea>
-            </div>
-
-            {/* Confirmation Dialog - No "localhost:3001 says" */}
-            <Dialog
-                open={confirmDialog?.open || false}
-                onOpenChange={(open) => {
-                    if (!open) setConfirmDialog(null);
+            {/* Rename */}
+            {!isDeleteMode && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRenamingId(folder.id);
+                  setRenameValue(folder.name);
                 }}
-            >
-                <DialogContent className="sm:max-w-sm bg-[#1A1A1D] border border-[#2A2A2D]">
-                    <DialogHeader>
-                        <DialogTitle className="text-white">
-                            {confirmDialog?.title}
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                        <p className="text-gray-300 text-sm">
-                            {confirmDialog?.message}
-                        </p>
-                    </div>
-                    <div className="flex gap-3 justify-end">
-                        <button
-                            onClick={() => setConfirmDialog(null)}
-                            className="px-4 py-2 text-sm font-medium text-gray-300 bg-[#2A2A2D] hover:bg-[#3A3A3D] rounded-lg transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={() => {
-                                confirmDialog?.onConfirm();
-                                setConfirmDialog(null);
-                            }}
-                            className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
-                        >
-                            Delete
-                        </button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                className="p-1.5 bg-gray-700/50 hover:bg-blue-500/30 rounded text-blue-400 hover:text-white transition-all"
+                title="Rename"
+              >
+                <Edit3 className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Delete (single delete when not in delete mode) */}
+            {!isDeleteMode && !isProtectedFolder(folder) && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirmDialog({
+                    open: true,
+                    title: `Delete Folder?`,
+                    message: `Delete "${folder.name}" and move all documents to "All Docs"? This cannot be undone.`,
+                    onConfirm: () => {
+                      // Move documents to "All Docs" and delete folder
+                      const folderDocs = localDocuments.filter(d => d.folderId === folder.id);
+                      folderDocs.forEach(doc => {
+                        onMoveDocument(doc.id, folder.id, null);
+                      });
+                      setLocalFolders(prev => prev.filter(f => f.id !== folder.id));
+                      onDeleteFolder(folder.id);
+                      toast.success('Folder deleted, documents moved to All Docs');
+                    }
+                  });
+                }}
+                className="p-1.5 bg-gray-700/50 hover:bg-red-500/30 rounded text-red-400 hover:text-white transition-all"
+                title="Delete"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Protected Badge */}
+            {isProtectedFolder(folder) && (
+              <div className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-300 rounded">
+                🔒 Protected
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Documents in Folder (when expanded) */}
+        {isExpanded && (
+          <div className="ml-6 space-y-0.5">
+            <SortableContext items={folderDocuments.map(d => d.id)} strategy={verticalListSortingStrategy}>
+              {folderDocuments.map((doc) => (
+                <SortableDocumentItem key={doc.id} document={doc} />
+              ))}
+            </SortableContext>
+          </div>
+        )}
+      </div>
     );
+  }
+
+  // Sortable Document Component
+  function SortableDocumentItem({ document }: { document: Document }) {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: document.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`space-y-1 px-2 py-1.5 rounded-lg group transition-colors ${
+          currentDocumentId === document.id
+            ? "bg-[#0e2e33] text-white"
+            : "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
+        }`}
+      >
+        {/* Document Item Row */}
+        <div className="flex items-center gap-2">
+          {/* Drag Handle */}
+          <button
+            {...attributes}
+            {...listeners}
+            className="p-1 hover:bg-gray-700 rounded transition-colors flex-shrink-0 cursor-grab active:cursor-grabbing opacity-30 group-hover:opacity-100"
+            title="Drag to move"
+          >
+            <GripVertical className="w-4 h-4 text-gray-500" />
+          </button>
+
+          {/* Doc Icon */}
+          <FileText className="w-4 h-4 flex-shrink-0" />
+
+          {/* Document Name - Clickable, max 5 chars with "..." */}
+          <div className="flex-1 min-w-0 max-w-[60px]">
+            {renamingId === document.id ? (
+              <Input
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={() => handleRename(document.id, false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRename(document.id, false);
+                }}
+                className="h-6 py-0 text-xs bg-gray-800 border-gray-600"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <button
+                onClick={() => {
+                  console.log('🔍 Document clicked:', document.id, document.title);
+                  onSelectDocument(document.id);
+                }}
+                className="w-full text-left text-xs hover:text-[#1CBF79] transition-colors"
+                title={document.title}
+              >
+                {document.title.length > 5 ? document.title.substring(0, 5) + '...' : document.title}
+              </button>
+            )}
+          </div>
+
+          {/* Action Buttons - ALWAYS VISIBLE */}
+          <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+            {/* Rename */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setRenamingId(document.id);
+                setRenameValue(document.title);
+              }}
+              className="p-1 text-blue-400 hover:bg-blue-500/30 hover:text-blue-300 rounded transition-all flex-shrink-0"
+              title="Rename Document"
+            >
+              <Edit3 className="w-4 h-4" />
+            </button>
+
+            {/* Delete */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmDialog({
+                  open: true,
+                  title: `Delete Document?`,
+                  message: `Delete "${document.title}"? This cannot be undone.`,
+                  onConfirm: () => {
+                    onDeleteDocument(document.id);
+                    toast.success('Document deleted');
+                  }
+                });
+              }}
+              className="p-1 text-red-400 hover:bg-red-500/30 hover:text-red-300 rounded transition-all flex-shrink-0"
+              title="Delete Document"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-80 h-full bg-[#0E0F0F] border-r border-gray-800 flex flex-col relative sidebar-nav-container">
+      {/* COLLAPSE BUTTON - Top Right Corner */}
+      {onToggleSidebar && (
+        <button
+          onClick={onToggleSidebar}
+          className="absolute top-4 right-4 p-1 hover:bg-gray-800 rounded transition-colors text-gray-400 hover:text-gray-300 z-10"
+          title="Collapse sidebar"
+          aria-label="Collapse sidebar"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* LOGO HEADER */}
+      <div className="flex-shrink-0 p-6 border-b border-gray-800">
+        <h2 className="text-xl font-bold text-white">Social Garden</h2>
+      </div>
+
+      {/* STATIC LINKS SECTION */}
+      <div className="flex-shrink-0 p-4 space-y-2 border-b border-gray-800">
+        {/* Primary New Document CTA */}
+        <div className="px-4 pb-3">
+          <button
+            onClick={async () => {
+              if (isCreatingDocument) return; // Prevent duplicate clicks
+
+              console.log('🆕 New Document button clicked');
+              setIsCreatingDocument(true);
+              try {
+                await onCreateDocument(null, 'Untitled Document'); // Create in "All Docs"
+              } finally {
+                setIsCreatingDocument(false);
+              }
+            }}
+            disabled={isCreatingDocument}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] disabled:bg-[#0d8c4a] disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            {isCreatingDocument ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4" />
+                New Document
+              </>
+            )}
+          </button>
+        </div>
+
+
+        {/* Reset All Button - Dangerous Action */}
+        <div className="px-4 pb-3">
+          <button
+            onClick={async () => {
+              if (
+                !confirm(
+                  "⚠️ DANGER: This will delete ALL workspaces and SOWs!\n\nThis action cannot be undone. Are you absolutely sure?",
+                )
+              ) {
+                return;
+              }
+
+              if (
+                !confirm(
+                  "🚨 FINAL WARNING: This will permanently delete:\n\n- All workspaces\n- All SOWs\n- All AnythingLLM workspaces\n\nType 'RESET' to confirm:",
+                )
+              ) {
+                return;
+              }
+
+              try {
+                const response = await fetch("/api/admin/reset-all", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    confirm: "RESET_ALL_DATA",
+                  }),
+                });
+
+                if (response.ok) {
+                  const result = await response.json();
+                  toast.success(
+                    `✅ Reset complete! Deleted ${result.results.folders_deleted} workspaces and ${result.results.sows_before} SOWs`,
+                  );
+                  // Reload the page to show clean state
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1500);
+                } else {
+                  const error = await response.json();
+                  toast.error(`❌ Reset failed: ${error.error || "Unknown error"}`);
+                }
+              } catch (error) {
+                toast.error(`❌ Reset failed: ${error}`);
+              }
+            }}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-900/60 hover:bg-red-800/80 text-red-300 hover:text-red-200 text-xs font-semibold rounded-lg transition-colors border border-red-800/50"
+            title="Reset all data - DANGEROUS!"
+          >
+            <Trash2 className="w-4 h-4" />
+            Reset All Data
+          </button>
+        </div>
+
+        {/* Requirements link hidden per request */}
+      </div>
+
+      {/* WORKSPACES SECTION */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Search Bar */}
+        <div className="flex-shrink-0 px-4 py-3 border-b border-gray-800">
+          <Input
+            placeholder="Search folders and documents..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 text-xs bg-gray-900 border-gray-700 text-gray-300 placeholder:text-gray-600"
+          />
+        </div>
+
+        {/* Documents Header */}
+        <div className="flex-shrink-0 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Documents</h3>
+        </div>
+
+        {/* Documents List */}
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-2">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              {/* ALL DOCS SECTION */}
+              {(() => {
+                const allDocs = localDocuments.filter(d =>
+                  d.folderId === null &&
+                  d.title.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+
+                return (
+                  <div className="space-y-1">
+                    <div
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+                        currentFolderId === null
+                          ? 'text-[#1CBF79] bg-[#0e2e33]'
+                          : 'text-gray-300 hover:text-white hover:bg-gray-800/50'
+                      }`}
+                      onClick={() => setAllDocsExpanded(!allDocsExpanded)}
+                    >
+                      {allDocsExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-[#1CBF79]" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-[#1CBF79]" />
+                      )}
+                      <FileText className="w-4 h-4 text-[#1CBF79]" />
+                      <span>All Documents</span>
+                      <span className="ml-auto text-xs text-gray-500">({allDocs.length})</span>
+                    </div>
+
+                    {/* Show documents in All Docs when expanded */}
+                    {allDocsExpanded && allDocs.length > 0 && (
+                      <div className="ml-6 space-y-0.5">
+                        <SortableContext
+                          items={allDocs.map(d => d.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {allDocs.map((doc) => (
+                            <SortableDocumentItem key={doc.id} document={doc} />
+                          ))}
+                        </SortableContext>
+                      </div>
+                    )}
+
+                    {allDocsExpanded && allDocs.length === 0 && (
+                      <div className="px-4 py-4 text-center">
+                        <p className="text-xs text-gray-600">No documents yet</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* FOLDERS SECTION */}
+              {(() => {
+                const clientFolders = localFolders.filter(f =>
+                  !isAgentFolder(f) && !isSystemFolder(f) &&
+                  (f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                   localDocuments.filter(d => d.folderId === f.id).some(d => d.title.toLowerCase().includes(searchQuery.toLowerCase())))
+                );
+
+                return (
+                  <div className="space-y-1">
+                    <div
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800/50 rounded-lg transition-colors cursor-pointer"
+                      onClick={() => setFoldersExpanded(!foldersExpanded)}
+                    >
+                      {foldersExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-[#1CBF79]" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-[#1CBF79]" />
+                      )}
+                      <LayoutDashboard className="w-4 h-4 text-[#1CBF79]" />
+                      <span>Folders</span>
+                      <span className="ml-auto text-xs text-gray-500">({clientFolders.length})</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onCreateFolder("New Folder"); }}
+                        className="p-1.5 hover:bg-gray-800/60 rounded-md text-gray-300 hover:text-white ml-2"
+                        title="New folder"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {foldersExpanded && clientFolders.length > 0 && (
+                      <div className="ml-6 space-y-0.5">
+                        <SortableContext
+                          items={clientFolders.map(f => f.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {clientFolders.map((folder) => (
+                            <SortableFolderItem key={folder.id} folder={folder} />
+                          ))}
+                        </SortableContext>
+                      </div>
+                    )}
+
+                    {foldersExpanded && clientFolders.length === 0 && (
+                      <div className="px-4 py-4 text-center">
+                        <p className="text-xs text-gray-600">No folders yet</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </DndContext>
+          </div>
+        </ScrollArea>
+      </div>
+
+
+      {/* Confirmation Dialog - No "localhost:3001 says" */}
+      <Dialog open={confirmDialog?.open || false} onOpenChange={(open) => {
+        if (!open) setConfirmDialog(null);
+      }}>
+        <DialogContent className="sm:max-w-sm bg-[#1A1A1D] border border-[#2A2A2D]">
+          <DialogHeader>
+            <DialogTitle className="text-white">{confirmDialog?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-300 text-sm">{confirmDialog?.message}</p>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => setConfirmDialog(null)}
+              className="px-4 py-2 text-sm font-medium text-gray-300 bg-[#2A2A2D] hover:bg-[#3A3A3D] rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                confirmDialog?.onConfirm();
+                setConfirmDialog(null);
+              }}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
