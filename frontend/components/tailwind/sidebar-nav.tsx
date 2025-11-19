@@ -648,34 +648,17 @@ export default function SidebarNav({
 
       {/* STATIC LINKS SECTION */}
       <div className="flex-shrink-0 p-4 space-y-2 border-b border-gray-800">
-        {/* Primary New Document CTA */}
+        {/* Primary Create Workspace CTA */}
         <div className="px-4 pb-3">
           <button
-            onClick={async () => {
-              if (isCreatingDocument) return; // Prevent duplicate clicks
-
-              console.log('🆕 New Document button clicked');
-              setIsCreatingDocument(true);
-              try {
-                await onCreateDocument(null, 'Untitled Document'); // Create in "All Docs"
-              } finally {
-                setIsCreatingDocument(false);
-              }
+            onClick={() => {
+              console.log('🆕 Create Workspace button clicked');
+              onCreateWorkspace?.();
             }}
-            disabled={isCreatingDocument}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] disabled:bg-[#0d8c4a] disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] text-white text-sm font-semibold rounded-lg transition-colors"
           >
-            {isCreatingDocument ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" />
-                New Document
-              </>
-            )}
+            <Plus className="w-4 h-4" />
+            Create Workspace
           </button>
         </div>
 
@@ -808,7 +791,7 @@ export default function SidebarNav({
 
                     {allDocsExpanded && allDocs.length === 0 && (
                       <div className="px-4 py-4 text-center">
-                        <p className="text-xs text-gray-600">No documents yet</p>
+                        <p className="text-xs text-gray-500">Create a workspace to get started</p>
                       </div>
                     )}
                   </div>
