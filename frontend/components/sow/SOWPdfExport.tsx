@@ -17,11 +17,14 @@ import {
   calculateTotalHours,
 } from './utils';
 
-// Register fonts (optional - for better typography)
-// Font.register({
-//   family: 'Roboto',
-//   src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf',
-// });
+// Register fonts
+Font.register({
+  family: 'Plus Jakarta Sans',
+  fonts: [
+    { src: 'https://cdn.jsdelivr.net/npm/@fontsource/plus-jakarta-sans@5.0.8/files/plus-jakarta-sans-latin-400-normal.woff' },
+    { src: 'https://cdn.jsdelivr.net/npm/@fontsource/plus-jakarta-sans@5.0.8/files/plus-jakarta-sans-latin-700-normal.woff', fontWeight: 'bold' },
+  ],
+});
 
 const palette = {
   primary: '#00A86B',

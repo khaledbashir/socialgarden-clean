@@ -298,6 +298,9 @@ export class AnythingLLMService {
             // Set the Architect system prompt
             await this.setArchitectPrompt(data.workspace.slug);
 
+            // Embed the official Rate Card (Critical for SOW generation)
+            await this.embedRateCardDocument(data.workspace.slug);
+
             return { id: data.workspace.id, slug: data.workspace.slug };
         } catch (error) {
             console.error("❌ Error creating workspace with prompt:", error);
