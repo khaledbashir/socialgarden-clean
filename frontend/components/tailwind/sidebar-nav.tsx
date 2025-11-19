@@ -58,10 +58,10 @@ interface Document {
 
 interface SidebarNavProps {
   // New workspace-based props (primary)
-  workspaces: Workspace[];
+  workspaces?: Workspace[];
   documents: Document[];
-  currentWorkspaceId: string;
-  currentSOWId: string | null;
+  currentWorkspaceId?: string;
+  currentSOWId?: string | null;
   
   onSelectWorkspace: (id: string) => void;
   onSelectSOW: (id: string) => void;
@@ -128,9 +128,13 @@ export default function SidebarNav({
   onToggleSidebar,
 }: SidebarNavProps) {
   // Map new props to old props for backward compatibility
-  const actualFolders = folders || workspaces || [];
-  const actualCurrentFolderId = currentFolderId || currentWorkspaceId;
-  const actualCurrentDocumentId = currentDocumentId || currentSOWId;
+  // Ensure we always have an array, even if props are undefined
+  const actualFolders = Array.isArray(folders) ? folders : (Array.isArray(workspaces) ? workspaces : []);
+  const actualCurrentFolderId = currentFolderId || currentWorkspaceId || null;
+  const actualCurrentDocumentId = currentDocumentId || currentSOWId || null;
+  
+  // Ensure documents is always an array
+  const actualDocuments = Array.isArray(documents) ? documents : [];
   const actualOnSelectFolder = onSelectFolder || onSelectWorkspace;
   const actualOnSelectDocument = onSelectDocument || onSelectSOW;
   const actualOnRenameDocument = onRenameDocument || onRenameSOW;
@@ -179,7 +183,7 @@ export default function SidebarNav({
   };
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(actualFolders.map(f => f.id))
+    new Set(Array.isArray(actualFolders) ? actualFolders.map(f => f.id) : [])
   );
   const [allDocsExpanded, setAllDocsExpanded] = useState(false);
   const [foldersExpanded, setFoldersExpanded] = useState(true);
