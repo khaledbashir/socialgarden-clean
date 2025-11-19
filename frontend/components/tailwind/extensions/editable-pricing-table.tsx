@@ -804,7 +804,7 @@ export const EditablePricingTable = Node.create({
         const discount = node.attrs.discount || 0;
 
         const subtotal = rows.reduce(
-            (sum, row) => sum + row.hours * row.rate,
+            (sum, row) => sum + (Number(row.hours) || 0) * (Number(row.rate) || 0),
             0,
         );
         const discountAmount = (subtotal * discount) / 100;
@@ -864,7 +864,10 @@ export const EditablePricingTable = Node.create({
                 "tbody",
                 {},
                 ...rows.map((row, index) => {
-                    const rowTotal = row.hours * row.rate;
+                    // Ensure numeric types for calculations
+                    const hours = Number(row.hours) || 0;
+                    const rate = Number(row.rate) || 0;
+                    const rowTotal = hours * rate;
                     const bgColor = index % 2 === 0 ? "#f9fafb" : "white";
                     return [
                         "tr",
@@ -888,14 +891,14 @@ export const EditablePricingTable = Node.create({
                             {
                                 style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right;",
                             },
-                            row.hours.toString(),
+                            hours.toString(),
                         ],
                         [
                             "td",
                             {
                                 style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right;",
                             },
-                            `$${row.rate.toFixed(2)}`,
+                            `$${rate.toFixed(2)}`,
                         ],
                         [
                             "td",
