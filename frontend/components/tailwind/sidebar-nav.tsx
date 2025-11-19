@@ -20,6 +20,7 @@ import {
     GripVertical,
     Settings,
     CheckCircle2,
+    Loader2,
 } from "lucide-react";
 import {
     DndContext,
@@ -207,6 +208,7 @@ export default function SidebarNav({
         message: string;
         onConfirm: () => void;
     } | null>(null);
+    const [isCleaningUp, setIsCleaningUp] = useState(false);
 
     // 🆕 Loading state for New SOW button
     const [isCreatingSOW, setIsCreatingSOW] = useState(false);
@@ -1031,6 +1033,67 @@ export default function SidebarNav({
                                             >
                                                 <Plus className="w-4 h-4" />
                                             </button>
+                                            {clientWorkspaces.length > 0 && (
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        if (
+                                                            !confirm(
+                                                                `Delete ${clientWorkspaces.length} empty workspace(s)?\n\nThis will only delete workspaces with no SOWs.`,
+                                                            )
+                                                        ) {
+                                                            return;
+                                                        }
+                                                        setIsCleaningUp(true);
+                                                        try {
+                                                            const response =
+                                                                await fetch(
+                                                                    "/api/folders/cleanup",
+                                                                    {
+                                                                        method: "POST",
+                                                                        headers: {
+                                                                            "Content-Type":
+                                                                                "application/json",
+                                                                        },
+                                                                        body: JSON.stringify({
+                                                                            confirm:
+                                                                                "CLEANUP_ALL",
+                                                                        }),
+                                                                    },
+                                                                );
+                                                            if (response.ok) {
+                                                                const result =
+                                                                    await response.json();
+                                                                alert(
+                                                                    `✅ Cleaned up ${result.deleted} empty workspace(s)!\n\nPlease refresh the page.`,
+                                                                );
+                                                                window.location.reload();
+                                                            } else {
+                                                                const error =
+                                                                    await response.json();
+                                                                alert(
+                                                                    `❌ Cleanup failed: ${error.error || "Unknown error"}`,
+                                                                );
+                                                            }
+                                                        } catch (error) {
+                                                            alert(
+                                                                `❌ Cleanup failed: ${error}`,
+                                                            );
+                                                        } finally {
+                                                            setIsCleaningUp(false);
+                                                        }
+                                                    }}
+                                                    disabled={isCleaningUp}
+                                                    className="p-1.5 hover:bg-red-900/60 rounded-md text-gray-300 hover:text-red-300 disabled:opacity-50"
+                                                    title="Clean up empty workspaces"
+                                                >
+                                                    {isCleaningUp ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="w-4 h-4" />
+                                                    )}
+                                                </button>
+                                            )}
                                         </div>
 
                                         {expandedCategories.has("clients") && (
