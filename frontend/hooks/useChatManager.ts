@@ -376,10 +376,15 @@ export function useChatManager({
             setChatMessages((prev) => [...prev, assistantMessage]);
 
             // Optionally auto-insert content from assistant message
-            if (!isDashboardMode && assistantMessage.content && assistantMessage.content.includes("*** Insert into editor:")) {
+            const hasMarker = assistantMessage.content && assistantMessage.content.includes("*** Insert into editor:");
+            const hasJSON = assistantMessage.content && assistantMessage.content.includes("```json");
+            
+            if (!isDashboardMode && (hasMarker || hasJSON)) {
+                let contentToInsert = assistantMessage.content;
                 
-                // Extract content after the marker
-                const contentToInsert = assistantMessage.content.replace(/\*\*\* Insert into editor:\s*/, '');
+                if (hasMarker) {
+                     contentToInsert = assistantMessage.content.replace(/\*\*\* Insert into editor:\s*/, '');
+                }
                 
                 // Process content through conversion logic
                 let filteredContent = contentToInsert;

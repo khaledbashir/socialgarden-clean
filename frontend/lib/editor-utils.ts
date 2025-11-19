@@ -258,6 +258,23 @@ function parseInlineFormatting(text: string): any[] {
 function convertJSONToPricingTable(jsonData: any): any | null {
   if (!jsonData || typeof jsonData !== "object") return null;
 
+  // Handle root-level array of roles (e.g. [{"role": "...", ...}, ...])
+  if (Array.isArray(jsonData)) {
+    const rows = jsonData.map((role: any) => ({
+      role: role.role || role.name || "",
+      hours: role.hours || null,
+      rate: role.rate || null,
+      total: role.total || null,
+    }));
+    return {
+      type: "editablePricingTable",
+      attrs: {
+        rows,
+        discount: 0,
+      },
+    };
+  }
+
   // Handle V4.1 JSON format with scopes
   if (jsonData.scopes && Array.isArray(jsonData.scopes)) {
     // Multi-scope: combine all scopes into one table

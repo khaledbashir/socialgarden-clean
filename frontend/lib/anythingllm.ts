@@ -402,6 +402,10 @@ A final "Grand Total" which is the sum of all scope_total values.
 
 This summary is mandatory. Do not output a summary in a JSON block.
 
+FINAL MANDATORY STEP:
+End your response with the exact line: *** Insert into editor:
+followed by the full content you just generated. This triggers the auto-insert function.
+
 Reference Data
 
 [OFFICIAL_RATE_CARD]
