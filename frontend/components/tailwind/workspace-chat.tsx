@@ -118,6 +118,7 @@ export default function WorkspaceChat({
     const [pendingFiles, setPendingFiles] = useState<FileUploadProgress[]>([]);
     const [isDragOver, setIsDragOver] = useState(false);
     const [isUploadAreaCollapsed, setIsUploadAreaCollapsed] = useState(false);
+    const [isUploadAreaHidden, setIsUploadAreaHidden] = useState(false);
 
     // ⚙️ ADVANCED FEATURES STATE
     const [showSettings, setShowSettings] = useState(false);
@@ -1257,20 +1258,29 @@ export default function WorkspaceChat({
             {/* Input Area */}
             <div className="p-5 border-t border-[#0E2E33] bg-[#0e0f0f] space-y-3">
                 {/* Pending Files List with Drag-and-Drop */}
-                {pendingFiles.length > 0 && (
+                {pendingFiles.length > 0 && !isUploadAreaHidden && (
                     <div className="space-y-2">
                         {/* 🎯 Collapsible Header */}
                         <div className="flex items-center justify-between">
                             <div className="text-xs text-gray-400 font-medium">
                                 {pendingFiles.length} file(s) {isUploadAreaCollapsed ? "uploaded" : "ready to upload"}
                             </div>
-                            <button
-                                onClick={() => setIsUploadAreaCollapsed(!isUploadAreaCollapsed)}
-                                className="text-xs text-gray-400 hover:text-white transition-colors px-2 py-1"
-                                title={isUploadAreaCollapsed ? "Expand upload area" : "Collapse upload area"}
-                            >
-                                {isUploadAreaCollapsed ? "▼ Expand" : "▲ Collapse"}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setIsUploadAreaCollapsed(!isUploadAreaCollapsed)}
+                                    className="text-xs text-gray-400 hover:text-white transition-colors px-2 py-1"
+                                    title={isUploadAreaCollapsed ? "Expand upload area" : "Collapse upload area"}
+                                >
+                                    {isUploadAreaCollapsed ? "▼ Expand" : "▲ Collapse"}
+                                </button>
+                                <button
+                                    onClick={() => setIsUploadAreaHidden(true)}
+                                    className="text-xs text-gray-400 hover:text-red-400 transition-colors px-2 py-1"
+                                    title="Hide upload area to see chat better"
+                                >
+                                    ✕ Hide
+                                </button>
+                            </div>
                         </div>
                         
                         {/* 🎯 Collapsible Content */}
@@ -1409,8 +1419,8 @@ export default function WorkspaceChat({
                     </div>
                 )}
 
-                {/* Drag and Drop Area - Hidden when collapsed, minimized when files exist, full when empty */}
-                {!isUploadAreaCollapsed && (
+                {/* Drag and Drop Area - Hidden when collapsed or hidden, minimized when files exist, full when empty */}
+                {!isUploadAreaCollapsed && !isUploadAreaHidden && (
                     <div
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
@@ -1456,6 +1466,28 @@ export default function WorkspaceChat({
                                 </button>
                             )}
                         </div>
+                    </div>
+                )}
+
+                {/* Show Upload Area Button - appears when upload area is hidden */}
+                {isUploadAreaHidden && pendingFiles.length > 0 && (
+                    <div className="flex items-center justify-between bg-[#0E2E33]/30 border border-[#1b5e5e] rounded px-3 py-2">
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <Paperclip className="w-4 h-4" />
+                            <span>
+                                {pendingFiles.length} file(s) hidden - {pendingFiles.filter(f => f.status === "success").length} uploaded
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setIsUploadAreaHidden(false);
+                                setIsUploadAreaCollapsed(false);
+                            }}
+                            className="text-xs text-[#15a366] hover:text-[#10a35a] hover:underline transition-colors px-2 py-1"
+                            title="Show upload area"
+                        >
+                            Show
+                        </button>
                     </div>
                 )}
 

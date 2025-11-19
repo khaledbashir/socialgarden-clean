@@ -568,17 +568,17 @@ export default function Page() {
     const handleNewDoc = async (folderId?: string) => {
         const newId = `doc${Date.now()}`;
         
-        // Generate a unique title to avoid too many "Untitled SOW" entries
-        const untitledCount = documents.filter(d => 
-            d.title.startsWith("Untitled SOW") || d.title === "Untitled SOW"
-        ).length;
-        const title = untitledCount > 0 
-            ? `Untitled SOW ${untitledCount + 1}` 
-            : "Untitled SOW";
+        // Generate a meaningful title based on workspace/client name
+        const targetFolderId = folderId || UNFILED_FOLDER_ID;
+        const parentWorkspaceForTitle = workspaces.find((w) => w.id === targetFolderId);
+        const workspaceName = parentWorkspaceForTitle?.name || "New Project";
+        
+        // Generate a unique title using workspace name and date
+        const today = new Date();
+        const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const title = `${workspaceName} - SOW ${dateStr}`;
 
         // 🎯 DEFAULT TO UNFILED: If no folder specified, use Unfiled folder
-        const targetFolderId = folderId || UNFILED_FOLDER_ID;
-
         // Find workspace slug from the folder this SOW belongs to
         const parentWorkspace = workspaces.find((w) => w.id === targetFolderId);
         const workspaceSlug = parentWorkspace?.workspace_slug || parentWorkspace?.slug;
@@ -932,16 +932,18 @@ export default function Page() {
                 completedSteps: [],
             });
 
-            // 🏢 STEP 1: Get/ensure master 'gen' workspace exists
+            // 🏢 STEP 1: Create new AnythingLLM workspace with system prompt
             console.log(
-                "🏢 Getting/ensuring master SOW generation workspace...",
+                `🏢 Creating AnythingLLM workspace: ${workspaceName}...`,
             );
             const workspace =
-                await anythingLLM.getMasterSOWWorkspace(workspaceName);
+                await anythingLLM.createWorkspaceWithPrompt(workspaceName);
             const embedId = await anythingLLM.getOrCreateEmbedId(
                 workspace.slug,
             );
-            console.log("✅ Master SOW workspace ready:", workspace.slug);
+            console.log(
+                `✅ Workspace created with system prompt: ${workspace.slug}`,
+            );
 
             // Mark step 1 complete
             setWorkspaceCreationProgress((prev) => ({
@@ -950,14 +952,14 @@ export default function Page() {
                 currentStep: 1,
             }));
 
-            // 💾 STEP 2: Save folder to DATABASE (no workspace creation - using master 'gen')
+            // 💾 STEP 2: Save folder to DATABASE
             console.log("💾 Saving folder to database...");
             const folderResponse = await fetch("/api/folders", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     name: workspaceName,
-                    workspaceSlug: workspace.slug, // Always 'gen' now
+                    workspaceSlug: workspace.slug, // Unique workspace per client
                     workspaceId: workspace.id,
                     embedId: embedId,
                 }),
@@ -995,8 +997,10 @@ export default function Page() {
 
             setWorkspaces((prev) => [...prev, newWorkspace]);
 
-            // IMMEDIATELY CREATE A BLANK SOW
-            const sowTitle = `New SOW for ${workspaceName}`;
+            // IMMEDIATELY CREATE A BLANK SOW with meaningful title
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const sowTitle = `${workspaceName} - SOW ${dateStr}`;
 
             // Save SOW to database with folder ID
             console.log("📄 Creating SOW in database");
@@ -1021,8 +1025,8 @@ export default function Page() {
             const sowId = sowData.id || sowData.sowId;
             console.log("✅ SOW created with ID:", sowId);
 
-            // 🧵 STEP 3: Create AnythingLLM thread in master 'gen' workspace
-            console.log("🧵 Creating thread in master workspace...");
+            // 🧵 STEP 3: Create AnythingLLM thread in workspace
+            console.log("🧵 Creating thread in workspace...");
             const thread = await anythingLLM.createThread(workspace.slug);
             console.log("✅ Thread created:", thread.slug);
 
@@ -1032,7 +1036,7 @@ export default function Page() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     threadSlug: thread.slug,
-                    workspaceSlug: workspace.slug, // 'gen'
+                    workspaceSlug: workspace.slug,
                 }),
             });
 
@@ -1043,15 +1047,15 @@ export default function Page() {
                 currentStep: 3,
             }));
 
-            // 📊 STEP 4: Embed SOW in master 'gen' workspace and master dashboard
-            console.log("📊 Embedding SOW in master workspaces...");
+            // 📊 STEP 4: Embed SOW in workspace and master dashboard
+            console.log("📊 Embedding SOW in workspaces...");
             const sowContent = JSON.stringify(defaultEditorContent);
             await anythingLLM.embedSOWInBothWorkspaces(
                 sowTitle,
                 sowContent,
                 workspaceName,
             );
-            console.log("✅ SOW embedded in master workspaces");
+            console.log("✅ SOW embedded in workspaces");
 
             // Mark all steps complete
             setWorkspaceCreationProgress((prev) => ({
@@ -1082,7 +1086,7 @@ export default function Page() {
                 title: sowTitle,
                 content: defaultEditorContent,
                 folderId: folderId,
-                workspaceSlug: workspace.slug, // 'gen'
+                workspaceSlug: workspace.slug,
                 threadSlug: thread.slug,
                 syncedAt: new Date().toISOString(),
             };
