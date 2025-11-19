@@ -15,7 +15,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "./ui/select";
-import { ChevronRight, Send, Bot, Plus, Loader2 } from "lucide-react";
+import { ChevronRight, Send, Bot, Plus, Loader2, Paperclip } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { StreamingThoughtAccordion } from "./streaming-thought-accordion";
@@ -100,6 +100,7 @@ export default function WorkspaceChat({
     const chatEndRef = useRef<HTMLDivElement>(null);
     const chatInputRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const documentUploadInputRef = useRef<HTMLInputElement>(null);
     const [showAllMessages, setShowAllMessages] = useState(false);
     const MAX_MESSAGES = 100; // windowing to reduce render cost
 
@@ -507,6 +508,107 @@ export default function WorkspaceChat({
         setAttachments((prev) => prev.filter((_, i) => i !== index));
     };
 
+    // Document upload to workspace
+    const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        const validTypes = [
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain",
+            "text/markdown",
+        ];
+        const validExtensions = [".pdf", ".doc", ".docx", ".txt", ".md"];
+        const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
+        const isValidType =
+            validTypes.includes(file.type) || validExtensions.includes(fileExtension);
+
+        if (!isValidType) {
+            toast.error(
+                "Unsupported file type. Please upload PDF, Word, or text files.",
+            );
+            return;
+        }
+
+        // Check file size (50MB limit)
+        const maxSize = 50 * 1024 * 1024; // 50MB
+        if (file.size > maxSize) {
+            toast.error("File size exceeds 50MB limit.");
+            return;
+        }
+
+        setUploading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("workspaceSlug", editorWorkspaceSlug);
+
+            // Add metadata
+            const metadata = {
+                title: file.name,
+                docAuthor: "User Upload",
+                description: `Document uploaded via workspace chat`,
+                docSource: "Workspace Chat Upload",
+            };
+            formData.append("metadata", JSON.stringify(metadata));
+
+            const response = await fetch("/api/anythingllm/document/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorData.error ||
+                        `Upload failed: ${response.status} ${response.statusText}`,
+                );
+            }
+
+            const data = await response.json();
+
+            if (data.success && data.documents && data.documents.length > 0) {
+                const doc = data.documents[0];
+                toast.success(
+                    `Document "${doc.title || file.name}" uploaded successfully and added to workspace!`,
+                );
+
+                // Add a system message to the chat
+                const uploadMessage: ChatMessage = {
+                    id: Date.now().toString(),
+                    role: "assistant",
+                    content: `✅ Document "${doc.title || file.name}" has been uploaded and is now available in the knowledge base. You can ask questions about it!`,
+                    timestamp: Date.now(),
+                };
+
+                onReplaceChatMessages([...chatMessages, uploadMessage]);
+            } else {
+                throw new Error("Upload succeeded but no document was returned");
+            }
+        } catch (error) {
+            console.error("File upload error:", error);
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : "Failed to upload document";
+            toast.error(errorMessage);
+        } finally {
+            setUploading(false);
+            // Reset file input
+            if (documentUploadInputRef.current) {
+                documentUploadInputRef.current.value = "";
+            }
+        }
+    };
+
+    const handleDocumentUploadClick = () => {
+        documentUploadInputRef.current?.click();
+    };
+
     const insertText = (text: string) => {
         setChatInput((prev) => prev + text);
         chatInputRef.current?.focus();
@@ -908,7 +1010,7 @@ export default function WorkspaceChat({
                         </div>
 
                         <div className="flex gap-2 mt-2">
-                            {/* File upload */}
+                            {/* File attachment input (for inline attachments) */}
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -918,12 +1020,38 @@ export default function WorkspaceChat({
                                 accept="image/*,.pdf,.txt,.doc,.docx"
                             />
 
+                            {/* Document upload input (for workspace document upload) */}
+                            <input
+                                ref={documentUploadInputRef}
+                                type="file"
+                                onChange={handleDocumentUpload}
+                                className="hidden"
+                                accept=".pdf,.doc,.docx,.txt,.md,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+                                disabled={uploading}
+                            />
+
+                            {/* Document upload button */}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-12 w-12 p-0 border border-[#0E2E33] hover:bg-[#1b1b1e]"
+                                onClick={handleDocumentUploadClick}
+                                disabled={uploading || !editorWorkspaceSlug}
+                                title="Upload document to workspace (PDF, Word, Text)"
+                            >
+                                {uploading ? (
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                ) : (
+                                    <Paperclip className="h-5 w-5" />
+                                )}
+                            </Button>
+
                             {/* Send button - full width, prominent */}
                             <Button
                                 onClick={handleSendMessage}
                                 disabled={!chatInput.trim() || isLoading}
                                 size="sm"
-                                className="w-full bg-[#15a366] hover:bg-[#10a35a] text-white h-12 font-semibold border-0 text-base"
+                                className="flex-1 bg-[#15a366] hover:bg-[#10a35a] text-white h-12 font-semibold border-0 text-base"
                                 title="Send message to The Architect"
                             >
                                 {isLoading ? (
