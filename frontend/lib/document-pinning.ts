@@ -108,12 +108,14 @@ export async function handleDocumentUploadAndPin(
  * @param file - The file to upload
  * @param workspaceSlug - The workspace slug
  * @param onProgress - Optional callback to update progress
+ * @param fileId - Optional file ID to use (if not provided, will generate one)
  * @returns Promise with upload result
  */
 export async function uploadAndPinSingleFile(
     file: File,
     workspaceSlug: string,
     onProgress?: (progress: FileUploadProgress) => void,
+    fileId?: string,
 ): Promise<{
     success: boolean;
     docPath?: string;
@@ -121,9 +123,9 @@ export async function uploadAndPinSingleFile(
     wordCount?: number;
     tokenCount?: number;
 }> {
-    const fileId = `${Date.now()}-${Math.random()}`;
+    const progressId = fileId || `${Date.now()}-${Math.random()}`;
     const progress: FileUploadProgress = {
-        id: fileId,
+        id: progressId,
         file,
         status: "uploading",
         progress: 0,

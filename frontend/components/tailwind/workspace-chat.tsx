@@ -775,6 +775,7 @@ export default function WorkspaceChat({
                         ),
                     );
                 },
+                fileProgress.id, // Pass the existing file ID so progress updates match correctly
             );
 
             if (result.success) {
