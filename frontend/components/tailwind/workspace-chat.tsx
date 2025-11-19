@@ -117,6 +117,7 @@ export default function WorkspaceChat({
     // 📄 DOCUMENT UPLOAD STATE (Multi-file support)
     const [pendingFiles, setPendingFiles] = useState<FileUploadProgress[]>([]);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [isUploadAreaCollapsed, setIsUploadAreaCollapsed] = useState(false);
 
     // ⚙️ ADVANCED FEATURES STATE
     const [showSettings, setShowSettings] = useState(false);
@@ -138,6 +139,30 @@ export default function WorkspaceChat({
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "auto" });
     }, [chatMessages]);
+
+    // 🎯 Auto-collapse upload area when all files complete
+    useEffect(() => {
+        if (pendingFiles.length === 0) {
+            setIsUploadAreaCollapsed(false);
+            return;
+        }
+
+        const allComplete = pendingFiles.every(
+            (f) => f.status === "success" || f.status === "error"
+        );
+        const hasActiveUploads = pendingFiles.some(
+            (f) => f.status === "uploading" || f.status === "pinning" || f.status === "pending"
+        );
+
+        // Auto-collapse after all files complete (with delay to show completion state)
+        if (allComplete && !hasActiveUploads && !isUploadAreaCollapsed) {
+            const timer = setTimeout(() => {
+                setIsUploadAreaCollapsed(true);
+            }, 2000); // 2 second delay to show success state
+
+            return () => clearTimeout(timer);
+        }
+    }, [pendingFiles, isUploadAreaCollapsed]);
 
     // Load workspace system prompt
     useEffect(() => {
@@ -666,6 +691,8 @@ export default function WorkspaceChat({
 
         if (newFiles.length > 0) {
             setPendingFiles((prev) => [...prev, ...newFiles]);
+            // Expand upload area when new files are added
+            setIsUploadAreaCollapsed(false);
         }
     };
 
@@ -704,7 +731,14 @@ export default function WorkspaceChat({
 
     // Remove file from pending list
     const removePendingFile = (fileId: string) => {
-        setPendingFiles((prev) => prev.filter((f) => f.id !== fileId));
+        setPendingFiles((prev) => {
+            const updated = prev.filter((f) => f.id !== fileId);
+            // Auto-collapse if no files remaining
+            if (updated.length === 0) {
+                setIsUploadAreaCollapsed(false);
+            }
+            return updated;
+        });
     };
 
     // Process batch upload
@@ -791,12 +825,25 @@ export default function WorkspaceChat({
             onReplaceChatMessages([...validMessages, summaryMessage]);
         }
 
-        // Clear completed files after a delay
+        // 🎯 Auto-collapse upload area after all files complete
+        const allComplete = pendingFiles.every(
+            (f) => f.status === "success" || f.status === "error"
+        );
+        if (allComplete) {
+            // Auto-collapse after a brief delay to show completion
+            setTimeout(() => {
+                setIsUploadAreaCollapsed(true);
+            }, 2000); // 2 second delay to show success state
+        }
+
+        // Clear completed files after a delay (longer delay to allow user to see results)
         setTimeout(() => {
             setPendingFiles((prev) =>
                 prev.filter((f) => f.status !== "success" && f.status !== "error"),
             );
-        }, 5000);
+            // Reset collapse state when all files are cleared
+            setIsUploadAreaCollapsed(false);
+        }, 8000); // 8 second delay before clearing
 
         setUploading(false);
     };
@@ -1209,10 +1256,23 @@ export default function WorkspaceChat({
                 {/* Pending Files List with Drag-and-Drop */}
                 {pendingFiles.length > 0 && (
                     <div className="space-y-2">
-                        <div className="text-xs text-gray-400 font-medium">
-                            {pendingFiles.length} file(s) ready to upload
+                        {/* 🎯 Collapsible Header */}
+                        <div className="flex items-center justify-between">
+                            <div className="text-xs text-gray-400 font-medium">
+                                {pendingFiles.length} file(s) {isUploadAreaCollapsed ? "uploaded" : "ready to upload"}
+                            </div>
+                            <button
+                                onClick={() => setIsUploadAreaCollapsed(!isUploadAreaCollapsed)}
+                                className="text-xs text-gray-400 hover:text-white transition-colors px-2 py-1"
+                                title={isUploadAreaCollapsed ? "Expand upload area" : "Collapse upload area"}
+                            >
+                                {isUploadAreaCollapsed ? "▼ Expand" : "▲ Collapse"}
+                            </button>
                         </div>
-                        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                        
+                        {/* 🎯 Collapsible Content */}
+                        {!isUploadAreaCollapsed && (
+                            <div className="space-y-1.5 max-h-48 overflow-y-auto">
                             {pendingFiles.map((fileProgress) => (
                                 <div
                                     key={fileProgress.id}
@@ -1301,56 +1361,96 @@ export default function WorkspaceChat({
                             ))}
                         </div>
 
-                        {/* Upload Button */}
-                        {pendingFiles.some((f) => f.status === "pending") && (
-                            <Button
-                                onClick={handleBatchUpload}
-                                disabled={uploading || !editorWorkspaceSlug}
-                                size="sm"
-                                className="w-full bg-[#15a366] hover:bg-[#10a35a] text-white text-sm font-semibold"
-                            >
-                                {uploading ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        Uploading...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Paperclip className="h-4 w-4 mr-2" />
-                                        Upload {pendingFiles.filter((f) => f.status === "pending").length} Document(s)
-                                    </>
-                                )}
-                            </Button>
+                            {/* Upload Button */}
+                            {pendingFiles.some((f) => f.status === "pending") && (
+                                <Button
+                                    onClick={handleBatchUpload}
+                                    disabled={uploading || !editorWorkspaceSlug}
+                                    size="sm"
+                                    className="w-full bg-[#15a366] hover:bg-[#10a35a] text-white text-sm font-semibold"
+                                >
+                                    {uploading ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                            Uploading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Paperclip className="h-4 w-4 mr-2" />
+                                            Upload {pendingFiles.filter((f) => f.status === "pending").length} Document(s)
+                                        </>
+                                    )}
+                                </Button>
+                            )}
+                        </div>
+                        )}
+                        
+                        {/* 🎯 Collapsed Summary View */}
+                        {isUploadAreaCollapsed && (
+                            <div className="flex items-center gap-2 text-xs text-gray-400 bg-[#0E2E33]/30 px-3 py-2 rounded border border-[#1b5e5e]">
+                                <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <span className="flex-1">
+                                    {pendingFiles.filter(f => f.status === "success").length} uploaded,{" "}
+                                    {pendingFiles.filter(f => f.status === "error").length} failed
+                                </span>
+                                <button
+                                    onClick={handleDocumentUploadClick}
+                                    className="text-[#15a366] hover:underline flex items-center gap-1 flex-shrink-0"
+                                >
+                                    <Paperclip className="w-3.5 h-3.5" />
+                                    <span>Add more</span>
+                                </button>
+                            </div>
                         )}
                     </div>
                 )}
 
-                {/* Drag and Drop Area */}
-                {pendingFiles.length === 0 && (
+                {/* Drag and Drop Area - Hidden when collapsed, minimized when files exist, full when empty */}
+                {!isUploadAreaCollapsed && (
                     <div
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
-                        className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
+                        className={`border-2 border-dashed rounded-lg transition-all duration-300 ${
+                            pendingFiles.length > 0
+                                ? "p-2 border-[#0E2E33]/30 bg-transparent"
+                                : "p-4 border-[#0E2E33] bg-transparent"
+                        } ${
                             isDragOver
                                 ? "border-[#15a366] bg-[#0E2E33]/50"
-                                : "border-[#0E2E33] bg-transparent"
+                                : ""
                         }`}
                     >
-                        <div className="text-center text-sm text-gray-400">
-                            <Paperclip className="w-5 h-5 mx-auto mb-2 opacity-50" />
-                            <span>
-                                Drag and drop documents here, or{" "}
+                        <div className={`text-center text-sm text-gray-400 transition-all ${
+                            pendingFiles.length > 0
+                                ? "text-xs"
+                                : ""
+                        }`}>
+                            {pendingFiles.length === 0 ? (
+                                <>
+                                    <Paperclip className="w-5 h-5 mx-auto mb-2 opacity-50" />
+                                    <span>
+                                        Drag and drop documents here, or{" "}
+                                        <button
+                                            onClick={handleDocumentUploadClick}
+                                            className="text-[#15a366] hover:underline"
+                                        >
+                                            click to browse
+                                        </button>
+                                    </span>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                        PDF, Word, or text files (max 50MB each)
+                                    </div>
+                                </>
+                            ) : (
                                 <button
                                     onClick={handleDocumentUploadClick}
-                                    className="text-[#15a366] hover:underline"
+                                    className="text-[#15a366] hover:underline flex items-center gap-1 justify-center"
                                 >
-                                    click to browse
+                                    <Paperclip className="w-3.5 h-3.5" />
+                                    <span>Add more documents</span>
                                 </button>
-                            </span>
-                            <div className="text-xs text-gray-500 mt-1">
-                                PDF, Word, or text files (max 50MB each)
-                            </div>
+                            )}
                         </div>
                     </div>
                 )}
