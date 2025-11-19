@@ -65,6 +65,23 @@ export async function POST(request: NextRequest) {
         // Preserving the raw message allows @agent mentions and other syntax to work
         const messageToSend = lastMessage.content;
 
+        // 🤖 @AGENT SUPPORT: Detect and preserve @agent invocations
+        // AnythingLLM detects @agent in plain text messages and triggers agent mode
+        // The @agent string must be preserved exactly as the user typed it
+        const hasAgentInvocation = messageToSend.includes("@agent");
+        if (hasAgentInvocation) {
+            console.log(
+                "🤖 [@Agent] Agent invocation detected in user message",
+            );
+            console.log(
+                "🤖 [@Agent] Message preview:",
+                messageToSend.substring(0, 200),
+            );
+            console.log(
+                "🤖 [@Agent] AnythingLLM will handle agent mode automatically.",
+            );
+        }
+
         // Determine the endpoint based on whether this is thread-based chat
         let endpoint: string;
         if (threadSlug) {

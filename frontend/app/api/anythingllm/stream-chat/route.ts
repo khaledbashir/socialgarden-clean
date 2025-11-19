@@ -229,6 +229,20 @@ export async function POST(request: NextRequest) {
             });
         }
 
+        // 🤖 @AGENT SUPPORT: Detect and preserve @agent invocations
+        // AnythingLLM detects @agent in plain text messages and triggers agent mode
+        // The @agent string must be preserved exactly as the user typed it
+        const hasAgentInvocation = messageToSend.includes("@agent");
+        if (hasAgentInvocation) {
+            console.log(
+                "🤖 [@Agent] Agent invocation detected in user message",
+            );
+            console.log(
+                "🤖 [@Agent] Message preview:",
+                messageToSend.substring(0, 200),
+            );
+        }
+
         // 🎯 CRITICAL: For master dashboard workspace, inject live analytics data
         // This ensures the AI has access to the SAME data the UI shows
         const isMasterDashboard =
@@ -291,6 +305,14 @@ ${messageToSend}`;
         console.log(
             "✅ INFO: This backend acts as a direct passthrough to the workspace.",
         );
+        if (hasAgentInvocation) {
+            console.log(
+                "🤖 INFO: @agent invocation detected - AnythingLLM will handle agent mode automatically.",
+            );
+            console.log(
+                "🤖 INFO: Agent session will persist for follow-up messages until /exit or completion.",
+            );
+        }
         console.log("");
         console.log("Message to send (first 500 chars):");
         console.log(messageWithContext.substring(0, 500));

@@ -911,7 +911,7 @@ export default function WorkspaceChat({
         }
     };
 
-    const formatTimestamp = (timestamp: number) => {
+    const formatTimestamp = (timestamp: number): string => {
         const date = new Date(timestamp);
         const now = new Date();
         const diffInSeconds = Math.floor(
