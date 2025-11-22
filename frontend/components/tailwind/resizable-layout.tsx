@@ -39,59 +39,31 @@ export function ResizableLayout({
   viewMode = 'editor', // Default to editor mode
 }: ResizableLayoutProps) {
   const [mounted, setMounted] = useState(false);
-  const [chatWidth, setChatWidth] = useState(384); // w-96 = 384px
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeStartXRef = useRef(0);
-  const resizeStartWidthRef = useRef(0);
+  const [chatWidth] = useState(384); // fixed chat width
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    resizeStartXRef.current = e.clientX;
-    resizeStartWidthRef.current = chatWidth;
-  };
+  // removed drag-resize handler
 
-  useEffect(() => {
-    if (!isResizing) return;
+  // no expand/collapse size toggle; sidebar uses fixed width
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const delta = resizeStartXRef.current - e.clientX; // Negative = wider
-      const newWidth = Math.max(320, resizeStartWidthRef.current + delta); // Min 320px
-      setChatWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
+  // removed global listeners
 
   if (!mounted) return null;
 
   return (
     <div className="h-screen w-screen flex flex-col relative">
       {/* PERSISTENT LEFT SIDEBAR TOGGLE TAB - ALWAYS VISIBLE */}
-      {!sidebarOpen && (
-        <button
-          onClick={onToggleSidebar}
-          className="fixed left-0 top-20 z-40 bg-[#1CBF79] hover:bg-[#15a366] text-black p-2 rounded-r-lg transition-all duration-300 shadow-lg"
-          title="Open sidebar"
-          aria-label="Open sidebar"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-      )}
+      <button
+        onClick={onToggleSidebar}
+        className={`fixed left-0 top-20 z-40 bg-[#1CBF79] hover:bg-[#15a366] text-black p-2 rounded-r-lg transition-all duration-300 shadow-lg ${sidebarOpen ? 'opacity-70' : ''}`}
+        title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+        aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+      >
+        <Menu className="w-5 h-5" />
+      </button>
 
       {/* PERSISTENT RIGHT SIDEBAR TOGGLE TAB - HIDDEN WHEN NO RIGHT PANEL OR IN AI MANAGEMENT */}
       {rightPanel && !aiChatOpen && viewMode !== 'ai-management' && (
@@ -107,18 +79,19 @@ export function ResizableLayout({
 
       {/* MAIN FLEX CONTAINER - LEFT | EDITOR | CHAT - NO GAP */}
       <div className="flex-1 flex overflow-hidden">
-        {/* LEFT SIDEBAR - FIXED WIDTH OR 0 */}
-        <div 
-          className={`h-full overflow-y-auto overflow-x-hidden flex-shrink-0 border-r border-gray-700 transition-all duration-300 ${
-            sidebarOpen ? 'w-80' : 'w-0 border-r-0'
-          }`}
-        >
-          {sidebarOpen && leftPanel}
-        </div>
+        {/* LEFT SIDEBAR - FIXED WIDTH WHEN OPEN */}
+        {sidebarOpen ? (
+          <div
+            className="h-full overflow-y-auto overflow-x-hidden flex-shrink-0 border-r border-gray-700 transition-all duration-300"
+            style={{ width: '320px' }}
+          >
+            {leftPanel}
+          </div>
+        ) : null}
 
-        {/* MIDDLE EDITOR - GROWS TO FILL SPACE - NO LEFT MARGIN/PADDING */}
+        {/* MIDDLE EDITOR - GROWS TO FILL SPACE */}
         <div 
-          className={`flex-1 h-full overflow-hidden min-w-0 flex flex-col transition-all duration-300 ml-0`}
+          className={`flex-1 h-full overflow-hidden min-w-0 flex flex-col`}
         >
           {mainPanel || children}
         </div>
@@ -126,16 +99,7 @@ export function ResizableLayout({
         {/* RESIZABLE RIGHT CHAT PANEL */}
         {rightPanel && (
           <div className="relative flex">
-            {/* Drag Handle */}
-            {aiChatOpen && (
-              <div
-                onMouseDown={handleResizeStart}
-                className={`w-1 bg-[#1CBF79] hover:bg-[#10a35a] cursor-col-resize transition-colors ${
-                  isResizing ? 'bg-[#10a35a]' : ''
-                }`}
-                title="Drag to resize chat panel"
-              />
-            )}
+            {/* No drag handle */}
             {/* Chat Panel */}
             <div 
               className={`h-full overflow-hidden flex-shrink-0 border-l border-gray-700 transition-all duration-300 bg-gray-950 ${

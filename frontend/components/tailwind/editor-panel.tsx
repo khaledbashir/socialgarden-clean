@@ -53,6 +53,7 @@ export default function EditorPanel({
                             }
                         }}
                         onOpenOnboarding={() => onOpenOnboarding?.()}
+                        isLoading={false}
                     />
                 )}
             </div>

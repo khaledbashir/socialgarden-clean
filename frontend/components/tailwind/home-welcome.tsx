@@ -6,16 +6,18 @@ export default function HomeWelcome({
     onCreateWorkspace,
     onOpenOnboarding,
     workspaceCount = 0,
+    isLoading = false,
 }: {
     onCreateWorkspace?: () => void;
     onOpenOnboarding?: () => void;
     workspaceCount?: number;
+    isLoading?: boolean;
 }) {
-    const hasWorkspaces = workspaceCount > 0;
+    const hasWorkspaces = !isLoading && workspaceCount > 0;
 
     return (
-        <div className="flex flex-col items-center justify-center h-full w-full">
-            <div className="max-w-xl text-center px-6 py-8">
+        <div className="flex flex-col items-start justify-start h-full w-full">
+            <div className="max-w-2xl text-left px-0 py-8">
                 <div className="flex items-center justify-center">
                     <div className="rounded-full bg-indigo-50 p-3">
                         <Sparkles className="h-6 w-6 text-indigo-600" />
@@ -32,7 +34,12 @@ export default function HomeWelcome({
                 </p>
 
                 <div className="mt-6 flex items-center justify-center gap-3">
-                    {!hasWorkspaces ? (
+                    {isLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#1CBF79]"></div>
+                            <span>Loading workspaces...</span>
+                        </div>
+                    ) : !hasWorkspaces ? (
                         <>
                             <Button 
                                 onClick={onCreateWorkspace} 
@@ -51,10 +58,10 @@ export default function HomeWelcome({
                         </>
                     ) : (
                         <div className="flex flex-col items-center gap-2">
-                            <div className="flex items-center gap-2 text-sm text-gray-500">
-                                <FolderOpen className="h-4 w-4" />
-                                <span>Select a workspace from the sidebar</span>
-                            </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <FolderOpen className="h-4 w-4" />
+                            <span>Select a workspace from the sidebar</span>
+                        </div>
                             <Button 
                                 onClick={onCreateWorkspace} 
                                 variant="outline"

@@ -52,17 +52,17 @@ export default function CreateWorkspaceDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="bg-gray-900 border-gray-700 max-w-md">
+            <DialogContent className="bg-background border border-border max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-white">Create New Workspace</DialogTitle>
-                    <DialogDescription className="text-gray-400">
+                    <DialogTitle className="text-foreground">Create New Workspace</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
                         Enter a name for your workspace. This will help you organize your SOWs.
                     </DialogDescription>
                 </DialogHeader>
                 
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label htmlFor="workspace-name" className="text-gray-300">
+                        <Label htmlFor="workspace-name" className="text-foreground">
                             Workspace Name
                         </Label>
                         <Input
@@ -71,23 +71,23 @@ export default function CreateWorkspaceDialog({
                             value={workspaceName}
                             onChange={(e) => setWorkspaceName(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+                            className="bg-card border-border text-foreground placeholder:text-muted-foreground"
                             autoFocus
                         />
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                             Use your client's name or a descriptive project name
                         </p>
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="workspace-type" className="text-gray-300">
+                        <Label htmlFor="workspace-type" className="text-foreground">
                             Workspace Type
                         </Label>
                         <select
                             id="workspace-type"
                             value={workspaceType}
                             onChange={(e) => setWorkspaceType(e.target.value as "sow" | "client" | "generic")}
-                            className="w-full bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full bg-card border border-border text-foreground rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
                         >
                             <option value="sow">SOW Generation</option>
                             <option value="client">Client Folder</option>
@@ -99,14 +99,14 @@ export default function CreateWorkspaceDialog({
                         <Button
                             variant="outline"
                             onClick={onClose}
-                            className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                            className="border-border text-foreground hover:bg-muted"
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleSubmit}
                             disabled={!workspaceName.trim()}
-                            className="bg-[#1CBF79] hover:bg-[#15a366] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-sg-green hover:bg-[#15a366] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Create Workspace
                         </Button>

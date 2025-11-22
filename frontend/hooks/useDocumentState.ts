@@ -32,6 +32,7 @@ export function useDocumentState({
     const [currentSOWId, setCurrentSOWId] = useState<string | null>(null);
     const [latestEditorJSON, setLatestEditorJSON] = useState<any | null>(null);
     const editorRef = useRef<any>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
     useEffect(() => {
         console.log("Loading workspace data, mounted:", mounted);
@@ -40,6 +41,7 @@ export function useDocumentState({
         const abortController = new AbortController();
 
         const loadData = async () => {
+            setIsLoading(true);
             console.log("📂 Loading folders and SOWs from database...");
 
             await ensureUnfiledFolder();
@@ -177,6 +179,7 @@ export function useDocumentState({
                 console.error("❌ Error loading data:", error);
                 toast.error("Failed to load workspaces and SOWs");
             }
+            setIsLoading(false);
             if (initialDocId) {
                 setCurrentDocId(initialDocId);
                 setCurrentSOWId(initialDocId);
@@ -326,5 +329,6 @@ export function useDocumentState({
         latestEditorJSON,
         setLatestEditorJSON,
         editorRef,
+        isLoading,
     };
 }

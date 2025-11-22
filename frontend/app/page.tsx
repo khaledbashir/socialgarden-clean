@@ -94,6 +94,7 @@ export default function Page() {
         latestEditorJSON,
         setLatestEditorJSON,
         editorRef,
+        isLoading,
     } = useDocumentState({
         mounted,
         viewMode,
@@ -2239,6 +2240,8 @@ export default function Page() {
                                 setCreateWorkspaceType("sow");
                                 setCreateWorkspaceDialogOpen(true);
                             }}
+                            isLoading={isLoading}
+                            workspaceCount={workspaces.length}
                         />
                     ) : (
                         <HomeWelcome
@@ -2248,6 +2251,7 @@ export default function Page() {
                             }}
                             onOpenOnboarding={() => setShowOnboarding(true)}
                             workspaceCount={workspaces.length}
+                            isLoading={isLoading}
                         />
                     ))}
                 </>
