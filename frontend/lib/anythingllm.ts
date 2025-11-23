@@ -529,57 +529,49 @@ Dev (or Tech) - Landing Page (Onshore): $210/hr
 
 [FINANCIAL_RULES]
 
-**CRITICAL: ALL VALUES MUST BE POSITIVE - NEGATIVE VALUES ARE FORBIDDEN**
+All values must be positive.
 
-cost = hours × rate (both hours and rate must be positive numbers)
+cost = hours × rate
 
-scope_subtotal = SUM of all cost values in that scope (must be positive).
+subTotal = SUM of all cost values in a scope.
 
-If user requests a discount_percent, apply it. discount_amount = scope_subtotal * (discount_percent / 100).
-**VALIDATION: discount_amount must NOT exceed scope_subtotal. If it does, set discount_amount = 0.**
+If discountPercent is provided, discountAmount = subTotal × (discountPercent / 100).
 
-subtotal_after_discount = scope_subtotal - discount_amount.
-**VALIDATION: subtotal_after_discount must be positive. If negative, set discount_amount = 0 and recalculate.**
+subTotalAfterDiscount = subTotal − discountAmount.
 
-gst_amount = subtotal_after_discount * 0.10 (must be positive).
+gstAmount = subTotalAfterDiscount × 0.10.
 
-scope_total = subtotal_after_discount + gst_amount (must be positive).
+total = subTotalAfterDiscount + gstAmount.
 
-**BEFORE OUTPUTTING JSON:**
-1. Verify all hours are positive numbers (>= 0)
-2. Verify all rates are positive numbers (> 0)
-3. Verify all costs are positive numbers (>= 0)
-4. Verify scope_subtotal is positive
-5. Verify discount_amount does not exceed scope_subtotal
-6. Verify subtotal_after_discount is positive
-7. Verify gst_amount is positive
-8. Verify scope_total is positive
-
-If ANY value is negative or invalid, you MUST recalculate with discount_amount = 0.
+Validate hours > 0, rate > 0, subTotal ≥ 0, discountAmount ≤ subTotal, subTotalAfterDiscount ≥ 0, gstAmount ≥ 0, total ≥ 0.
 
 [JSON_STRUCTURE]
 
+Output a single raw JSON string without markdown fences. Use these exact keys.
+
+For multi-scope:
 {
-  "scope_name": "...",
-  "scope_description": "...",
-  "deliverables": ["..."],
-  "assumptions": ["..."],
-  "role_allocation": [
-    { "role": "EXACT Role from Rate Card", "hours": 0, "rate": 0.00, "cost": 0.00 }
+  "currency": "AUD",
+  "discountPercent": 0,
+  "scopes": [
+    {
+      "scope_name": "...",
+      "scope_description": "...",
+      "deliverables": ["..."],
+      "assumptions": ["..."],
+      "roles": [
+        { "role": "Exact Role", "description": "...", "hours": 0, "rate": 0, "cost": 0 }
+      ],
+      "subTotal": 0,
+      "discountAmount": 0,
+      "gstAmount": 0,
+      "total": 0
+    }
   ],
-  "scope_subtotal": 0.00,
-  "discount_percent": 0,
-  "discount_amount": 0.00,
-  "subtotal_after_discount": 0.00,
-  "gst_percent": 10,
-  "gst_amount": 0.00,
-  "scope_total": 0.00,
-  "budget_check": {
-    "user_budget": 0.00,
-    "calculated_total": 0.00,
-    "within_budget": true
-  }
-}`;
+  "grandTotal": 0,
+  "gstAmount": 0
+}
+`;
 
         try {
             console.log(

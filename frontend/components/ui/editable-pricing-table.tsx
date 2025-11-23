@@ -188,7 +188,7 @@ export const EditablePricingTable = () => {
                     </PopoverTrigger>
                     <PopoverContent
                       className="p-0 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
-                      style={{ width: "400px" }}
+                      style={{ width: "400px", zIndex: 50 }}
                     >
                       <Command className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
                         <CommandInput placeholder="Search roles..." className="placeholder:text-gray-500" />

@@ -573,7 +573,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                         )}
                     </div>
                 </div>
-                <div className="overflow-visible mb-4 relative z-10">
+                <div className="overflow-visible mb-4 relative z-50">
                     <table className="w-full border-collapse">
                         <thead>
                             <tr className="bg-[#0E0F0F] text-white">
@@ -610,7 +610,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
-                                    className={`pricing-row hover:outline hover:outline-1 hover:outline-[#1CBF79]/50 dark:bg-gray-800 ${dropTargetId === row.id ? "drag-over" : ""} ${draggedRowId === row.id ? "dragging" : ""}`}
+                                    className={`pricing-row border border-transparent hover:outline hover:outline-1 hover:outline-[#1CBF79]/50 dark:bg-gray-800 ${dropTargetId === row.id ? "drag-over" : ""} ${draggedRowId === row.id ? "dragging" : ""}`}
                                 >
                                     <td
                                         className="border border-border p-2"

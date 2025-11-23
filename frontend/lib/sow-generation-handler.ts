@@ -168,7 +168,13 @@ export async function generateSOWWithStreaming(options: SOWGenerationOptions): P
         cleanedContent = cleanStreamContent(accumulatedContent);
 
         console.log(`✅ [SOW-GEN] Successfully extracted final JSON (found ${streamData.jsonCount} total)`);
-        console.log(`💰 [SOW-GEN] Total investment: ${formatCurrency(finalJSON.grand_total)}`);
+        const totalForLog = (finalJSON.grandTotal ?? finalJSON.grand_total) as number;
+        if (typeof totalForLog === 'number') {
+          console.log(`💰 [SOW-GEN] Total investment: ${formatCurrency(totalForLog)}`);
+          try {
+            window.dispatchEvent(new CustomEvent('sow:grandTotalUpdate', { detail: { grandTotal: totalForLog } }));
+          } catch {}
+        }
       } else {
         console.log("⚠️ [SOW-GEN] No valid JSON found in final content");
       }

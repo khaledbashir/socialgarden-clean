@@ -8,25 +8,26 @@
 
 interface PricingData {
     currency: string;
-    gst_rate: number;
+    discountPercent?: number;
     scopes: Array<{
         scope_name: string;
         scope_description: string;
         deliverables: string[];
         assumptions: string[];
-        role_allocation: Array<{
+        roles: Array<{
             role: string;
-            description: string;
+            description?: string;
             hours: number;
             rate: number;
             cost: number;
         }>;
-        discount?: number;
+        subTotal?: number;
+        discountAmount?: number;
+        gstAmount?: number;
+        total?: number;
     }>;
-    discount: number;
-    grand_total_pre_gst: number;
-    gst_amount: number;
-    grand_total: number;
+    grandTotal?: number;
+    gstAmount?: number;
 }
 
 interface StreamUpdate {
@@ -50,7 +51,6 @@ export function extractStreamingJSON(content: string): StreamUpdate {
         ...content.matchAll(/\{[\s\S]*?"scopes"[\s\S]*?\}/gi),
     ];
 
-    // Parse and validate all JSON blocks
     const validJSONBlocks: PricingData[] = [];
 
     for (let i = 0; i < jsonMatches.length; i++) {
@@ -59,13 +59,30 @@ export function extractStreamingJSON(content: string): StreamUpdate {
             const jsonStr = match[0].trim();
             const parsed = JSON.parse(jsonStr);
 
-            // Validate that this looks like our pricing format
-            if (
-                parsed.currency &&
-                parsed.scopes &&
-                Array.isArray(parsed.scopes)
-            ) {
-                validJSONBlocks.push(parsed);
+            if (parsed && parsed.currency && Array.isArray(parsed.scopes)) {
+                // Normalize legacy keys to the new schema when present
+                const normalized: PricingData = {
+                    currency: parsed.currency,
+                    discountPercent: parsed.discountPercent ?? parsed.discount ?? 0,
+                    scopes: (parsed.scopes || []).map((s: any) => ({
+                        scope_name: s.scope_name,
+                        scope_description: s.scope_description,
+                        deliverables: Array.isArray(s.deliverables) ? s.deliverables : [],
+                        assumptions: Array.isArray(s.assumptions) ? s.assumptions : [],
+                        roles: Array.isArray(s.roles)
+                            ? s.roles
+                            : Array.isArray(s.role_allocation)
+                                ? s.role_allocation
+                                : [],
+                        subTotal: s.subTotal ?? s.scope_subtotal ?? undefined,
+                        discountAmount: s.discountAmount ?? s.discount_amount ?? undefined,
+                        gstAmount: s.gstAmount ?? s.gst_amount ?? undefined,
+                        total: s.total ?? s.scope_total ?? undefined,
+                    })),
+                    grandTotal: parsed.grandTotal ?? parsed.grand_total ?? undefined,
+                    gstAmount: parsed.gstAmount ?? parsed.gst_amount ?? undefined,
+                };
+                validJSONBlocks.push(normalized);
             }
         } catch (e) {
             // Invalid JSON, skip
@@ -104,7 +121,7 @@ export function extractStreamingJSON(content: string): StreamUpdate {
                 : undefined,
         totalInvestment:
             validJSONBlocks.length > 0
-                ? validJSONBlocks[validJSONBlocks.length - 1].grand_total
+                ? validJSONBlocks[validJSONBlocks.length - 1].grandTotal
                 : undefined,
         statusMessage,
     };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -28,6 +28,7 @@ export default function SOWCalculator({ onInsertToEditor }: SOWCalculatorProps) 
   const [showDiscount, setShowDiscount] = useState<boolean>(false);
   const [clientName, setClientName] = useState<string>("");
   const [projectTitle, setProjectTitle] = useState<string>("");
+  const [grandTotalFromAI, setGrandTotalFromAI] = useState<number | null>(null);
 
   const availableRoles = Object.entries(SOCIAL_GARDEN_KNOWLEDGE_BASE.rateCard).map(([key, value]) => ({
     key,
@@ -70,6 +71,17 @@ export default function SOWCalculator({ onInsertToEditor }: SOWCalculatorProps) 
   const subtotal = lineItems.reduce((sum, item) => sum + calculateItemCost(item.hours, item.rate), 0);
   const discountAmount = (subtotal * discount) / 100;
   const total = subtotal - discountAmount;
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      const value = e?.detail?.grandTotal;
+      if (typeof value === 'number') {
+        setGrandTotalFromAI(value);
+      }
+    };
+    window.addEventListener('sow:grandTotalUpdate', handler);
+    return () => window.removeEventListener('sow:grandTotalUpdate', handler);
+  }, []);
 
   const roleSummary = lineItems.reduce((acc, item) => {
     const roleName = availableRoles.find(r => r.key === item.role)?.name || item.role;
@@ -309,7 +321,7 @@ ${discount > 0 ? `| Discount (${discount}%) | -AUD ${discountAmount.toLocaleStri
               <div className="flex justify-between items-center pt-2">
                 <span className="text-base font-bold">Total</span>
                 <span className="text-3xl font-bold text-green-600 dark:text-green-400">
-                  ${total.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  ${(grandTotalFromAI ?? total).toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </span>
               </div>
             </CardContent>
