@@ -22,17 +22,43 @@ import { extractPricingFromContent } from "@/lib/export-utils";
 
 // Environment configuration with validation
 const getBackendConfig = () => {
-    const backendUrl =
+    let backendUrl =
         process.env.NEXT_PUBLIC_API_URL ||
         process.env.NEXT_PUBLIC_BASE_URL ||
-        "https://ahmad-socialgarden-backend.840tjq.easypanel.host";
+        `${typeof window !== "undefined" ? window.location.origin : "https://sow.qandu.me"}/api`;
 
-    console.log(`🔧 Backend configuration:`, {
-        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "not set",
-        NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "not set",
-        fallback: "https://ahmad-socialgarden-backend.840tjq.easypanel.host",
-        resolved: backendUrl,
-    });
+    // Normalize to HTTPS and public /api to avoid mixed-content and internal Docker host leakage
+    try {
+        const original = backendUrl;
+        const isHttp = /^http:\/\//i.test(backendUrl);
+        const containsInternalHost = /sow-qandu-me:3001|localhost:3001|127\.0\.0\.1:\d+/i.test(backendUrl);
+        const origin = typeof window !== "undefined" ? window.location.origin : "https://sow.qandu.me";
+
+        if (isHttp || containsInternalHost) {
+            backendUrl = `${origin}/api`;
+        }
+
+        // Ensure https scheme
+        backendUrl = backendUrl.replace(/^http:\/\//i, "https://");
+
+        // Ensure /api path present once
+        const u = new URL(backendUrl);
+        if (!/\bapi\b/i.test(u.pathname)) {
+            u.pathname = (u.pathname.replace(/\/*$/, "") || "") + "/api";
+        }
+        backendUrl = u.toString().replace(/\/$/, "");
+
+        console.log("🔧 Backend configuration:", {
+            NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "not set",
+            NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "not set",
+            normalizedFrom: original,
+            resolved: backendUrl,
+        });
+    } catch (e) {
+        // Fallback to window origin /api if parsing fails
+        const origin = typeof window !== "undefined" ? window.location.origin : "https://sow.qandu.me";
+        backendUrl = `${origin}/api`;
+    }
 
     return { backendUrl };
 };
