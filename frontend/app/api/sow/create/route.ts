@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
         // No legacy enforcement: pricing table is now deterministic and single-source from frontend
         const totalInvestment =
             body.totalInvestment ?? body.total_investment ?? 0;
+        const budgetLimit = body.budgetLimit ?? body.budget_limit ?? null;
         const folderId = body.folderId || body.folder_id || null;
         const creatorEmail = body.creatorEmail || body.creator_email || null;
         const workspaceSlug =
@@ -151,8 +152,8 @@ export async function POST(req: NextRequest) {
                 await query(
                     `INSERT INTO sows (
             id, title, client_name, client_email, content, total_investment,
-            status, workspace_slug, thread_slug, embed_id, folder_id, creator_email, expires_at, vertical, service_line
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            status, workspace_slug, thread_slug, embed_id, folder_id, creator_email, expires_at, vertical, service_line, budget_limit
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         sowId,
                         title,
@@ -169,6 +170,7 @@ export async function POST(req: NextRequest) {
                         formatDateForMySQL(expiresAt),
                         vertical || null,
                         serviceLine || null,
+                        budgetLimit || null,
                     ],
                 );
                 console.log(
@@ -184,8 +186,8 @@ export async function POST(req: NextRequest) {
                     await query(
                         `INSERT INTO sows (
               id, title, client_name, client_email, content, total_investment,
-              status, workspace_slug, thread_slug, embed_id, folder_id, creator_email, expires_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              status, workspace_slug, thread_slug, embed_id, folder_id, creator_email, expires_at, budget_limit
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                         [
                             sowId,
                             title,
@@ -200,6 +202,7 @@ export async function POST(req: NextRequest) {
                             folderId || null,
                             creatorEmail || null,
                             formatDateForMySQL(expiresAt),
+                            budgetLimit || null,
                         ],
                     );
                     console.log(

@@ -590,6 +590,7 @@ export function useChatManager({
                             context: {
                                 documentTitle: currentDoc.title,
                                 documentContent: currentDoc.content,
+                                budgetLimit: (() => { try { return Number(localStorage.getItem('maxBudgetAud')) || undefined; } catch { return undefined; } })(),
                             },
                         }),
                     }),

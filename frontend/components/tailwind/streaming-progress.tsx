@@ -18,9 +18,10 @@ interface StreamingProgressProps {
   content: string;
   isStreaming: boolean;
   onComplete?: () => void;
+  budgetTargetAud?: number;
 }
 
-export function StreamingProgress({ content, isStreaming, onComplete }: StreamingProgressProps) {
+export function StreamingProgress({ content, isStreaming, onComplete, budgetTargetAud }: StreamingProgressProps) {
   const [uiState, setUiState] = React.useState<StreamingUIState>({
     content: '',
     isStreaming: true,
@@ -93,6 +94,11 @@ export function StreamingProgress({ content, isStreaming, onComplete }: Streamin
               </span>
             )}
           </div>
+          {typeof budgetTargetAud === 'number' && budgetTargetAud > 0 && (
+            <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+              Targeting Budget: {formatCurrency(budgetTargetAud)}
+            </div>
+          )}
 
           {/* Progress bar */}
           <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">

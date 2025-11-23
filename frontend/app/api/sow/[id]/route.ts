@@ -119,6 +119,7 @@ export async function PUT(
       clientEmail,
       content,
       totalInvestment,
+      budgetLimit,
       workspaceSlug,
       threadSlug,
       embedId,
@@ -183,6 +184,10 @@ export async function PUT(
     if (serviceLine !== undefined) {
       updates.push('service_line = ?');
       values.push(serviceLine);
+    }
+    if (budgetLimit !== undefined) {
+      updates.push('budget_limit = ?');
+      values.push(budgetLimit);
     }
     if (folderId !== undefined) {
       updates.push('folder_id = ?');
