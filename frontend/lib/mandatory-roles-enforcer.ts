@@ -375,6 +375,9 @@ export function enforceMandatoryRoles(
     for (const aiRole of aiRoles) {
         const normalizedAiRole = normalizeRoleName(aiRole.role);
 
+        // Validate hours upfront (needed for both branches)
+        const validatedHours = Math.max(0, Number(aiRole.hours) || 0);
+
         // Skip if this is a mandatory role (already processed)
         if (processedRoles.has(normalizedAiRole)) {
             console.log(
@@ -393,6 +396,7 @@ export function enforceMandatoryRoles(
                 `⚠️ [Enforcer] Role "${aiRole.role}" not found in Rate Card. ` +
                     `This role will be PRESERVED with a default rate to prevent data loss.`,
             );
+
             // CRITICAL FIX: Preserve role instead of skipping to prevent missing rows
             const additionalRow: PricingRow = {
                 id: ensureUniqueId(aiRole.id),
@@ -408,9 +412,6 @@ export function enforceMandatoryRoles(
             processedRoles.add(normalizedAiRole);
             continue;
         }
-
-        // Validate hours and rate
-        const validatedHours = Math.max(0, Number(aiRole.hours) || 0);
 
         const additionalRow: PricingRow = {
             id: ensureUniqueId(aiRole.id),
