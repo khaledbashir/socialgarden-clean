@@ -40,8 +40,16 @@ import { ScrollArea } from "@/components/tailwind/ui/scroll-area";
 import { Badge } from "@/components/tailwind/ui/badge";
 import { handleDocumentUploadAndPin } from "@/lib/document-pinning";
 
-const MessageContent = ({ content, onPricingUpdate }: { content: string, onPricingUpdate?: (rows: any[]) => void }) => {
-    const [expandedJSON, setExpandedJSON] = useState<Record<number, boolean>>({});
+const MessageContent = ({
+    content,
+    onPricingUpdate,
+}: {
+    content: string;
+    onPricingUpdate?: (rows: any[]) => void;
+}) => {
+    const [expandedJSON, setExpandedJSON] = useState<Record<number, boolean>>(
+        {},
+    );
 
     // Process JSON when content changes - extract and send to parent if pricing update callback is provided
     React.useEffect(() => {
@@ -73,7 +81,9 @@ const MessageContent = ({ content, onPricingUpdate }: { content: string, onPrici
     const displayContent = content.replace(/```json[\s\S]*?```/g, "").trim();
 
     // Hide "Insert into editor" marker if present
-    const cleanContent = displayContent.replace(/\*\*\* Insert into editor:[\s\S]*/, "").trim();
+    const cleanContent = displayContent
+        .replace(/\*\*\* Insert into editor:[\s\S]*/, "")
+        .trim();
 
     return (
         <div className="whitespace-pre-wrap text-sm leading-relaxed">
@@ -84,13 +94,11 @@ const MessageContent = ({ content, onPricingUpdate }: { content: string, onPrici
             {hasJSON && (
                 <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-700">
                     <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span className="font-medium">Pricing data processed and applied</span>
+                    <span className="font-medium">
+                        Pricing data processed and applied
+                    </span>
                 </div>
             )}
-                                        <div className="p-2 overflow-x-auto bg-white">
-                                            <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">{formattedJsonContent}</pre>
-                                        </div>
-                                    )}
         </div>
     );
 };
@@ -174,7 +182,10 @@ const ChatInterface = ({
                 };
 
                 if (onReplaceChatMessages) {
-                    onReplaceChatMessages([...(messagesProp ?? []), assistantMessage]);
+                    onReplaceChatMessages([
+                        ...(messagesProp ?? []),
+                        assistantMessage,
+                    ]);
                 } else {
                     setInternalMessages((prev) => [...prev, assistantMessage]);
                 }
@@ -235,9 +246,13 @@ const ChatInterface = ({
 
             // Remove the current assistant message
             if (onReplaceChatMessages) {
-                onReplaceChatMessages((messagesProp ?? []).filter((m) => m.id !== messageId));
+                onReplaceChatMessages(
+                    (messagesProp ?? []).filter((m) => m.id !== messageId),
+                );
             } else {
-                setInternalMessages((prev) => prev.filter((m) => m.id !== messageId));
+                setInternalMessages((prev) =>
+                    prev.filter((m) => m.id !== messageId),
+                );
             }
             setIsTyping(true);
 
@@ -251,9 +266,15 @@ const ChatInterface = ({
                 };
 
                 if (onReplaceChatMessages) {
-                    onReplaceChatMessages([...(messagesProp ?? []), newAssistantMessage]);
+                    onReplaceChatMessages([
+                        ...(messagesProp ?? []),
+                        newAssistantMessage,
+                    ]);
                 } else {
-                    setInternalMessages((prev) => [...prev, newAssistantMessage]);
+                    setInternalMessages((prev) => [
+                        ...prev,
+                        newAssistantMessage,
+                    ]);
                 }
                 setIsTyping(false);
             }, 1500);
@@ -391,12 +412,17 @@ const ChatInterface = ({
                 };
 
                 if (onReplaceChatMessages) {
-                    onReplaceChatMessages([...(messagesProp ?? []), uploadMessage]);
+                    onReplaceChatMessages([
+                        ...(messagesProp ?? []),
+                        uploadMessage,
+                    ]);
                 } else {
                     setInternalMessages((prev) => [...prev, uploadMessage]);
                 }
             } else {
-                throw new Error("Upload succeeded but no document was returned");
+                throw new Error(
+                    "Upload succeeded but no document was returned",
+                );
             }
         } catch (error) {
             console.error("File upload error:", error);
@@ -640,7 +666,9 @@ const ChatInterface = ({
                                 handleSendMessage();
                             }
                         }}
-                        disabled={!inputValue.trim() || (isLoadingProp ?? isTyping)}
+                        disabled={
+                            !inputValue.trim() || (isLoadingProp ?? isTyping)
+                        }
                     >
                         <Send className="h-4 w-4" />
                     </Button>
