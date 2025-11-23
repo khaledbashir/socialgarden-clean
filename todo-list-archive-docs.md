@@ -1,0 +1,7 @@
+- [ ] Identify all markdown files in the directory
+- [ ] Check modification dates of each markdown file
+- [ ] Filter files that are 2+ days old (on or before 10/23/2025 11:40:56 AM)
+- [ ] Create archive directory structure
+- [ ] Move/rename archived files to archive location
+- [ ] Verify archive completion
+- [ ] Generate summary report

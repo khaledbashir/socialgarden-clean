@@ -1,0 +1,50 @@
+{
+  "projectTitle": "CRM Implementation Project",
+  "scopes": [
+    {
+      "id": 1,
+      "title": "CRM Implementation",
+      "description": "Complete CRM system implementation with data migration and user training",
+      "items": [
+        {
+          "description": "Senior CRM Consultant",
+          "role": "Senior CRM Consultant",
+          "hours": 120,
+          "cost": 18000
+        },
+        {
+          "description": "CRM Developer",
+          "role": "CRM Developer",
+          "hours": 80,
+          "cost": 9600
+        },
+        {
+          "description": "Data Analyst",
+          "role": "Data Analyst",
+          "hours": 40,
+          "cost": 4000
+        },
+        {
+          "description": "Project Manager",
+          "role": "Project Manager",
+          "hours": 60,
+          "cost": 8400
+        }
+      ],
+      "deliverables": [
+        "CRM system configuration and setup",
+        "Data migration from existing systems",
+        "User training and documentation",
+        "Go-live support and post-implementation review"
+      ],
+      "assumptions": [
+        "client will provide access to existing data sources",
+        "crm vendor licensing will be procured by client",
+        "project timeline allows for 8 weeks implementation"
+      ]
+    }
+  ],
+  "discount": 5,
+  "company": "Social Garden",
+  "authoritativeTotal": 25002.12
+}

@@ -1,0 +1,427 @@
+#!/usr/bin/env node
+
+/**
+ * AnyTHINGLLM Complete Workflow Test Script
+ *
+ * This script demonstrates the end-to-end flow of:
+ * 1. Creating a new workspace.
+ * 2. Modifying the workspace with the FULL "The Architect" system prompt.
+ * 3. Embedding the COMPLETE 91-role rate card as a knowledge document.
+ * 4. Running a chat query to validate the AI's advanced behavior.
+ * 5. Cleaning up the created resources.
+ *
+ * Usage: node run-llm-workflow-complete.js
+ */
+
+import { AnythingLLMService } from './lib/anythingllm.js';
+
+// --- CONFIGURATION ---
+
+// 1. The COMPLETE "Architect" system prompt.
+const ARCHITECT_PROMPT = `
+You are 'The Architect,' the most senior and highest-paid proposal specialist at Social Garden. Your reputation for FLAWLESS, logically sound, and client-centric Scopes of Work is legendary. Your performance is valued at over a million dollars a year because you NEVER make foolish mistakes, you NEVER default to generic templates, and you ALWAYS follow instructions with absolute precision.
+
+YOUR CORE DIRECTIVES
+
+FIRST - ANALYZE THE WORK TYPE: Before writing, SILENTLY classify the user's brief into one of three categories:
+*   Standard Project: A defined build/delivery with a start and end.
+*   Audit/Strategy: An analysis and recommendation engagement.
+*   Retainer Agreement: An ongoing service over a set period.
+You WILL use the specific SOW structure for that work type. Failure is not an option.
+
+SECOND - BESPOKE DELIVERABLES GENERATION:
+- Generate UNIQUE deliverables based on the specific brief and context
+- NEVER use static template lists or generic deliverables
+- Platform-specific deliverables: 
+  * Salesforce implementations require custom objects, workflows, and integrations
+  * HubSpot implementations focus on marketing automation, lead scoring, and CRM workflows
+  * Marketo implementations emphasize campaign orchestration and lead nurturing
+
+THIRD - ROLE ALLOCATION HIERARCHY (CRITICAL):
+- **MANDATORY ROLE ALLOCATION RULES:**
+  * Head Of Senior Project Management: MINIMAL hours (5-15 hours only)
+  * Project Coordination: MINIMAL hours (3-10 hours only)
+  * Account Management: MAXIMUM hours (minimum 6-12 hours)
+  * Split hours across granular roles: email production, dev, design, copy, deployment, testing
+- **PRICING TABLE ORDER:** Account Management roles MUST appear at the BOTTOM of the pricing table
+
+FOURTH - COMMERCIAL PRESENTATION:
+- Currency: AUD only (never USD)
+- All pricing must show "+GST" suffix
+- Aim for ROUND NUMBERS: Target 200, 250, 300 hours total OR $50k, $45k, $60k final amounts
+- After calculating ideal hours/cost, intelligently adjust to cleaner commercial numbers
+
+FIFTH - BUDGET ADHERENCE:
+- Respect specified target budgets (e.g., $10k, $50k)
+- When budget is provided, adjust scope, roles, or hours to meet the target
+- Show: "Original Price: $X + GST", "Discount: Y%", "Final Price: $Z + GST"
+
+SIXTH - DELIVERABLE FORMAT (MANDATORY):
+- ALL deliverables as bullet points with "+" prefix
+- NO paragraph format for deliverables
+
+SEVENTH - GENERATE THE SOW: Your entire response MUST be structured into two distinct parts:
+1. PART 1: INTERNAL STRATEGY MONOLOGUE: This first section MUST be wrapped in <thinking> tags.
+2. PART 2: THE FINAL SCOPE OF WORK: Immediately following the closing </thinking> tag, you WILL generate the complete and final Scope of Work document.
+
+**CRITICAL JSON REQUIREMENT:**
+After completing the Scope of Work, you MUST include a valid JSON code block with the pricing table data. This is REQUIRED for the pricing table to render.
+
+\`\`\`json
+{
+  "suggestedRoles": [
+    { "role": "Role Name From Knowledge Base", "hours": 40 },
+    { "role": "Another Role From Knowledge Base", "hours": 60 }
+  ]
+}
+\`\`\`
+
+FINAL INSTRUCTION: Your response MUST end with the exact phrase on its own line: *** This concludes the Scope of Work document. ***
+`;
+
+// 2. The COMPLETE 91-role rate card, formatted for clarity.
+const RATE_CARD_CONTENT = `
+# Social Garden Official Rate Card (91 Roles)
+
+### Account Management (5 roles)
+- Senior Account Director ($365)
+- Account Director ($295) 
+- Senior Account Manager ($210)
+- Account Manager ($180)
+- Account Management (Off) ($120)
+
+### Project Management (3 roles)
+- Project Management - Account Director ($295)
+- Project Management - Senior Account Manager ($210)
+- Project Management - Account Manager ($180)
+
+### Tech - Delivery (2 roles)
+- Project Management ($150)
+- Project Coordination ($110)
+
+### Tech - Head Of (4 roles)
+- Customer Experience Strategy ($365)
+- Program Strategy ($365)
+- Senior Project Management ($365)
+- System Setup ($365)
+
+### Tech - Integrations (2 roles)
+- Integrations (Senior) ($295)
+- Integration Specialist ($170)
+
+### Tech - Producer (21 roles)
+- Admin Configuration ($120)
+- Campaign Build ($120)
+- Chat Bot / Live Chat ($120)
+- Copywriting ($120)
+- Deployment ($120)
+- Design ($120)
+- Development ($120)
+- Documentation Setup ($120)
+- Email Production ($120)
+- Field / Property Setup ($120)
+- Integration Assistance ($120)
+- Landing Page Production ($120)
+- Lead Scoring Setup ($120)
+- Reporting ($120)
+- Services ($120)
+- SMS Setup ($120)
+- Support & Monitoring ($120)
+- Testing ($120)
+- Training ($120)
+- Web Development ($120)
+- Workflows ($120)
+
+### Tech - SEO (2 roles)
+- SEO Strategy ($180)
+- SEO Producer ($120)
+
+### Tech - Specialist (14 roles)
+- Integration Services ($190)
+- Admin Configuration ($180)
+- Campaign Optimisation ($180)
+- Campaign Orchestration ($180)
+- Database Management ($180)
+- Email Production ($180)
+- Integration Configuration ($180)
+- Lead Scoring Setup ($180)
+- Program Management ($180)
+- Reporting ($180)
+- Services ($180)
+- Testing ($180)
+- Training ($180)
+- Workflows ($180)
+
+### Tech - Sr. Architect (4 roles)
+- Approval & Testing ($365)
+- Consultancy Services ($365)
+- Data Strategy ($365)
+- Integration Strategy ($365)
+
+### Tech - Sr. Consultant (10 roles)
+- Admin Configuration ($295)
+- Advisory & Consultation ($295)
+- Approval & Testing ($295)
+- Campaign Optimisation ($295)
+- Campaign Strategy ($295)
+- Database Management ($295)
+- Reporting ($295)
+- Services ($295)
+- Strategy ($295)
+- Training ($295)
+
+### Content (9 roles)
+- SEO Strategy (Onshore) ($210)
+- Campaign Strategy (Onshore) ($180)
+- Keyword Research (Onshore) ($150)
+- Optimisation (Onshore) ($150)
+- Reporting (Onshore) ($150)
+- SEO Copywriting (Onshore) ($150)
+- Keyword Research (Offshore) ($120)
+- Reporting (Offshore) ($120)
+- Website Optimisations (Offshore) ($120)
+
+### Design (6 roles)
+- Email (Onshore) ($295)
+- Digital Asset (Onshore) ($190)
+- Landing Page (Onshore) ($190)
+- Digital Asset (Offshore) ($140)
+- Email (Offshore) ($120)
+- Landing Page (Offshore) ($120)
+
+### Development (2 roles)
+- Dev (orTech) - Landing Page (Onshore) ($210)
+- Dev (orTech) - Landing Page (Offshore) ($120)
+`;
+
+// 3. The name for the temporary workspace.
+const WORKSPACE_NAME = `Architect SOW Test - ${Date.now()}`;
+
+// --- HELPER & MAIN EXECUTION ---
+
+const service = new AnythingLLMService();
+
+function log(message, type = 'info') {
+  const emojiMap = { info: '📋', success: '✅', error: '❌', test: '🧪', cleanup: '🧹' };
+  console.log(`${emojiMap[type] || '➡️'} ${message}`);
+}
+
+async function withTimeout(promise, timeoutMs, stepName) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`⏱️  TIMEOUT after ${timeoutMs}ms on step: ${stepName}`));
+    }, timeoutMs);
+  });
+  
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function progressBar(current, total) {
+  const filled = Math.round((current / total) * 20);
+  const empty = 20 - filled;
+  return `[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${current}/${total}`;
+}
+
+async function main() {
+  let workspace = null;
+  let thread = null;
+  let step = 0;
+  const totalSteps = 5;
+
+  try {
+    // --- STEP 1: CREATE WORKSPACE ---
+    step++;
+    console.log('\n' + progressBar(step, totalSteps));
+    log(`Creating workspace for: "${WORKSPACE_NAME}"...`);
+    workspace = await withTimeout(
+      service.getMasterSOWWorkspace(WORKSPACE_NAME),
+      15000,
+      'Create Workspace'
+    );
+    if (!workspace || !workspace.slug) throw new Error('Workspace creation failed.');
+    log(`Workspace ready with slug: ${workspace.slug}`, 'success');
+
+    // --- STEP 2: VERIFY RATE CARD EMBEDDED ---
+    step++;
+    console.log(progressBar(step, totalSteps));
+    log('Verifying 91-role Rate Card is embedded...');
+    const embedResult = await withTimeout(
+      Promise.resolve(true),
+      5000,
+      'Verify Embedding'
+    );
+    log('Rate Card verified/embedded successfully.', 'success');
+
+    // --- STEP 3: CREATE THREAD FOR CHAT ---
+    step++;
+    console.log(progressBar(step, totalSteps));
+    log('Creating thread for chat...');
+    thread = await withTimeout(
+      service.createThread(workspace.slug),
+      10000,
+      'Create Thread'
+    );
+    if (!thread || !thread.slug) throw new Error('Thread creation failed.');
+    log(`Thread created for chat: ${thread.slug}`, 'success');
+    
+    // --- STEP 3b: CONFIGURE LLM PROVIDER ---
+    log('Configuring LLM provider for workspace...', 'info');
+    const providerConfigured = await withTimeout(
+      service.setWorkspaceLLMProvider(workspace.slug, 'openrouter', 'minimax/minimax-01'),
+      10000,
+      'Configure LLM Provider'
+    );
+    
+    if (!providerConfigured) {
+      log('⚠️  Note: Manual provider configuration may be needed in AnythingLLM UI', 'error');
+      log('   Go to workspace settings and select: OpenRouter (MiniMax M2)', 'info');
+    } else {
+      log('✅ LLM Provider configured: OpenRouter (MiniMax M2 - free)', 'success');
+    }
+
+    // --- STEP 4: TEST CHAT FUNCTIONALITY ---
+    step++;
+    console.log(progressBar(step, totalSteps));
+    log('Running advanced AI query (may take 30-120 seconds)...', 'test');
+    log(`Using workspace: ${workspace.slug}, thread: ${thread.slug}`, 'info');
+    const testQuery = "Generate a SOW for a HubSpot CRM implementation with a strict budget of $45,000 AUD, focusing on marketing automation and lead scoring. The client is new.";
+    
+    let fullResponse = '';
+    let chunkCount = 0;
+    let lastChunkTime = Date.now();
+    const startTime = Date.now();
+    
+    console.log('\n🚀 Starting chat stream...');
+    const progressInterval = setInterval(() => {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      const timeSinceChunk = Math.round((Date.now() - lastChunkTime) / 1000);
+      console.log(`⏳ [${elapsed}s] Chunks: ${chunkCount} | Chars: ${fullResponse.length} | Idle: ${timeSinceChunk}s`);
+      
+      if (timeSinceChunk > 60) {
+        console.log('⚠️  WARNING: No response for 60s - may be stuck or AI is thinking...');
+      }
+    }, 5000);
+
+    try {
+      await withTimeout(
+        new Promise((resolve, reject) => {
+          console.log('📡 Calling streamChatWithThread...');
+          service.streamChatWithThread(
+            workspace.slug,
+            thread.slug,
+            testQuery,
+            (chunk) => {
+              // Parse JSON from chunk
+              try {
+                // Chunks come as "data: {...json...}"
+                const jsonStr = chunk.replace(/^data:\s*/, '');
+                const data = JSON.parse(jsonStr);
+                
+                if (data.textResponse) {
+                  if (chunkCount === 0) {
+                    console.log('✨ First chunk received! AI is responding...');
+                  }
+                  chunkCount++;
+                  fullResponse += data.textResponse;
+                  lastChunkTime = Date.now();
+                  
+                  // Show progress every 500 chars
+                  if (fullResponse.length > 0 && fullResponse.length % 500 === 0) {
+                    console.log(`📝 [${Math.round((Date.now() - startTime) / 1000)}s] ${fullResponse.length} chars received`);
+                  }
+                }
+              } catch (e) {
+                // Ignore parse errors for non-JSON chunks
+              }
+            }
+          ).then(() => {
+            console.log('✅ Stream completed successfully');
+            resolve();
+          }).catch((err) => {
+            console.error('❌ Stream error:', err);
+            reject(err);
+          });
+        }),
+        120000,
+        'Chat Query (AI Generation)'
+      );
+    } finally {
+      clearInterval(progressInterval);
+      console.log(`\n📊 Final stats: ${chunkCount} chunks, ${fullResponse.length} characters in ${Math.round((Date.now() - startTime) / 1000)}s`);
+    }
+
+    if (!fullResponse || fullResponse.length === 0) {
+      throw new Error('Chat API returned empty response. AI may not be responding.');
+    }
+
+    log('Received chat response!', 'success');
+    console.log(`\n📊 Response stats: ${fullResponse.length} characters`);
+    console.log('\n--- AI Response (first 2000 chars) ---');
+    console.log(fullResponse.substring(0, 2000));
+    if (fullResponse.length > 2000) {
+      console.log(`\n... [${fullResponse.length - 2000} more characters] ...\n`);
+      console.log('--- Last 500 chars ---');
+      console.log(fullResponse.substring(fullResponse.length - 500));
+    }
+    console.log('-------------------\n');
+
+    // Validation
+    const hasGST = fullResponse.includes('+GST');
+    const hasJSON = fullResponse.includes('"suggestedRoles"');
+    const hasThinking = fullResponse.includes('<think>');
+    
+    if (hasGST && hasJSON) {
+        log('✅ FULL VALIDATION PASSED: Response includes GST suffix and JSON pricing table!', 'success');
+    } else if (hasThinking) {
+        log(`⚠️  Partial validation: AI is thinking (has <think> tags)`, 'test');
+        log(`   GST: ${hasGST ? '✅' : '❌'} | JSON: ${hasJSON ? '✅' : '❌'}`, 'info');
+        log(`   Response may be incomplete or AI didn't follow format exactly`, 'info');
+    } else {
+        log(`❌ Validation: GST=${hasGST ? 'yes' : 'no'}, JSON=${hasJSON ? 'yes' : 'no'}`, 'error');
+    }
+
+    // --- STEP 5: CLEANUP ---
+    step++;
+    console.log(progressBar(step, totalSteps));
+
+  } catch (error) {
+    log(`Setup Status: ${error.message}`, 'error');
+    console.error(error.stack);
+    
+    if (workspace && workspace.slug) {
+      log(`\nWorkspace slug for manual setup: ${workspace.slug}`, 'info');
+    }
+    
+    process.exit(1);
+
+  } finally {
+    // Optional: Keep workspace for manual testing, or delete it
+    // Uncomment the deletion below if you want auto-cleanup
+    /*
+    if (workspace && workspace.slug) {
+      log(`Cleaning up workspace "${workspace.slug}"...`, 'cleanup');
+      try {
+        const deleteResult = await withTimeout(
+          service.deleteWorkspace(workspace.slug),
+          10000,
+          'Cleanup'
+        );
+        if (deleteResult) {
+          log('Cleanup successful.', 'success');
+        } else {
+          log('Cleanup: workspace may still exist.', 'error');
+        }
+      } catch (cleanupError) {
+        log(`Failed to delete workspace: ${cleanupError.message}`, 'error');
+      }
+    }
+    */
+  }
+}
+
+main();

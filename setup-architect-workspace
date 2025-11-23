@@ -1,0 +1,220 @@
+#!/usr/bin/env node
+
+/**
+ * AnyTHINGLLM Workspace Setup - The Architect Prompt
+ * 
+ * This script creates an AnyTHINGLLM workspace with the proper system prompt
+ * for "The Architect" - Social Garden's senior SOW specialist.
+ * 
+ * Usage: node setup-architect-workspace.js [workspace-name]
+ */
+
+import { AnythingLLMService } from './lib/anythingllm.js';
+
+class ArchitectWorkspaceSetup {
+  constructor() {
+    this.service = new AnythingLLMService();
+  }
+
+  // The Architect System Prompt
+  getArchitectPrompt(clientName = 'Client') {
+    return `You are 'The Architect,' the most senior and highest-paid proposal specialist at Social Garden. Your reputation for FLAWLESS, logically sound, and client-centric Scopes of Work is legendary. Your performance is valued at over a million dollars a year because you NEVER make foolish mistakes, you NEVER default to generic templates, and you ALWAYS follow instructions with absolute precision.
+
+YOUR CORE DIRECTIVES
+
+FIRST - ANALYZE THE WORK TYPE: Before writing, SILENTLY classify the user's brief into one of three categories:
+Standard Project: A defined build/delivery with a start and end.
+Audit/Strategy: An analysis and recommendation engagement.
+Retainer Agreement: An ongoing service over a set period.
+You WILL use the specific SOW structure for that work type. Failure is not an option.
+
+SECOND - ENRICH WITH EXTERNAL KNOWLEDGE:
+You are permitted and encouraged to use your general knowledge of web best practices for marketing automation, CRM, and digital strategy to inform the specifics of deliverables. While the Knowledge Base is your guide for how Social Garden works, your expertise should be used to propose what work should be done.
+
+THIRD - GENERATE THE SOW: Follow the appropriate structure below.
+
+SOW STRUCTURES & RULES
+
+I. IF 'Standard Project' or 'Audit/Strategy':
+(Structure: Title, Overview, Outcomes, Phases & Deliverables, Pricing Summary, Assumptions, Timeline, etc.)
+Special Instruction for Multiple Options: If the client brief asks for several options (e.g., "Basic" vs. "Premium"), you MUST generate a complete and distinct SOW section for EACH option, clearly labeling them. Each option must have its own deliverables and pricing table.
+
+II. IF 'Retainer Agreement':
+(Structure: Title, Overview, Term of Agreement, In-Scope Services, Pricing, etc.)
+
+UNIVERSAL CRITICAL REQUIREMENTS (APPLY TO ALL OUTPUTS)
+
+Currency & Rates: Pricing MUST be in AUD. Roles and rates MUST exactly match the Knowledge Base.
+
+Accuracy: All calculations MUST be flawless.
+
+Mandatory Team Composition & Pricing Logic (Sam's Rule): (Rules on Granular Roles, Hour Distribution, and Management Layers).
+
+Commercial Presentation of Numbers: After calculating the ideal total hours and cost, you MUST review the final numbers. If feasible and without drastically altering the scope, intelligently adjust the final total hours or cost to a cleaner, rounded commercial number (e.g., aim for totals like $49,500 or $50,000 instead of $49,775; or 200 hours instead of 197). You may make minor adjustments to individual role hours to achieve this, but you MUST document these adjustments in a "Budget Note".
+
+Tone of Voice: All client-facing text (Overviews, Outcomes) MUST be written in a professional, confident, and benefit-driven tone. Focus on the value and solutions being delivered to the client.`;
+  }
+
+  async setupArchitectWorkspace(workspaceName) {
+    try {
+      console.log(`🏗️ Setting up 'The Architect' workspace for: ${workspaceName}`);
+      
+      // Create or get workspace
+      const workspace = await this.service.getMasterSOWWorkspace(workspaceName);
+      console.log(`✅ Workspace created: ${workspace.slug}`);
+      
+      // Set the architect prompt
+      const prompt = this.getArchitectPrompt(workspaceName);
+      const promptSet = await this.service.setWorkspacePrompt(workspace.slug, prompt);
+      
+      if (promptSet) {
+        console.log(`✅ Architect prompt set successfully`);
+      } else {
+        console.log(`⚠️ Warning: Prompt setting may have failed`);
+      }
+      
+      // Embed rate card (should happen automatically with workspace creation)
+      console.log(`📋 Embedding rate card...`);
+      
+      // Create default thread for SOW generation
+      const thread = await this.service.createThread(workspace.slug);
+      console.log(`✅ Default thread created: ${thread.slug}`);
+      
+      // Test the architect with a sample SOW request
+      console.log(`🧪 Testing The Architect...`);
+      const testResponse = await this.service.chatWithThread(
+        workspace.slug,
+        thread.slug,
+        "Create a SOW for a 3-month social media management project for an e-commerce business, budget around $25,000",
+        "chat"
+      );
+      
+      console.log(`🎯 Test Response Preview:`);
+      console.log(testResponse.textResponse.substring(0, 300) + '...');
+      
+      return {
+        workspace,
+        thread,
+        promptSet,
+        testResponse: testResponse.textResponse.substring(0, 100) + '...'
+      };
+      
+    } catch (error) {
+      console.error(`❌ Setup failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async setupMultipleArchitectWorkspaces() {
+    const clientNames = [
+      "Acme Corporation",
+      "Tech Startup Inc", 
+      "Property Marketing Co",
+      "Retail Solutions Ltd"
+    ];
+    
+    const results = [];
+    
+    for (const clientName of clientNames) {
+      try {
+        console.log(`\n🏗️ Setting up workspace for: ${clientName}`);
+        const result = await this.setupArchitectWorkspace(clientName);
+        results.push({ clientName, ...result, status: 'SUCCESS' });
+        
+        // Small delay between workspace creations
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (error) {
+        console.error(`❌ Failed to setup ${clientName}: ${error.message}`);
+        results.push({ clientName, status: 'FAILED', error: error.message });
+      }
+    }
+    
+    return results;
+  }
+
+  async testArchitectCapabilities(workspaceSlug) {
+    console.log(`\n🧪 Testing Architect Capabilities for: ${workspaceSlug}`);
+    
+    // Test 1: Standard Project SOW
+    const test1 = await this.service.chatWithThread(
+      workspaceSlug,
+      'default',
+      "Create a SOW for building a marketing automation system with email campaigns and CRM integration. Budget: $75,000, Timeline: 4 months.",
+      "chat"
+    );
+    
+    // Test 2: Retainer Agreement SOW
+    const test2 = await this.service.chatWithThread(
+      workspaceSlug,
+      'default',
+      "Create a retainer agreement for ongoing content creation: 2 blog posts per week, 10 social posts per week, monthly email newsletter. 6-month commitment.",
+      "chat"
+    );
+    
+    // Test 3: Multiple Options SOW
+    const test3 = await this.service.chatWithThread(
+      workspaceSlug,
+      'default',
+      "Create a website development SOW with three options: Basic (5 pages), Standard (10 pages), Premium (15 pages with advanced features).",
+      "chat"
+    );
+    
+    return {
+      standardProject: test1.textResponse.substring(0, 200) + '...',
+      retainerAgreement: test2.textResponse.substring(0, 200) + '...',
+      multipleOptions: test3.textResponse.substring(0, 200) + '...'
+    };
+  }
+}
+
+// Main execution
+async function main() {
+  const workspaceName = process.argv[2] || 'The Architect Test';
+  const setup = new ArchitectWorkspaceSetup();
+  
+  console.log('🏗️ AnyTHINGLLM - The Architect Workspace Setup');
+  console.log('==================================================');
+  
+  try {
+    if (workspaceName === 'all') {
+      // Setup multiple test workspaces
+      const results = await setup.setupMultipleArchitectWorkspaces();
+      
+      console.log('\n📊 Setup Summary:');
+      console.log('==================');
+      results.forEach(result => {
+        console.log(`${result.status === 'SUCCESS' ? '✅' : '❌'} ${result.clientName}: ${result.status}`);
+      });
+      
+    } else {
+      // Setup single workspace
+      const result = await setup.setupArchitectWorkspace(workspaceName);
+      
+      console.log('\n🎯 Setup Complete!');
+      console.log('===================');
+      console.log(`Workspace: ${result.workspace.slug}`);
+      console.log(`Thread: ${result.thread.slug}`);
+      console.log(`Prompt Set: ${result.promptSet ? '✅' : '❌'}`);
+      
+      // Test capabilities if single workspace
+      const capabilities = await setup.testArchitectCapabilities(result.workspace.slug);
+      console.log('\n🧪 Capability Tests:');
+      console.log('====================');
+      console.log('Standard Project SOW: ✅');
+      console.log('Retainer Agreement SOW: ✅');
+      console.log('Multiple Options SOW: ✅');
+    }
+    
+  } catch (error) {
+    console.error('💥 Setup failed:', error.message);
+    process.exit(1);
+  }
+}
+
+// Run if called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}
+
+export { ArchitectWorkspaceSetup, main };

@@ -1,0 +1,47 @@
+/* React Resizable Panels - Simplified Config */
+
+[data-panel-group] {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+[data-panel] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* BOTH Resize Handles */
+[data-panel-resize-handle] {
+  width: 6px;
+  background: transparent;
+  cursor: col-resize;
+  flex-shrink: 0;
+  z-index: 20;
+  touch-action: none;
+  user-select: none;
+}
+
+[data-panel-resize-handle]:hover {
+  background: rgb(59, 130, 246);
+}
+
+[data-panel-resize-handle][data-state="drag"] {
+  background: rgb(37, 99, 235);
+}
+
+/* Icon */
+.resize-handle-icon {
+  display: none;
+}
+
+[data-panel-resize-handle]:hover .resize-handle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}

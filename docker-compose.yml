@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # MySQL Database (Persistent)
+  database:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${DB_NAME:-socialgarden_sow}
+      MYSQL_USER: ${DB_USER:-sg_sow_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-SecurePass123!}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sow-network
+
+  # Next.js Frontend (SOW Generator)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_ANYTHINGLLM_URL: ${NEXT_PUBLIC_ANYTHINGLLM_URL}
+      NEXT_PUBLIC_ANYTHINGLLM_API_KEY: ${NEXT_PUBLIC_ANYTHINGLLM_API_KEY}
+      ANYTHINGLLM_WORKSPACE_SLUG: ${ANYTHINGLLM_WORKSPACE_SLUG:-pop}
+      NEXT_PUBLIC_PDF_SERVICE_URL: ${NEXT_PUBLIC_PDF_SERVICE_URL:-http://backend:8000}
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-http://localhost:3001}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-sg_sow_user}
+      DB_PASSWORD: ${DB_PASSWORD:-SecurePass123!}
+      DB_NAME: ${DB_NAME:-socialgarden_sow}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-http://localhost:3001/api/oauth/callback}
+      GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL: ${GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL}
+      GOOGLE_SHEETS_PROJECT_ID: ${GOOGLE_SHEETS_PROJECT_ID}
+    depends_on:
+      database:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - sow-network
+
+
+  # Python FastAPI Backend (PDF & OAuth)
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      API_PORT: 8000
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-sg_sow_user}
+      DB_PASSWORD: ${DB_PASSWORD:-SecurePass123!}
+      DB_NAME: ${DB_NAME:-socialgarden_sow}
+      ANYTHINGLLM_URL: ${ANYTHINGLLM_URL}
+      ANYTHINGLLM_API_KEY: ${ANYTHINGLLM_API_KEY}
+      GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON: ${GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON}
+      GOOGLE_SHEETS_AUTO_SHARE_EMAIL: ${GOOGLE_SHEETS_AUTO_SHARE_EMAIL}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-http://localhost:3001/api/oauth/callback}
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - sow-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  sow-network:
+    driver: bridge

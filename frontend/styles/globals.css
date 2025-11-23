@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Social Garden Brand Colors - used as accents */
+    --sg-dark: 0 0% 6%;            /* #0E0F0F */
+    --sg-green: 159 75% 51%;       /* #20e28f */
+    --sg-gray: 210 11% 15%;
+    --sg-gray-light: 210 11% 25%;
+    --sg-gray-lighter: 210 11% 95%;
+
+    /* Clean light mode with brand colors as accents */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    /* Brand dark as primary for buttons */
+    --primary: var(--sg-dark);
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+
+    /* Brand green as accent */
+    --accent: var(--sg-green);
+    --accent-foreground: var(--sg-dark);
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: var(--sg-green);
+
+    --radius: 0.5rem;
+
+    --novel-highlight-default: #ffffff;
+    --novel-highlight-purple: #f6f3f8;
+    --novel-highlight-red: #fdebeb;
+    --novel-highlight-yellow: #fbf4a2;
+    --novel-highlight-blue: #c1ecf9;
+    --novel-highlight-green: #acf79f;
+    --novel-highlight-orange: #faebdd;
+    --novel-highlight-pink: #faf1f5;
+    --novel-highlight-gray: #f1f1ef;
+  }
+
+  .dark {
+    /* Pitch black background for clean dark mode */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Social Garden green as primary accent */
+    --primary: var(--sg-green);
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 60%;
+
+    /* More subtle accent for dark mode - better contrast */
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Subtle borders in dark mode */
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: var(--sg-green);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold text-sg-dark;
+  }
+}
+
+/* Custom Social Garden utilities */
+@layer utilities {
+  .text-sg-dark {
+    color: #0e2e33;
+  }
+  
+  .text-sg-green {
+    color: #20e28f;
+  }
+  
+  .bg-sg-dark {
+    background-color: #0e2e33;
+  }
+  
+  .bg-sg-green {
+    background-color: #20e28f;
+  }
+  
+  .border-sg-dark {
+    border-color: #0e2e33;
+  }
+  
+  .border-sg-green {
+    border-color: #20e28f;
+  }
+}

@@ -1,0 +1,5 @@
+# Branch Selection Guide:
+# - Frontend changes (frontend/*) -> Use branch: sow-latest
+# - Backend changes (backend/*, api/*, server/*) -> Use branch: backend-service
+# - Mixed changes -> Split into separate commits or push to appropriate branch
+

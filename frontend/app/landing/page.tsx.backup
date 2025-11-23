@@ -1,0 +1,702 @@
+"use client";
+
+import { useState, useMemo } from 'react';
+import { 
+  Check, ChevronDown, ChevronUp, Sparkles, Zap, DollarSign, 
+  FileText, Users, Target, Clock, Database, Bot, Palette,
+  Code, Server, Shield, Globe, MessageSquare, BarChart,
+  Settings, Cloud, Link, CheckCircle, AlertCircle, ExternalLink
+} from 'lucide-react';
+import { Button } from '@/components/tailwind/ui/button';
+import { toast } from 'sonner';
+
+interface ServiceOption {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  icon: any;
+  isDefault?: boolean;
+  canUncheck?: boolean;
+  category: string;
+}
+
+export default function LandingPage() {
+  // Core service (always selected, cannot be unchecked)
+  const [selectedServices, setSelectedServices] = useState<string[]>(['sow-generator']);
+  const [showFullFeatures, setShowFullFeatures] = useState(false);
+  const [showExtensions, setShowExtensions] = useState(false);
+  const [showRequirements, setShowRequirements] = useState(false);
+
+  // All available services
+  const services: ServiceOption[] = [
+    // CORE - CANNOT BE UNCHECKED
+    {
+      id: 'sow-generator',
+      name: 'SOW Generator with AI Editor',
+      description: 'Complete statement of work generator with TipTap rich text editor, AI writing assistant, PDF export, and AnythingLLM integration',
+      price: 1200,
+      icon: FileText,
+      isDefault: true,
+      canUncheck: false,
+      category: 'Core Platform'
+    },
+    
+    // CLIENT PORTAL
+    {
+      id: 'client-portal',
+      name: 'Interactive Client Portal',
+      description: 'Beautiful client-facing portal with pricing calculator, service selection, AI chat assistant, and proposal acceptance workflow',
+      price: 800,
+      icon: Globe,
+      category: 'Client Experience'
+    },
+    {
+      id: 'ai-chat-embed',
+      name: 'AI Chat Widget for Clients',
+      description: 'Embedded AnythingLLM chat widget per client workspace with custom branding and contextual knowledge base',
+      price: 400,
+      icon: MessageSquare,
+      category: 'Client Experience'
+    },
+    {
+      id: 'pdf-generation',
+      name: 'Professional PDF Export',
+      description: 'Generate branded PDFs from SOWs with custom templates, headers, footers, and styling',
+      price: 300,
+      icon: FileText,
+      category: 'Client Experience'
+    },
+    
+    // AI FEATURES
+    {
+      id: 'ai-recommendations',
+      name: 'AI Service Recommendations',
+      description: 'Automatic service suggestions based on client profile analysis with relevance scoring and reasoning',
+      price: 500,
+      icon: Sparkles,
+      category: 'AI Intelligence'
+    },
+    {
+      id: 'gardner-studio',
+      name: 'Gardner AI Agent Studio',
+      description: 'Create and manage multiple AI agents (Gardners) with custom workspaces, RAG, and specialized knowledge bases',
+      price: 600,
+      icon: Bot,
+      category: 'AI Intelligence'
+    },
+    {
+      id: 'streaming-reasoning',
+      name: 'AI Streaming with Thinking Display',
+      description: 'Real-time AI response streaming with visible reasoning process and thinking accordion UI',
+      price: 350,
+      icon: Zap,
+      category: 'AI Intelligence'
+    },
+    
+    // WORKSPACE MANAGEMENT
+    {
+      id: 'workspace-system',
+      name: 'Multi-Workspace Architecture',
+      description: 'Separate workspaces for each client with independent AI contexts, folders, and drag-and-drop organization',
+      price: 700,
+      icon: Database,
+      category: 'Workspace & Organization'
+    },
+    {
+      id: 'folder-system',
+      name: 'Nested Folder System',
+      description: 'Unlimited folder nesting with drag-and-drop, rename, delete, and tree view navigation',
+      price: 400,
+      icon: Target,
+      category: 'Workspace & Organization'
+    },
+    {
+      id: 'sidebar-nav',
+      name: 'Advanced Sidebar Navigation',
+      description: 'Collapsible sidebar with workspace switcher, folder tree, search, and custom icons',
+      price: 300,
+      icon: Settings,
+      category: 'Workspace & Organization'
+    },
+    
+    // DASHBOARD & ANALYTICS
+    {
+      id: 'master-dashboard',
+      name: 'Master Analytics Dashboard',
+      description: 'Real-time metrics, total SOW value, client count, AI chat for insights, and performance tracking',
+      price: 600,
+      icon: BarChart,
+      category: 'Analytics & Insights'
+    },
+    {
+      id: 'sow-tracking',
+      name: 'SOW Status Tracking',
+      description: 'Track proposal views, acceptance status, client engagement, and email delivery',
+      price: 300,
+      icon: Clock,
+      category: 'Analytics & Insights'
+    },
+    
+    // CUSTOMIZATION
+    {
+      id: 'admin-services-panel',
+      name: 'Admin Services Panel',
+      description: 'Manage your service catalog with pricing, descriptions, categories, and active/inactive toggling',
+      price: 400,
+      icon: Settings,
+      category: 'Admin & Customization'
+    },
+    {
+      id: 'white-label',
+      name: 'Full White Labeling',
+      description: 'Custom branding, logo, colors, domain, email templates, and client-facing UI customization',
+      price: 500,
+      icon: Palette,
+      category: 'Admin & Customization'
+    },
+    {
+      id: 'editor-extensions',
+      name: 'Rich Editor Extensions',
+      description: 'Tables, pricing tables, math equations, code blocks, images, embeds, and custom nodes',
+      price: 450,
+      icon: Code,
+      category: 'Admin & Customization'
+    },
+    
+    // INTEGRATIONS
+    {
+      id: 'anythingllm-integration',
+      name: 'AnythingLLM Deep Integration',
+      description: 'Full workspace sync, embed management, model selection, and RAG document uploads',
+      price: 700,
+      icon: Cloud,
+      category: 'Integrations'
+    },
+    {
+      id: 'openrouter-api',
+      name: 'OpenRouter Multi-Model Support',
+      description: 'Access to 100+ AI models via OpenRouter with automatic fallback and cost optimization',
+      price: 0,
+      icon: Server,
+      category: 'Integrations'
+    },
+  ];
+
+  // Calculate total price
+  const totalPrice = useMemo(() => {
+    return services
+      .filter(s => selectedServices.includes(s.id))
+      .reduce((sum, s) => sum + s.price, 0);
+  }, [selectedServices]);
+
+  const toggleService = (serviceId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    if (!service || !service.canUncheck) return;
+
+    if (selectedServices.includes(serviceId)) {
+      setSelectedServices(selectedServices.filter(id => id !== serviceId));
+    } else {
+      setSelectedServices([...selectedServices, serviceId]);
+    }
+  };
+
+  // Group services by category
+  const servicesByCategory = services.reduce((acc, service) => {
+    if (!acc[service.category]) {
+      acc[service.category] = [];
+    }
+    acc[service.category].push(service);
+    return acc;
+  }, {} as Record<string, ServiceOption[]>);
+
+  return (
+    <div className="min-h-screen bg-[#0E0F0F]">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#0e2e33] to-[#0E0F0F] border-b border-[#1CBF79]/20">
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20"></div>
+        <div className="relative max-w-7xl mx-auto px-6 py-20">
+          {/* Logo */}
+          <div className="flex justify-center mb-8">
+            <img 
+              src="/assets/Logo-Dark-Green.svg" 
+              alt="Social Garden" 
+              className="h-16 w-auto"
+            />
+          </div>
+
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#1CBF79]/10 border border-[#1CBF79]/30 rounded-full mb-6">
+              <Sparkles className="w-4 h-4 text-[#1CBF79]" />
+              <span className="text-sm font-semibold text-[#1CBF79]">Production Ready • White Label</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+              AI-Powered SOW Generator<br />
+              <span className="text-[#1CBF79]">Built for Agencies</span>
+            </h1>
+            
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
+              Complete statement of work platform with AI writing assistant, client portals, 
+              interactive pricing calculators, and Gardner AI agents. <strong className="text-white">Resell to your clients</strong> with full white labeling.
+            </p>
+
+            <div className="flex items-center justify-center gap-6 text-sm text-gray-400">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-[#1CBF79]" />
+                <span>18+ Features</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-[#1CBF79]" />
+                <span>AnythingLLM Integration</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-[#1CBF79]" />
+                <span>Client Portals</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-[#1CBF79]" />
+                <span>White Label Ready</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Demo Video/Screenshot Placeholder */}
+          <div className="relative max-w-5xl mx-auto">
+            <div className="bg-[#1A1A1D] border-2 border-[#1CBF79]/30 rounded-2xl shadow-2xl overflow-hidden">
+              <div className="aspect-video bg-gradient-to-br from-[#1CBF79]/20 to-[#15965E]/10 flex items-center justify-center">
+                <div className="text-center">
+                  <Sparkles className="w-16 h-16 text-[#1CBF79] mx-auto mb-4" />
+                  <p className="text-xl font-bold text-white mb-2">Live Demo</p>
+                  <p className="text-gray-400">Contact us for a personalized walkthrough</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Value Proposition */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-white mb-4">Why This Platform?</h2>
+          <p className="text-gray-400 max-w-2xl mx-auto">
+            Built for Social Garden, designed to resell. Get a complete SOW system that you can brand as your own.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-[#1A1A1D] border border-[#2A2A2D] rounded-xl p-8 hover:border-[#1CBF79] transition-colors">
+            <div className="w-12 h-12 bg-[#1CBF79]/20 rounded-xl flex items-center justify-center mb-6">
+              <Zap className="w-6 h-6 text-[#1CBF79]" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Production Ready</h3>
+            <p className="text-gray-400">
+              Core SOW generator and editor are fully functional. AI chat, portals, and PDF export working out of the box.
+            </p>
+          </div>
+
+          <div className="bg-[#1A1A1D] border border-[#2A2A2D] rounded-xl p-8 hover:border-blue-500 transition-colors">
+            <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-6">
+              <Palette className="w-6 h-6 text-blue-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Full White Labeling</h3>
+            <p className="text-gray-400">
+              Custom domain, branding, colors, logo, and email templates. Make it yours and resell to clients.
+            </p>
+          </div>
+
+          <div className="bg-[#1A1A1D] border border-[#2A2A2D] rounded-xl p-8 hover:border-purple-500 transition-colors">
+            <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mb-6">
+              <Users className="w-6 h-6 text-purple-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Client Portals</h3>
+            <p className="text-gray-400">
+              Beautiful interactive portals where clients can review proposals, adjust pricing, and accept with AI chat support.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Interactive Pricing Calculator */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="bg-gradient-to-br from-[#0e2e33] to-[#1A1A1D] border-2 border-[#1CBF79]/30 rounded-3xl p-12">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-white mb-4">
+              Build Your Custom Package
+            </h2>
+            <p className="text-xl text-gray-300">
+              Select the features you need. SOW Generator is included by default at <strong className="text-[#1CBF79]">$1,200</strong>
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Services Selection */}
+            <div className="lg:col-span-2 space-y-8">
+              {Object.entries(servicesByCategory).map(([category, categoryServices]) => (
+                <div key={category}>
+                  <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <div className="w-8 h-8 bg-[#1CBF79]/20 rounded-lg flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-[#1CBF79]" />
+                    </div>
+                    {category}
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    {categoryServices.map((service) => {
+                      const isSelected = selectedServices.includes(service.id);
+                      const Icon = service.icon;
+                      const isDisabled = service.isDefault && !service.canUncheck;
+                      
+                      return (
+                        <button
+                          key={service.id}
+                          onClick={() => !isDisabled && toggleService(service.id)}
+                          disabled={isDisabled}
+                          className={`w-full p-5 rounded-xl border-2 transition-all text-left ${
+                            isDisabled
+                              ? 'bg-[#1CBF79]/20 border-[#1CBF79] shadow-lg shadow-[#1CBF79]/20 cursor-not-allowed'
+                              : isSelected 
+                                ? 'bg-[#1CBF79]/10 border-[#1CBF79] shadow-lg shadow-[#1CBF79]/20' 
+                                : 'bg-[#0E0F0F] border-[#2A2A2D] hover:border-[#1CBF79]/50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className={`p-3 rounded-xl ${isSelected || isDisabled ? 'bg-[#1CBF79]/20' : 'bg-[#2A2A2D]'}`}>
+                              <Icon className={`w-6 h-6 ${isSelected || isDisabled ? 'text-[#1CBF79]' : 'text-gray-400'}`} />
+                            </div>
+                            
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <h4 className={`font-bold ${isSelected || isDisabled ? 'text-white' : 'text-gray-300'}`}>
+                                    {service.name}
+                                  </h4>
+                                  {isDisabled && (
+                                    <span className="px-2 py-0.5 bg-[#1CBF79] text-white text-xs font-bold rounded">
+                                      INCLUDED
+                                    </span>
+                                  )}
+                                </div>
+                                <span className={`text-lg font-bold ${isSelected || isDisabled ? 'text-[#1CBF79]' : 'text-gray-400'}`}>
+                                  {service.price === 0 ? 'FREE' : `$${service.price}`}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-400 mb-3">{service.description}</p>
+                            </div>
+                            
+                            <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 ${
+                              isSelected || isDisabled ? 'bg-[#1CBF79] border-[#1CBF79]' : 'border-gray-500'
+                            }`}>
+                              {(isSelected || isDisabled) && <Check className="w-4 h-4 text-white" />}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Price Summary (Sticky) */}
+            <div>
+              <div className="bg-[#1A1A1D] border border-[#2A2A2D] rounded-2xl p-8 sticky top-6">
+                <h3 className="text-xl font-bold text-white mb-6">Your Investment</h3>
+                
+                <div className="space-y-3 mb-6 pb-6 border-b border-[#2A2A2D]">
+                  {services
+                    .filter(s => selectedServices.includes(s.id))
+                    .map(service => (
+                      <div key={service.id} className="flex items-center justify-between text-sm">
+                        <span className={`${service.isDefault ? 'text-[#1CBF79] font-semibold' : 'text-gray-400'}`}>
+                          {service.name}
+                          {service.isDefault && ' ⭐'}
+                        </span>
+                        <span className="text-white font-medium">
+                          {service.price === 0 ? 'FREE' : `$${service.price}`}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-300 font-medium">Total Setup</span>
+                    <span className="text-4xl font-bold text-[#1CBF79]">
+                      ${totalPrice.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">One-time setup fee</p>
+                </div>
+
+                <Button 
+                  className="w-full bg-[#1CBF79] hover:bg-[#15a366] text-white font-bold py-6 text-lg mb-4"
+                  onClick={() => toast.success('Contact form coming soon!')}
+                >
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Request Setup
+                </Button>
+
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+                  <p className="text-xs text-gray-400 text-center">
+                    💡 <strong className="text-white">Monthly Hosting:</strong> Starting at $50/month
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Custom Extensions Section */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="bg-[#1A1A1D] border border-[#2A2A2D] rounded-2xl p-12">
+          <button
+            onClick={() => setShowExtensions(!showExtensions)}
+            className="w-full flex items-center justify-between mb-6"
+          >
+            <div>
+              <h2 className="text-3xl font-bold text-white mb-2 text-left">Need Custom Features?</h2>
+              <p className="text-gray-400 text-left">We can extend the platform with any integration or feature you need</p>
+            </div>
+            {showExtensions ? <ChevronUp className="w-6 h-6 text-[#1CBF79]" /> : <ChevronDown className="w-6 h-6 text-gray-400" />}
+          </button>
+
+          {showExtensions && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-[#2A2A2D]">
+              {[
+                { icon: Database, title: 'CRM Integration', desc: 'Connect to HubSpot, Salesforce, or any CRM' },
+                { icon: Link, title: 'Zapier/Make Webhooks', desc: 'Automate workflows with 1000+ apps' },
+                { icon: Server, title: 'Custom API Endpoints', desc: 'Build custom integrations and data flows' },
+                { icon: Shield, title: 'SSO & Authentication', desc: 'Enterprise-grade login and security' },
+                { icon: Users, title: 'Team Collaboration', desc: 'Multi-user editing and permissions' },
+                { icon: BarChart, title: 'Advanced Analytics', desc: 'Custom dashboards and reporting' },
+              ].map((ext, i) => (
+                <div key={i} className="flex items-start gap-4 p-6 bg-[#0E0F0F] border border-[#2A2A2D] rounded-xl hover:border-[#1CBF79]/50 transition-colors">
+                  <div className="w-10 h-10 bg-[#1CBF79]/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <ext.icon className="w-5 h-5 text-[#1CBF79]" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white mb-1">{ext.title}</h3>
+                    <p className="text-sm text-gray-400">{ext.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Requirements Section */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-blue-500/10 border-2 border-purple-500/30 rounded-2xl p-12">
+          <button
+            onClick={() => setShowRequirements(!showRequirements)}
+            className="w-full flex items-center justify-between mb-6"
+          >
+            <div>
+              <h2 className="text-3xl font-bold text-white mb-2 text-left">What We Need to Get Started</h2>
+              <p className="text-gray-400 text-left">Setup requirements and important notes</p>
+            </div>
+            {showRequirements ? <ChevronUp className="w-6 h-6 text-purple-400" /> : <ChevronDown className="w-6 h-6 text-gray-400" />}
+          </button>
+
+          {showRequirements && (
+            <div className="space-y-6 pt-6 border-t border-purple-500/20">
+              {/* Critical Requirements */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                  <h3 className="text-xl font-bold text-white">Critical Requirements</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="bg-[#1A1A1D] border-l-4 border-red-500 rounded-xl p-6">
+                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                      <Server className="w-5 h-5 text-red-400" />
+                      OpenRouter API Key
+                    </h4>
+                    <p className="text-gray-400 text-sm mb-3">
+                      Required for AI features to work reliably. This powers the AI writing assistant, Gardner agents, and chat features.
+                    </p>
+                    <a 
+                      href="https://openrouter.ai" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-[#1CBF79] text-sm hover:underline flex items-center gap-1"
+                    >
+                      Get your API key at openrouter.ai
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  <div className="bg-[#1A1A1D] border-l-4 border-yellow-500 rounded-xl p-6">
+                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                      <Globe className="w-5 h-5 text-yellow-400" />
+                      Domain or Subdomain
+                    </h4>
+                    <p className="text-gray-400 text-sm mb-3">
+                      <strong className="text-white">Question:</strong> Which domain or subdomain would you like this set up on?
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      Examples: sow.youragency.com, proposals.yourdomain.com, or yourdomain.com
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Optional but Recommended */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <CheckCircle className="w-5 h-5 text-blue-400" />
+                  <h3 className="text-xl font-bold text-white">Recommended</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-[#1A1A1D] border border-[#2A2A2D] rounded-xl p-6">
+                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                      <Cloud className="w-5 h-5 text-blue-400" />
+                      AnythingLLM Instance
+                    </h4>
+                    <p className="text-gray-400 text-sm">
+                      For advanced RAG, document uploads, and client-specific knowledge bases. Optional but powerful.
+                    </p>
+                  </div>
+
+                  <div className="bg-[#1A1A1D] border border-[#2A2A2D] rounded-xl p-6">
+                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                      <Palette className="w-5 h-5 text-purple-400" />
+                      Brand Assets
+                    </h4>
+                    <p className="text-gray-400 text-sm">
+                      Logo (SVG preferred), colors (hex codes), and any specific design preferences for white labeling.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Important Notes */}
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-1" />
+                  <div>
+                    <h4 className="font-bold text-white mb-2">Important: This is Active Development</h4>
+                    <p className="text-gray-300 text-sm mb-3">
+                      The SOW generator, editor, and core features are <strong className="text-white">production-ready</strong> and fully functional. 
+                      However, some features may have edge cases or minor bugs during initial deployment.
+                    </p>
+                    <p className="text-gray-300 text-sm mb-3">
+                      <strong className="text-white">This is completely normal</strong> - we're not mind readers! 😊 Just let us know what you need adjusted, 
+                      and we'll fix it or add the feature quickly.
+                    </p>
+                    <p className="text-gray-400 text-xs">
+                      Think of this as a partnership, not a black-box product. We iterate together until it's perfect for your needs.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Core Features Highlight */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-white mb-4">What's Included in the Core ($1,200)</h2>
+          <p className="text-gray-400">Production-ready features you get out of the box</p>
+        </div>
+
+        <button
+          onClick={() => setShowFullFeatures(!showFullFeatures)}
+          className="w-full mb-8"
+        >
+          <div className="bg-[#1A1A1D] border border-[#2A2A2D] rounded-xl p-6 hover:border-[#1CBF79] transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-6 h-6 text-[#1CBF79]" />
+                <span className="text-lg font-bold text-white">
+                  {showFullFeatures ? 'Hide Detailed Features' : 'Show All Features & Capabilities'}
+                </span>
+              </div>
+              {showFullFeatures ? <ChevronUp className="w-6 h-6 text-[#1CBF79]" /> : <ChevronDown className="w-6 h-6 text-gray-400" />}
+            </div>
+          </div>
+        </button>
+
+        {showFullFeatures && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { icon: FileText, title: 'TipTap Rich Text Editor', desc: 'Full WYSIWYG editor with markdown support, slash commands, and live preview' },
+              { icon: Sparkles, title: 'AI Writing Assistant', desc: 'Highlight any text and ask AI to improve, expand, fix grammar, or rewrite' },
+              { icon: Bot, title: 'OpenRouter Integration', desc: 'Access to 100+ AI models including GPT-4, Claude, and open source models' },
+              { icon: FileText, title: 'PDF Export', desc: 'Generate professional PDFs with custom branding and templates' },
+              { icon: Database, title: 'MySQL Database', desc: 'All SOWs, clients, and data stored securely with full backup' },
+              { icon: Users, title: 'Client Management', desc: 'Create workspaces for each client with separate contexts' },
+              { icon: Settings, title: 'Admin Panel', desc: 'Manage services, pricing, categories, and platform settings' },
+              { icon: Code, title: 'Slash Commands', desc: 'Type / to insert headings, tables, images, code blocks, and more' },
+              { icon: Target, title: 'Pricing Tables', desc: 'Interactive pricing tables that clients can customize' },
+              { icon: MessageSquare, title: 'Math Equations', desc: 'LaTeX support for complex formulas and calculations' },
+              { icon: Globe, title: 'Image Uploads', desc: 'Drag and drop images with automatic optimization' },
+              { icon: Clock, title: 'Auto-Save', desc: 'Never lose work with automatic saving every few seconds' },
+            ].map((feature, i) => (
+              <div key={i} className="bg-[#1A1A1D] border border-[#2A2A2D] rounded-xl p-6 hover:border-[#1CBF79]/50 transition-colors">
+                <div className="w-12 h-12 bg-[#1CBF79]/20 rounded-xl flex items-center justify-center mb-4">
+                  <feature.icon className="w-6 h-6 text-[#1CBF79]" />
+                </div>
+                <h3 className="font-bold text-white mb-2">{feature.title}</h3>
+                <p className="text-sm text-gray-400">{feature.desc}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* CTA Section */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="bg-gradient-to-r from-[#1CBF79]/20 to-[#15965E]/10 border-2 border-[#1CBF79]/30 rounded-3xl p-12 text-center">
+          <h2 className="text-4xl font-bold text-white mb-4">Ready to Get Started?</h2>
+          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+            Contact us to discuss your setup, customization needs, and timeline. We'll have you up and running in days, not months.
+          </p>
+          
+          <div className="flex items-center justify-center gap-4">
+            <Button 
+              className="bg-[#1CBF79] hover:bg-[#15a366] text-white font-bold px-8 py-6 text-lg"
+              onClick={() => toast.success('Contact form coming soon!')}
+            >
+              <MessageSquare className="w-5 h-5 mr-2" />
+              Schedule Demo
+            </Button>
+            <Button 
+              variant="outline"
+              className="border-[#1CBF79] text-[#1CBF79] hover:bg-[#1CBF79]/10 font-bold px-8 py-6 text-lg"
+              onClick={() => {
+                const email = 'hello@socialgarden.com.au';
+                const subject = 'SOW Generator Setup Request';
+                const body = `Hi,\n\nI'm interested in setting up the SOW Generator platform.\n\nMy details:\n- Company: \n- Domain: \n- Features needed: \n\nLooking forward to discussing!\n\nBest regards,`;
+                window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+              }}
+            >
+              <ExternalLink className="w-5 h-5 mr-2" />
+              Email Us
+            </Button>
+          </div>
+
+          <p className="text-sm text-gray-500 mt-6">
+            Questions? Email us at{' '}
+            <a href="mailto:hello@socialgarden.com.au" className="text-[#1CBF79] hover:underline">
+              hello@socialgarden.com.au
+            </a>
+          </p>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-[#2A2A2D] py-8">
+        <div className="max-w-7xl mx-auto px-6 text-center text-gray-500 text-sm">
+          <p>© 2025 Social Garden. Built with Next.js, TipTap, and OpenRouter.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}

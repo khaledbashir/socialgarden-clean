@@ -1,0 +1,41 @@
+module.exports = {
+  apps: [
+    {
+      name: 'sow-frontend',
+      cwd: '/root/the11/frontend',
+      script: './node_modules/.bin/next',
+      args: 'start',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3001,
+      },
+      error_file: '/root/.pm2/logs/sow-frontend-error.log',
+      out_file: '/root/.pm2/logs/sow-frontend-out.log',
+      log_file: '/root/.pm2/logs/sow-frontend-combined.log',
+      time: true,
+    },
+    {
+      name: 'sow-backend',
+      cwd: '/root/the11/backend',
+      script: 'uvicorn',
+      args: 'main:app --host 0.0.0.0 --port 8000',
+      interpreter: '/root/the11/backend/venv/bin/python',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '500M',
+      env_file: '/root/the11/backend/.env',
+      env: {
+        PYTHON_ENV: 'production',
+      },
+      error_file: '/root/the11/logs/backend-error.log',
+      out_file: '/root/the11/logs/backend-out.log',
+      log_file: '/root/the11/logs/backend-combined.log',
+      time: true,
+    },
+  ],
+};

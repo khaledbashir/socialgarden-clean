@@ -1,0 +1,143 @@
+{
+  "timestamp": "2025-11-16T07:01:16.296Z",
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "successRate": 100
+  },
+  "results": [
+    {
+      "testName": "Audit Case - 4 percent discount",
+      "passed": true,
+      "expected": {
+        "name": "Audit Case - 4 percent discount",
+        "prompt": "hubspot integration and 2 landing pages discount 4 percent",
+        "expectedDiscount": 4,
+        "subtotal": 10000,
+        "expectedDiscountAmount": 400,
+        "expectedSubtotalAfterDiscount": 9600,
+        "expectedGST": 960,
+        "expectedTotal": 10560
+      },
+      "actual": {
+        "extractedDiscount": 4,
+        "discount": 4,
+        "discountAmount": 400,
+        "subtotalAfterDiscount": 9600,
+        "gstAmount": 960,
+        "total": 10560
+      }
+    },
+    {
+      "testName": "Standard percentage format",
+      "passed": true,
+      "expected": {
+        "name": "Standard percentage format",
+        "prompt": "website development with 10% discount",
+        "expectedDiscount": 10,
+        "subtotal": 5000,
+        "expectedDiscountAmount": 500,
+        "expectedSubtotalAfterDiscount": 4500,
+        "expectedGST": 450,
+        "expectedTotal": 4950
+      },
+      "actual": {
+        "extractedDiscount": 10,
+        "discount": 10,
+        "discountAmount": 500,
+        "subtotalAfterDiscount": 4500,
+        "gstAmount": 450,
+        "total": 4950
+      }
+    },
+    {
+      "testName": "Discount of format",
+      "passed": true,
+      "expected": {
+        "name": "Discount of format",
+        "prompt": "project with discount of 15%",
+        "expectedDiscount": 15,
+        "subtotal": 8000,
+        "expectedDiscountAmount": 1200,
+        "expectedSubtotalAfterDiscount": 6800,
+        "expectedGST": 680,
+        "expectedTotal": 7480
+      },
+      "actual": {
+        "extractedDiscount": 15,
+        "discount": 15,
+        "discountAmount": 1200,
+        "subtotalAfterDiscount": 6800,
+        "gstAmount": 680,
+        "total": 7480
+      }
+    },
+    {
+      "testName": "High discount capping",
+      "passed": true,
+      "expected": {
+        "name": "High discount capping",
+        "prompt": "project with 75% discount",
+        "expectedDiscount": 50,
+        "subtotal": 2000,
+        "expectedDiscountAmount": 1000,
+        "expectedSubtotalAfterDiscount": 1000,
+        "expectedGST": 100,
+        "expectedTotal": 1100
+      },
+      "actual": {
+        "extractedDiscount": 50,
+        "discount": 50,
+        "discountAmount": 1000,
+        "subtotalAfterDiscount": 1000,
+        "gstAmount": 100,
+        "total": 1100
+      }
+    },
+    {
+      "testName": "Invalid discount handling",
+      "passed": true,
+      "expected": {
+        "name": "Invalid discount handling",
+        "prompt": "project with 150% discount",
+        "expectedDiscount": 0,
+        "subtotal": 3000,
+        "expectedDiscountAmount": 0,
+        "expectedSubtotalAfterDiscount": 3000,
+        "expectedGST": 300,
+        "expectedTotal": 3300
+      },
+      "actual": {
+        "extractedDiscount": 0,
+        "discount": 0,
+        "discountAmount": 0,
+        "subtotalAfterDiscount": 3000,
+        "gstAmount": 300,
+        "total": 3300
+      }
+    },
+    {
+      "testName": "No discount",
+      "passed": true,
+      "expected": {
+        "name": "No discount",
+        "prompt": "standard project without discount",
+        "expectedDiscount": 0,
+        "subtotal": 6000,
+        "expectedDiscountAmount": 0,
+        "expectedSubtotalAfterDiscount": 6000,
+        "expectedGST": 600,
+        "expectedTotal": 6600
+      },
+      "actual": {
+        "extractedDiscount": 0,
+        "discount": 0,
+        "discountAmount": 0,
+        "subtotalAfterDiscount": 6000,
+        "gstAmount": 600,
+        "total": 6600
+      }
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+- [x] Fetch API documentation from https://ahmad-anything-llm.840tjq.easypanel.host/api/docs
+- [x] Parse the response to extract endpoint information
+- [x] Organize and present the endpoints with their schemas
+- [x] Save the results to a file for reference

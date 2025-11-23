@@ -1,0 +1,167 @@
+## Consultation Summary
+- Engaged internal analysis agents to inventory current assets and validate against Sam Gossage’s non‑negotiables.
+- Cross‑checked backend/frontend capabilities, endpoints, env/configs, and operational scripts. Key references include `backend/main.py:841` (Excel export), `frontend/components/sow/SOWPdfExport.tsx:478–574` (PDF layout), `frontend/lib/formatters.ts` (currency/GST), `frontend/lib/pricingCalculator.ts:163–241` (budget allocator), `frontend/components/ui/editable-pricing-table.tsx:70,142–147` (role ordering), and `frontend/app/api/sow/[id]/export-excel/route.ts:93–128` (Excel proxy).
+
+## Checklist Format & Storage
+- Columns: Requirement ID, Description, Status (Available/Missing/Partial), Owner, Priority (Blocker/High/Medium/Low), Due Date, Dependencies, Notes.
+- Storage (upon approval):
+  - Create `/docs/sam-requirements-checklist.xlsx` in repo and mirror to a Google Sheet for live updates.
+  - Update cadence: daily during remediation, then weekly checkpoint; changes logged with requirement IDs.
+
+## Current Assets & Resources
+- Documentation: START‑HERE, Deployment/Handover guides, audits, endpoint test scripts.
+- Services: FastAPI backend (`/generate-pdf`, `/generate-professional-pdf`, `/export-excel`, OAuth), Next.js frontend (App Router APIs for AnythingLLM, SOW CRUD/exports), MySQL DB, Nginx reverse proxy.
+- Libraries: TipTap editor, React‑PDF/WeasyPrint, `xlsxwriter`, Google OAuth/Sheets, Radix/Tailwind, Biome.
+- Processes: `dev.sh` for local orchestration, DB health route `frontend/app/api/db/health/route.ts`, backup/migration scripts, AnythingLLM workspace utilities.
+- People (roles): Frontend, Backend, DevOps, QA.
+
+## Requirements Checklist (Initial Draft)
+- Requirement ID: SAM-001
+  - Description: End‑to‑end UI/exports stability tests (sidebar, DnD, PDF/Excel)
+  - Status: Missing
+  - Owner: QA/Frontend
+  - Priority: High
+  - Due Date: 2025-11-25
+  - Dependencies: Playwright/Cypress setup, seeded DB
+  - Notes: Only unit tests present (`frontend/lib/__tests__/mandatory-roles-enforcer.test.ts`).
+- Requirement ID: SAM-002
+  - Description: Connectivity resilience (retry/backoff, graceful fallbacks)
+  - Status: Missing
+  - Owner: Frontend/Backend
+  - Priority: High
+  - Due Date: 2025-11-25
+  - Dependencies: Fetch wrappers, error UX
+  - Notes: Single‑attempt fetch in exports.
+- Requirement ID: SAM-003
+  - Description: Animations/interactions smoothness verification
+  - Status: Missing
+  - Owner: QA
+  - Priority: Medium
+  - Due Date: 2025-11-29
+  - Dependencies: E2E perf metrics
+  - Notes: Uses `@dnd-kit` and TipTap; no automated checks.
+- Requirement ID: SAM-004
+  - Description: Deliverables appear under scope header in PDFs
+  - Status: Missing
+  - Owner: Frontend
+  - Priority: High
+  - Due Date: 2025-11-24
+  - Dependencies: `frontend/components/sow/SOWPdfExport.tsx:478–574`
+  - Notes: Table renders before deliverables.
+- Requirement ID: SAM-005
+  - Description: “+GST” formatting consistent across UI/PDF totals
+  - Status: Missing
+  - Owner: Frontend
+  - Priority: High
+  - Due Date: 2025-11-24
+  - Dependencies: `frontend/lib/formatters.ts`, `SOWPdfExport.tsx`
+  - Notes: Header includes +GST; amounts inconsistent.
+- Requirement ID: SAM-006
+  - Description: Discount visibility (original vs discounted) in summaries/exports
+  - Status: Missing
+  - Owner: Frontend
+  - Priority: Medium
+  - Due Date: 2025-11-25
+  - Dependencies: PDF/HTML renderers
+  - Notes: Server validates; display incomplete.
+- Requirement ID: SAM-007
+  - Description: AUD currency consistency across dashboard/admin
+  - Status: Missing
+  - Owner: Frontend
+  - Priority: Medium
+  - Due Date: 2025-11-25
+  - Dependencies: Formatter adoption
+  - Notes: Raw `$` used in dashboard.
+- Requirement ID: SAM-008
+  - Description: Hours rounding policy (whole/round numbers)
+  - Status: Missing
+  - Owner: Frontend
+  - Priority: High
+  - Due Date: 2025-11-26
+  - Dependencies: `frontend/lib/pricingCalculator.ts`
+  - Notes: Currently `hourGranularity = 0.5`.
+- Requirement ID: SAM-009
+  - Description: Budget allocator integration into editor workflow
+  - Status: Missing
+  - Owner: Frontend
+  - Priority: High
+  - Due Date: 2025-11-26
+  - Dependencies: TipTap insertion; depends on SAM-008
+  - Notes: Logic exists; not wired end‑to‑end.
+- Requirement ID: SAM-010
+  - Description: Mandatory role naming consistency (AM Senior vs initial row)
+  - Status: Missing
+  - Owner: Frontend
+  - Priority: Medium
+  - Due Date: 2025-11-24
+  - Dependencies: `editable-pricing-table.tsx:70`, `mandatory-roles-enforcer.ts`
+  - Notes: Names differ; ordering enforced.
+- Requirement ID: SAM-011
+  - Description: Rate limiting in critical API routes
+  - Status: Missing
+  - Owner: Frontend
+  - Priority: Medium
+  - Due Date: 2025-11-25
+  - Dependencies: `frontend/lib/rate-limit.ts`
+  - Notes: Utility exists; not applied.
+- Requirement ID: SAM-012
+  - Description: Remove hardcoded secrets; enforce env configuration
+  - Status: Missing
+  - Owner: Frontend/DevOps
+  - Priority: High
+  - Due Date: 2025-11-24
+  - Dependencies: Env audit, config fallback removal
+  - Notes: Default API keys present in AnythingLLM routes.
+- Requirement ID: SAM-013
+  - Description: Env alignment (DB password defaults, CORS dev port)
+  - Status: Missing
+  - Owner: DevOps/Backend
+  - Priority: High
+  - Due Date: 2025-11-24
+  - Dependencies: `.env`, `docker-compose.yml`, backend CORS
+  - Notes: Password defaults differ; CORS allows `localhost:3000` while dev runs on `3333`.
+- Requirement ID: SAM-014
+  - Description: Workspace slug consistency (dashboard vs SOW embedding)
+  - Status: Missing
+  - Owner: Frontend
+  - Priority: Medium
+  - Due Date: 2025-11-25
+  - Dependencies: `frontend/lib/workspace-config.ts`
+  - Notes: `'sow-master-dashboard'` vs `'sow-master-dashboard-63003769'`.
+- Requirement ID: SAM-015
+  - Description: Excel export schema finance‑friendly (clear columns)
+  - Status: Partial
+  - Owner: Backend
+  - Priority: High
+  - Due Date: 2025-11-25
+  - Dependencies: `backend/main.py:841`
+  - Notes: Endpoint exists; current columns `Role/Hours/Rate/Total` with summary; may need per‑row GST or explicit ex‑GST labeling per finance spec.
+- Requirement ID: SAM-016
+  - Description: Google Sheets tabular schema for finance ingestion
+  - Status: Missing
+  - Owner: Backend
+  - Priority: Medium
+  - Due Date: 2025-11-26
+  - Dependencies: `backend/services/google_sheets_generator.py`
+  - Notes: Currently writes formatted text; switch to structured rows.
+- Requirement ID: SAM-017
+  - Description: Edge vs Node runtime/env consistency for streaming
+  - Status: Missing
+  - Owner: Frontend
+  - Priority: Low
+  - Due Date: 2025-11-29
+  - Dependencies: Route runtime config
+  - Notes: Ensure env availability for Edge routes.
+- Requirement ID: SAM-018
+  - Description: Multi‑scope grand total toggle parity (UI/PDF)
+  - Status: Partial
+  - Owner: Frontend/Backend
+  - Priority: Medium
+  - Due Date: 2025-11-25
+  - Dependencies: `DocumentStatusBar`, `PDFRequest.show_pricing_summary`
+  - Notes: Toggle present; verify consistent rendering.
+
+## Next Steps
+- Confirm the checklist structure and owners; approve creation of the Excel + Google Sheet.
+- Execute High/Blocker items first (SAM‑004/005/012/013/001/002/008/009/015) with daily updates.
+- Establish a weekly review with PASS/FAIL status per requirement until all are PASS.

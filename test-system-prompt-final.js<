@@ -1,0 +1,249 @@
+#!/usr/bin/env node
+
+// Final test with correct API format using systemPrompt field
+const ANYTHINGLLM_BASE_URL = 'https://ahmad-anything-llm.840tjq.easypanel.host';
+const ANYTHINGLLM_API_KEY = '0G0WTZ3-6ZX4D20-H35VBRG-9059WPA';
+
+function log(message, type = 'info') {
+  const timestamp = new Date().toLocaleTimeString();
+  const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warn' ? '⚠️' : 'ℹ️';
+  console.log(`[${timestamp}] ${prefix} ${message}`);
+}
+
+async function makeApiCall(endpoint, options = {}) {
+  try {
+    const response = await fetch(`${ANYTHINGLLM_BASE_URL}${endpoint}`, {
+      headers: {
+        'Authorization': `Bearer ${ANYTHINGLLM_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      ...options,
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API call failed: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    throw new Error(`API call failed: ${error.message}`);
+  }
+}
+
+async function testStep1_CreateWorkspace() {
+  log('🚀 STEP 1: Creating test workspace...', 'info');
+  
+  try {
+    const workspaceName = 'Test Client Final';
+    const workspaceSlug = 'test-client-final-2';
+    
+    const createResponse = await makeApiCall('/api/v1/workspace/new', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: workspaceName,
+        slug: workspaceSlug,
+      }),
+    });
+    
+    log(`✅ Workspace created successfully: ${createResponse.workspace.slug}`, 'success');
+    return { id: createResponse.workspace.id, slug: createResponse.workspace.slug, name: createResponse.workspace.name };
+    
+  } catch (error) {
+    if (error.message.includes('409')) {
+      log('✅ Using existing workspace (conflict is expected)', 'success');
+      return { slug: 'test-client-final-2', name: 'Test Client Final' };
+    } else {
+      throw error;
+    }
+  }
+}
+
+async function testStep2_ConfigureAPI(workspaceSlug) {
+  log('🚀 STEP 2: Configuring AI provider with systemPrompt...', 'info');
+  
+  try {
+    // Configure AI provider with correct systemPrompt field
+    const configResponse = await makeApiCall(`/api/v1/workspace/${workspaceSlug}/update`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        systemPrompt: 'You are Social Garden AI assistant. Ready to help with SOW creation and pricing.',
+        chatModel: 'gpt-4',
+        chatProvider: 'openai',
+      }),
+    });
+    
+    log('✅ AI provider configured with systemPrompt', 'success');
+    return true;
+    
+  } catch (error) {
+    log(`❌ Failed to configure API: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+async function testStep3_WhoAreYou(workspaceSlug) {
+  log('🚀 STEP 3: Testing AI identity - asking "Who are you?"...', 'info');
+  
+  try {
+    const identityResponse = await makeApiCall(`/api/v1/workspace/${workspaceSlug}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({
+        message: 'Who are you?',
+        mode: 'chat',
+      }),
+    });
+    
+    log(`📨 AI Response: ${identityResponse.textResponse}`, 'info');
+    
+    // Check if response indicates The Architect identity
+    const response = identityResponse.textResponse.toLowerCase();
+    if (response.includes('social garden') || response.includes('sow')) {
+      log('✅ AI identity confirmed - recognizes Social Garden role', 'success');
+      return true;
+    } else {
+      log('⚠️ AI responded but may not have the expected identity', 'warn');
+      return false;
+    }
+    
+  } catch (error) {
+    log(`❌ Failed to get AI identity response: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+async function testStep4_EmbedRateCard(workspaceSlug) {
+  log('🚀 STEP 4: Embedding Social Garden rate card...', 'info');
+  
+  try {
+    const rateCardContent = `# Social Garden - Official Rate Card (AUD/hour)
+
+## Core Team Roles
+| Role | Rate (AUD/hr) |
+|---|---:|
+| Senior Designer | 130.00 |
+| Creative Director | 165.00 |
+| Account Manager | 135.00 |
+
+## Notes
+- All rates are exclusive of GST
+- These rates are effective as of October 2025`;
+
+    const title = 'Social Garden - Official Rate Card (AUD/hour) (v2025-10-25)';
+    
+    // Step 1: Process document
+    const rawTextResponse = await makeApiCall('/api/v1/document/raw-text', {
+      method: 'POST',
+      body: JSON.stringify({
+        textContent: rateCardContent,
+        metadata: {
+          title,
+          docAuthor: 'Social Garden',
+          description: 'Authoritative rate card in AUD per hour',
+          docSource: 'Rate Card',
+        },
+      }),
+    });
+    
+    const location = rawTextResponse.documents[0].location;
+    log(`📄 Document processed: ${location}`, 'success');
+    
+    // Step 2: Embed in workspace
+    const embedResponse = await makeApiCall(`/api/v1/workspace/${workspaceSlug}/update-embeddings`, {
+      method: 'POST',
+      body: JSON.stringify({ adds: [location] }),
+    });
+    
+    log('✅ Rate card successfully embedded in workspace', 'success');
+    return true;
+    
+  } catch (error) {
+    log(`❌ Failed to embed rate card: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+async function testStep5_VerifyRateCardAccess(workspaceSlug) {
+  log('🚀 STEP 5: Verifying rate card accessibility...', 'info');
+  
+  try {
+    const pricingResponse = await makeApiCall(`/api/v1/workspace/${workspaceSlug}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({
+        message: 'What is the hourly rate for a Senior Designer?',
+        mode: 'chat',
+      }),
+    });
+    
+    log(`📨 Pricing response: ${pricingResponse.textResponse}`, 'info');
+    
+    // Check if response contains the correct rate
+    const response = pricingResponse.textResponse.toLowerCase();
+    if (response.includes('130') || response.includes('senior designer')) {
+      log('✅ Rate card access confirmed - AI can retrieve pricing information', 'success');
+      return true;
+    } else {
+      log('⚠️ Rate card may not be properly accessible', 'warn');
+      return false;
+    }
+    
+  } catch (error) {
+    log(`❌ Failed to verify rate card access: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+async function runCompleteTest() {
+  log('🎯 STARTING COMPLETE ANYTHINGLLM INTEGRATION TEST (WITH systemPrompt)', 'info');
+  
+  const results = [];
+  
+  try {
+    // Step 1: Create Workspace
+    const workspace = await testStep1_CreateWorkspace();
+    results.push({ step: 'Create Workspace', success: true });
+    
+    // Step 2: Configure API with systemPrompt
+    const apiSuccess = await testStep2_ConfigureAPI(workspace.slug);
+    results.push({ step: 'Configure API (systemPrompt)', success: apiSuccess });
+    
+    // Step 3: Test AI Identity
+    const identitySuccess = await testStep3_WhoAreYou(workspace.slug);
+    results.push({ step: 'AI Identity', success: identitySuccess });
+    
+    // Step 4: Embed Rate Card
+    const embedSuccess = await testStep4_EmbedRateCard(workspace.slug);
+    results.push({ step: 'Embed Rate Card', success: embedSuccess });
+    
+    // Step 5: Verify Access
+    const accessSuccess = await testStep5_VerifyRateCardAccess(workspace.slug);
+    results.push({ step: 'Verify Rate Card Access', success: accessSuccess });
+    
+  } catch (error) {
+    log(`❌ Test failed: ${error.message}`, 'error');
+  }
+  
+  // Final Results
+  log('📊 FINAL TEST RESULTS:', 'info');
+  const successes = results.filter(r => r.success).length;
+  const total = results.length;
+  
+  results.forEach(result => {
+    const status = result.success ? '✅' : '❌';
+    log(`${status} ${result.step}`, result.success ? 'success' : 'error');
+  });
+  
+  log(`🎯 OVERALL: ${successes}/${total} steps successful`, successes === total ? 'success' : 'warn');
+  
+  if (successes === total) {
+    log('🎉 COMPLETE SUCCESS! All integration steps working perfectly!', 'success');
+  } else {
+    log('⚠️ Some steps failed - check individual results above', 'warn');
+  }
+  
+  return successes === total;
+}
+
+runCompleteTest().then(success => {
+  process.exit(success ? 0 : 1);
+}).catch(console.error);

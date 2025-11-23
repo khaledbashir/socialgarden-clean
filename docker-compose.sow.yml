@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  sow-frontend:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - /root/the11/frontend:/app
+    environment:
+      - NODE_ENV=production
+      - CI=true
+      - NEXT_PUBLIC_ANYTHINGLLM_URL=https://ahmad-anything-llm.840tjq.easypanel.host
+      - ANYTHINGLLM_API_KEY=0G0WTZ3-6ZX4D20-H35VBRG-9059WPA
+      - ANYTHINGLLM_WORKSPACE_SLUG=pop
+      - NEXT_PUBLIC_PDF_SERVICE_URL=http://host.docker.internal:8000
+      - NEXT_PUBLIC_BACKEND_URL=http://host.docker.internal:8000
+      - DB_HOST=168.231.115.219
+      - DB_PORT=3306
+      - DB_USER=sg_sow_user
+      - DB_PASSWORD=SG_sow_2025_SecurePass!
+      - DB_NAME=socialgarden_sow
+      - NEXT_PUBLIC_BASE_URL=https://sow.qandu.me
+    command: >
+      sh -c "cd /app && npm install -g pnpm && pnpm install --frozen-lockfile && pnpm start"
+    ports:
+      - "3001:3001"
+    networks:
+      - easypanel
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sow-frontend.rule=Host(`sow.qandu.me`)"
+      - "traefik.http.routers.sow-frontend.entrypoints=http,https"
+      - "traefik.http.routers.sow-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.sow-frontend.middlewares=redirect-https"
+      - "traefik.http.services.sow-frontend.loadbalancer.server.port=3001"
+      - "traefik.http.services.sow-frontend.loadbalancer.passHostHeader=true"
+    restart: unless-stopped
+
+networks:
+  easypanel:
+    external: true

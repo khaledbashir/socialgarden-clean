@@ -1,0 +1,28 @@
+# ============================================
+# FRONTEND Environment Variables for Easypanel
+# ============================================
+# Copy and paste these into your Frontend service in Easypanel
+# One variable per line, add them one by one in the Easypanel UI
+
+# Database Connection (Internal Docker Network)
+DB_HOST=ahmad_mysql-database
+DB_USER=sg_sow_user
+DB_PASSWORD=SG_sow_2025_SecurePass!
+DB_NAME=socialgarden_sow
+DB_PORT=3306
+
+# Application URLs
+NEXT_PUBLIC_BASE_URL=https://sow.qandu.me
+NEXT_PUBLIC_API_URL=https://sow.qandu.me
+
+# AnythingLLM Integration (REQUIRED - Missing in your current config!)
+NEXT_PUBLIC_ANYTHINGLLM_URL=https://ahmad-anything-llm.840tjq.easypanel.host
+NEXT_PUBLIC_ANYTHINGLLM_API_KEY=your_anythingllm_api_key_here
+
+# PDF Service
+NEXT_PUBLIC_PDF_SERVICE_URL=https://ahmad-socialgarden-backend.840tjq.easypanel.host
+
+# AI Provider Configuration (OpenRouter)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_MODEL_PREF=moonshotai/kimi-k2-instruct
+

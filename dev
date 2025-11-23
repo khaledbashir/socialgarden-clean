@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+#
+# dev - convenience wrapper to run ./dev.sh from the repo root
+# Default behavior: runs ./dev.sh with USE_REMOTE_BACKEND=1 (remote Easypanel)
+#
+# Usage:
+#   dev                 -> runs remote backend (default)
+#   dev --local         -> run with local backend (equivalent to running ./dev.sh)
+#   dev --remote        -> force remote backend (same as default)
+#   dev --install       -> symlink this script to "$HOME/bin/dev" (so `dev` is in PATH)
+#   dev --uninstall     -> remove the symlink created with --install
+#   dev -h | --help     -> show this help
+#
+# Examples:
+#   dev                            # run frontend w/ Easypanel remote backend
+#   dev --local                    # run frontend w/ local backend
+#   dev --install                  # install the convenience command in ~/bin
+#   dev --remote -- arg1 arg2      # pass extra args to ./dev.sh if desired
+#
+# Notes:
+#  - This script tries to detect the repo root (searching for docker-compose.yml or .git)
+#  - When installed (with --install), it will be placed in $HOME/bin/dev and the PATH may
+#    be updated automatically in ~/.bashrc if needed.
+#
+# Author: The Dev Helper (scripted)
+# ---------------------------------------------------------------
+
+set -euo pipefail
+
+show_help() {
+  cat <<'USAGE'
+dev - convenience wrapper to start the repo dev environment (remote by default)
+
+Usage:
+  dev [OPTIONS] [-- <args> ]
+Options:
+  -l, --local        Run the local backend (dont use remote Easypanel)
+  -r, --remote       Force remote backend (use Easypanel) (default)
+      --install      Install this wrapper to $HOME/bin/dev (adds to PATH)
+      --uninstall    Remove the installed symlink from $HOME/bin/dev
+  -h, --help         Show this help
+
+Examples:
+  dev                         # Run with Easypanel backend
+  dev --local                 # Run with local backend
+  dev --install               # Install to ~/bin/dev for convenience
+  dev --uninstall             # Remove installed link
+
+Notes:
+  - When running from any location, this script will detect the repo root and
+    run the repo's dev.sh from there. If you install it to your PATH, you can
+    launch `dev` from anywhere.
+USAGE
+}
+
+# Resolve script path reliably, falling back if realpath or readlink not available
+resolve_self() {
+  # realpath preferred
+  if command -v realpath >/dev/null 2>&1; then
+    realpath "${BASH_SOURCE[0]:-$0}"
+    return
+  fi
+
+  # fallback to readlink -f
+  if command -v readlink >/dev/null 2>&1; then
+    readlink -f "${BASH_SOURCE[0]:-$0}"
+    return
+  fi
+
+  # last resort: try to resolve using cd/pwd
+  (
+    cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 || true
+    echo "$(pwd -P)/$(basename "${BASH_SOURCE[0]:-$0}")"
+  )
+}
+
+# Find a repo root by walking up and looking for docker-compose.yml or .git
+find_repo_root() {
+  local start="$1"
+  local cur="$start"
+  while [ "$cur" != "/" ]; do
+    if [ -f "$cur/docker-compose.yml" ] || [ -d "$cur/.git" ]; then
+      printf '%s' "$cur"
+      return 0
+    fi
+    cur="$(dirname "$cur")"
+  done
+  # Fallback to the immediate directory if nothing else found
+  printf '%s' "$start"
+  return 0
+}
+
+# parse args
+INSTALL=0
+UNINSTALL=0
+FORCE_REMOTE=1
+EXTRA_ARGS=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    -l|--local)
+      FORCE_REMOTE=0
+      shift
+      ;;
+    -r|--remote)
+      FORCE_REMOTE=1
+      shift
+      ;;
+    --install)
+      INSTALL=1
+      shift
+      ;;
+    --uninstall)
+      UNINSTALL=1
+      shift
+      ;;
+    --)
+      shift
+      # rest go to EXTRA_ARGS
+      while [ $# -gt 0 ]; do
+        EXTRA_ARGS+=("$1")
+        shift
+      done
+      ;;
+    *)
+      EXTRA_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+SCRIPT_PATH="$(resolve_self)"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd -P)"
+
+REPO_ROOT="$(find_repo_root "$SCRIPT_DIR")"
+
+# If dev.sh isn't present where expected, try the script directory itself.
+if [ ! -f "$REPO_ROOT/dev.sh" ]; then
+  echo "ERROR: dev.sh not found in detected repo root: $REPO_ROOT" >&2
+  echo "Make sure this script lives in the repository root, or call dev.sh manually." >&2
+  exit 1
+fi
+
+# Installer: create a simple symlink to this script in $HOME/bin/dev
+if [ "$INSTALL" -eq 1 ]; then
+  TARGET_DIR="$HOME/bin"
+  mkdir -p "$TARGET_DIR"
+  ln -sf "$SCRIPT_PATH" "$TARGET_DIR/dev"
+  echo "Installed convenience command to $TARGET_DIR/dev"
+  # Add PATH to bashrc if needed
+  if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc" 2>/dev/null; then
+    echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
+    echo "Added $HOME/bin to PATH in ~/.bashrc. You may need to source or restart your shell."
+  fi
+  exit 0
+fi
+
+# Uninstall: remove link if present
+if [ "$UNINSTALL" -eq 1 ]; then
+  LINKPATH="$HOME/bin/dev"
+  if [ -L "$LINKPATH" ] || [ -f "$LINKPATH" ]; then
+    rm -f "$LINKPATH"
+    echo "Removed $LINKPATH"
+  else
+    echo "No installed link found at $LINKPATH"
+  fi
+  exit 0
+fi
+
+# Now run the repository dev script
+cd "$REPO_ROOT"
+
+# Default info (for messaging)
+PDF_SERVICE_URL="${NEXT_PUBLIC_PDF_SERVICE_URL:-https://ahmad-socialgarden-backend.840tjq.easypanel.host}"
+
+if [ "$FORCE_REMOTE" -eq 1 ]; then
+  echo "👟 Starting repo dev (REMOTE backend by default)"
+  echo "Backend: ${PDF_SERVICE_URL}"
+  # Use exported variable so dev.sh sees it
+  export USE_REMOTE_BACKEND=1
+else
+  echo "👟 Starting repo dev with local backend (original behavior)"
+  # Explicitly set to 0 to avoid branching in dev.sh
+  export USE_REMOTE_BACKEND=0
+fi
+
+# Pass through any additional args to dev.sh
+if [ ${#EXTRA_ARGS[@]} -gt 0 ]; then
+  echo "Forwarding arguments to dev.sh: ${EXTRA_ARGS[*]}"
+fi
+
+# Execute the dev.sh script in the repo root
+exec "$REPO_ROOT/dev.sh" "${EXTRA_ARGS[@]:-}"
