@@ -1199,7 +1199,69 @@ export default function WorkspaceChat({
                                                         remarkPlugins={[
                                                             remarkGfm,
                                                         ]}
-                                                        className="prose prose-invert max-w-none text-sm break-words whitespace-pre-wrap prose-pre:whitespace-pre-wrap prose-pre:overflow-x-auto"
+                                                        className="prose prose-invert max-w-none text-sm break-words whitespace-pre-wrap prose-pre:whitespace-pre-wrap prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:break-all prose-code:whitespace-pre-wrap"
+                                                        components={{
+                                                            pre: ({
+                                                                children,
+                                                                ...props
+                                                            }) => (
+                                                                <pre
+                                                                    {...props}
+                                                                    style={{
+                                                                        whiteSpace:
+                                                                            "pre-wrap",
+                                                                        wordBreak:
+                                                                            "break-all",
+                                                                        overflowX:
+                                                                            "auto",
+                                                                        maxWidth:
+                                                                            "100%",
+                                                                        backgroundColor:
+                                                                            "#1a1a1a",
+                                                                        padding:
+                                                                            "12px",
+                                                                        borderRadius:
+                                                                            "6px",
+                                                                        border: "1px solid #333",
+                                                                    }}
+                                                                >
+                                                                    {children}
+                                                                </pre>
+                                                            ),
+                                                            code: ({
+                                                                children,
+                                                                inline,
+                                                                ...props
+                                                            }) => (
+                                                                <code
+                                                                    {...props}
+                                                                    style={{
+                                                                        whiteSpace:
+                                                                            inline
+                                                                                ? "normal"
+                                                                                : "pre-wrap",
+                                                                        wordBreak:
+                                                                            "break-all",
+                                                                        overflowWrap:
+                                                                            "break-word",
+                                                                        backgroundColor:
+                                                                            inline
+                                                                                ? "#1a1a1a"
+                                                                                : "transparent",
+                                                                        padding:
+                                                                            inline
+                                                                                ? "2px 4px"
+                                                                                : "0",
+                                                                        borderRadius:
+                                                                            inline
+                                                                                ? "3px"
+                                                                                : "0",
+                                                                    }}
+                                                                >
+                                                                    {children}
+                                                                </code>
+                                                            ),
+                                                        }}
                                                     >
                                                         {seg.content}
                                                     </ReactMarkdown>
