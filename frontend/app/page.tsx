@@ -438,6 +438,15 @@ export default function Page() {
         setMounted(true);
     }, []);
 
+    // Explicit close handler for workspace setup progress
+    useEffect(() => {
+        const handler = () => {
+            setWorkspaceCreationProgress((prev) => ({ ...prev, isOpen: false }));
+        };
+        window.addEventListener("workspace-progress-close", handler);
+        return () => window.removeEventListener("workspace-progress-close", handler);
+    }, []);
+
     // Helper function to verify document exists in database
     const verifyDocumentPersistence = async (
         sowId: string,
@@ -1352,11 +1361,7 @@ export default function Page() {
                 `✅ Document ${sowId} verified in both state and database, proceeding with navigation`,
             );
 
-            // Close progress modal
-            setWorkspaceCreationProgress((prev) => ({
-                ...prev,
-                isOpen: false,
-            }));
+            
 
             // Direct navigation without handleSelectDoc to avoid race condition
             console.log(`🎯 Direct navigation to document ${sowId}`);

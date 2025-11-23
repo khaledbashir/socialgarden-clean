@@ -42,12 +42,23 @@ export default function WorkspaceCreationProgress({
     );
   }, [currentStep, completedSteps]);
 
+  const allStepsCompleted = steps.every(s => s.completed) && steps.length > 0;
+  const isProcessing = steps.some(s => s.loading) || !allStepsCompleted;
+
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent className="max-w-3xl border border-emerald-500/20 rounded-xl shadow-2xl" style={{ backgroundColor: '#0E0F0F' }} onOpenAutoFocus={(e) => e.preventDefault()}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && allStepsCompleted) {
+          const closeEvent = new CustomEvent('workspace-progress-close');
+          window.dispatchEvent(closeEvent);
+        }
+      }}
+    >
+      <DialogContent hideClose={isProcessing} className="max-w-3xl border border-emerald-500/20 rounded-xl shadow-2xl" style={{ backgroundColor: '#0E0F0F', fontFamily: 'var(--font-jakarta), Plus Jakarta Sans, ui-sans-serif, system-ui' }} onOpenAutoFocus={(e) => e.preventDefault()}>
         {/* Logo Section */}
         <div className="flex justify-center mb-4">
-          <h2 className="text-xl font-bold text-white">Social Garden</h2>
+          <h2 className="text-xl font-bold text-white scale-110">Social Garden</h2>
         </div>
 
         <DialogHeader className="border-b border-emerald-500/10 pb-4">
@@ -128,9 +139,26 @@ export default function WorkspaceCreationProgress({
         </div>
 
         {/* Footer message */}
-        <p className="text-xs text-gray-400 text-center pb-2 font-light">
-          🌱 This usually takes 30-60 seconds. You can continue organizing while we finish setup.
-        </p>
+        <div className="px-0 pb-2">
+          <p className="text-xs text-gray-400 text-center font-light">
+            🌱 This usually takes 30-60 seconds.
+          </p>
+        </div>
+
+        {/* Success actions */}
+        {allStepsCompleted && (
+          <div className="flex justify-center pt-2">
+            <button
+              className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+              onClick={() => {
+                const closeEvent = new CustomEvent('workspace-progress-close');
+                window.dispatchEvent(closeEvent);
+              }}
+            >
+              Go to Workspace
+            </button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
