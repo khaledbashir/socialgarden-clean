@@ -572,7 +572,18 @@ export function useChatManager({
                     },
                     body: JSON.stringify({
                         workspaceSlug: workspace,
-                        message: message,
+                        message: (() => {
+                            // Inject budget hint into the user message only as metadata note
+                            // while relying on workspace system prompt to enforce strictly.
+                            let m = message;
+                            try {
+                                const val = Number(localStorage.getItem('maxBudgetAud')) || 0;
+                                if (val > 0) {
+                                    m = `${message}\n\n[MaxBudgetAUD:${val}]`;
+                                }
+                            } catch {}
+                            return m;
+                        })(),
                         mode: "chat",
                         // Include any additional context from current document
                         ...(currentDoc && {

@@ -2575,6 +2575,12 @@ export default function Page() {
                                     onOpenAIChat={handleOpenAIChat}
                                     isGrandTotalVisible={isGrandTotalVisible}
                                     toggleGrandTotal={setIsGrandTotalVisible}
+                                    onChangeMaxBudget={(value: number) => {
+                                        // Persist locally for prompt injection and UI
+                                        try {
+                                            localStorage.setItem('maxBudgetAud', String(value || 0));
+                                        } catch {}
+                                    }}
                                     onCreateWorkspace={() => {
                                         setCreateWorkspaceType("sow");
                                         setCreateWorkspaceDialogOpen(true);

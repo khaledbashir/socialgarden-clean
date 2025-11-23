@@ -7,6 +7,7 @@ export default function EditorPanel({
     currentDoc,
     isGrandTotalVisible,
     toggleGrandTotal,
+    onChangeMaxBudget,
     editorRef,
     handleUpdateDoc,
     onExportPDF, // Accept onExportPDF from parent
@@ -26,6 +27,7 @@ export default function EditorPanel({
                     isSaving={false}
                     isGrandTotalVisible={isGrandTotalVisible}
                     onToggleGrandTotal={toggleGrandTotal}
+                    onChangeMaxBudget={onChangeMaxBudget}
                     onExportPDF={onExportPDF}
                     onExportNewPDF={onExportNewPDF}
                     onExportExcel={onExportExcel}

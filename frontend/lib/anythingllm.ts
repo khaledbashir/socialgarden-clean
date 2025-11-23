@@ -618,6 +618,22 @@ If ANY value is negative or invalid, you MUST recalculate with discount_amount =
     }
 
     /**
+     * Convenience: read budget from local storage and set Architect prompt with strict budget line
+     */
+    async setArchitectPromptWithStoredBudget(workspaceSlug: string): Promise<boolean> {
+        try {
+            let budget = 0;
+            if (typeof window !== 'undefined' && window.localStorage) {
+                const raw = window.localStorage.getItem('maxBudgetAud');
+                budget = Number(raw) || 0;
+            }
+            return await this.setArchitectPrompt(workspaceSlug, budget > 0 ? budget : undefined);
+        } catch {
+            return await this.setArchitectPrompt(workspaceSlug);
+        }
+    }
+
+    /**
      * Build markdown for the authoritative Social Garden rate card
      */
     /**

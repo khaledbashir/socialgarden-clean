@@ -12,6 +12,7 @@ import {
     FilePlus,
 } from "lucide-react";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
 interface DocumentStatusBarProps {
@@ -26,6 +27,7 @@ interface DocumentStatusBarProps {
     // Removed vertical/service selects per request
     isGrandTotalVisible?: boolean; // 👁️ Toggle grand total visibility
     onToggleGrandTotal?: () => void; // 👁️ Toggle grand total visibility
+    onChangeMaxBudget?: (value: number) => void; // 🔒 Strict budget enforcement input
 }
 
 export function DocumentStatusBar({
@@ -78,32 +80,43 @@ export function DocumentStatusBar({
                 {/* Export Buttons */}
                 <div className="flex items-center gap-2">
                     {onToggleGrandTotal && (
-                        <div className="flex items-center gap-2">
-                            <Label className="text-sm text-gray-300">Client Presentation Mode</Label>
-                            <Button
-                                onClick={onToggleGrandTotal}
-                                variant="outline"
-                                size="sm"
-                                className="bg-[#1A1A1D] hover:bg-[#2A2A2D] text-gray-300 hover:text-white border-[#2A2A2D] transition-colors"
-                                title={
-                                    isGrandTotalVisible
-                                        ? "Hide combined total"
-                                        : "Show combined total"
-                                }
-                            >
-                                {isGrandTotalVisible ? (
-                                    <>
-                                        <EyeOff className="w-4 h-4 mr-2" />
-                                        Hide Total
-                                    </>
-                                ) : (
-                                    <>
-                                        <Eye className="w-4 h-4 mr-2" />
-                                        Show Total
-                                    </>
-                                )}
-                            </Button>
-                        </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <Label className="text-sm text-gray-300">Client Presentation Mode</Label>
+                        <Button
+                            onClick={onToggleGrandTotal}
+                            variant="outline"
+                            size="sm"
+                            className="bg-[#1A1A1D] hover:bg-[#2A2A2D] text-gray-300 hover:text-white border-[#2A2A2D] transition-colors"
+                            title={
+                                isGrandTotalVisible
+                                    ? "Hide combined total"
+                                    : "Show combined total"
+                            }
+                        >
+                            {isGrandTotalVisible ? (
+                                <>
+                                    <EyeOff className="w-4 h-4 mr-2" />
+                                    Hide Total
+                                </>
+                            ) : (
+                                <>
+                                    <Eye className="w-4 h-4 mr-2" />
+                                    Show Total
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Label className="text-sm text-gray-300">Max Budget (AUD)</Label>
+                        <Input
+                            type="number"
+                            placeholder="e.g. 22000"
+                            className="h-8 w-32 bg-[#1A1A1D] text-gray-200 border-[#2A2A2D]"
+                            onChange={(e) => onChangeMaxBudget?.(parseFloat(e.target.value) || 0)}
+                        />
+                    </div>
+                </div>
                     )}
 
                     {onExportPDF && (
