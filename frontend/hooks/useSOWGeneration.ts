@@ -127,12 +127,12 @@ export function useSOWGeneration(options: UseSOWGenerationOptions): UseSOWGenera
       }
 
       if (!newState.isGenerating && state.isGenerating && newState.finalJSON) {
-        on_complete?.(newState.content, newState.finalJSON);
+        onComplete?.(newState.content, newState.finalJSON);
       }
     });
 
     return unsubscribe;
-  }, [state.content, state.finalJSON, state.isGenerating, onContentUpdate, onJSONUpdate, on_complete]);
+  }, [state.content, state.finalJSON, state.isGenerating, onContentUpdate, onJSONUpdate, onComplete]);
 
   // Handle completion separately to avoid duplicate calls
   const handleComplete = useCallback((content: string, finalJSON?: any) => {
@@ -158,11 +158,7 @@ export function useSOWGeneration(options: UseSOWGenerationOptions): UseSOWGenera
     await stateManagerRef.current?.startGeneration({
       workspaceSlug,
       threadSlug,
-      message,
-      onComplete: (content, finalJSON) => {
-        handleComplete(content, finalJSON);
-      },
-      onError: handleError
+      message
     });
   }, [workspaceSlug, threadSlug, handleComplete, handleError]);
 
@@ -200,7 +196,3 @@ export function useSOWGeneration(options: UseSOWGenerationOptions): UseSOWGenera
     estimatedTimeRemaining: (state as any).estimatedTimeRemaining
   };
 }
-```
-
-<file_path>
-the11-dev-clean/frontend/hooks/useSOWGeneration.ts</file_path>

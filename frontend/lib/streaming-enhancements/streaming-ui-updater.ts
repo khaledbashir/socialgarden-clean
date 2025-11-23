@@ -5,7 +5,7 @@
  * during the streaming process, keeping the user informed of progress.
  */
 
-import { extractStreamingJSON, cleanStreamContent, isAIStillWorking } from './json-extractor';
+import { extractStreamingJSON, cleanStreamContent, isAIStillWorking } from "./json-extractor";
 
 export interface StreamingUIState {
   content: string;
@@ -15,7 +15,7 @@ export interface StreamingUIState {
   totalInvestment?: number;
   statusMessage: string;
   progress: number; // 0-100
-  phase: 'initializing' | 'analyzing' | 'generating' | 'refining' | 'complete';
+  phase: "initializing" | "analyzing" | "generating" | "refining" | "complete";
 }
 
 /**
@@ -24,13 +24,13 @@ export interface StreamingUIState {
  */
 export function createInitialUIState(): StreamingUIState {
   return {
-    content: '',
+    content: "",
     isStreaming: true,
     hasValidJSON: false,
     jsonCount: 0,
-    statusMessage: 'Initializing AI generation...',
+    statusMessage: "Initializing AI generation...",
     progress: 0,
-    phase: 'initializing'
+    phase: "initializing"
   };
 }
 
@@ -48,24 +48,24 @@ export function updateUIStateFromContent(
   const streamUpdate = extractStreamingJSON(content);
 
   // Determine the current phase
-  let phase: StreamingUIState['phase'] = 'analyzing';
+  let phase: StreamingUIState["phase"] = "analyzing";
   let progress = Math.min(30, content.length / 10); // Base progress on content length
 
   if (streamUpdate.hasValidJSON) {
     if (streamUpdate.jsonCount > 1) {
       // AI is refining the pricing (multiple JSON blocks)
-      phase = 'refining';
+      phase = "refining";
       progress = 60 + (streamUpdate.jsonCount * 10); // Incremental progress
       progress = Math.min(90, progress); // Cap at 90% until complete
     } else {
-      phase = 'generating';
+      phase = "generating";
       progress = 50;
     }
   } else if (isAIStillWorking(content)) {
-    phase = 'analyzing';
+    phase = "analyzing";
     progress = 30;
   } else if (content.length > 500) {
-    phase = 'generating';
+    phase = "generating";
     progress = 40;
   }
 
@@ -93,9 +93,9 @@ export function finalizeUIState(
   return {
     ...currentState,
     isStreaming: false,
-    statusMessage: 'SOW generation complete',
+    statusMessage: "SOW generation complete",
     progress: 100,
-    phase: 'complete'
+    phase: "complete"
   };
 }
 
@@ -107,10 +107,10 @@ export function finalizeUIState(
  */
 export function formatCurrency(
   amount: number,
-  currency: string = 'AUD'
+  currency: string = "AUD"
 ): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
     currency,
   }).format(amount);
 }
@@ -126,28 +126,28 @@ export function generateProgressMessage(state: StreamingUIState): string {
   const { phase, jsonCount, totalInvestment } = state;
 
   switch (phase) {
-    case 'initializing':
-      return 'Initializing AI generation...';
+    case "initializing":
+      return "Initializing AI generation...";
 
-    case 'analyzing':
-      return 'AI is analyzing your requirements and preparing pricing...';
+    case "analyzing":
+      return "AI is analyzing your requirements and preparing pricing...";
 
-    case 'generating':
-      return 'AI is generating your Statement of Work...';
+    case "generating":
+      return "AI is generating your Statement of Work...";
 
-    case 'refining':
+    case "refining":
       if (jsonCount > 1) {
         const investmentText = totalInvestment
           ? ` (Current estimate: ${formatCurrency(totalInvestment)})`
-          : '';
+          : "";
         return `AI is refining the pricing to match your budget${investmentText}...`;
       }
-      return 'AI is refining the Statement of Work...';
+      return "AI is refining the Statement of Work...";
 
-    case 'complete':
-      return 'SOW generation complete!';
+    case "complete":
+      return "SOW generation complete!";
 
     default:
-      return 'Processing your request...';
+      return "Processing your request...";
   }
 }
