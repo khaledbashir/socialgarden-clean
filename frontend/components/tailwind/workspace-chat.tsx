@@ -1230,32 +1230,23 @@ export default function WorkspaceChat({
                                                             ),
                                                             code: ({
                                                                 children,
-                                                                inline,
                                                                 ...props
                                                             }) => (
                                                                 <code
                                                                     {...props}
                                                                     style={{
                                                                         whiteSpace:
-                                                                            inline
-                                                                                ? "normal"
-                                                                                : "pre-wrap",
+                                                                            "pre-wrap",
                                                                         wordBreak:
                                                                             "break-all",
                                                                         overflowWrap:
                                                                             "break-word",
                                                                         backgroundColor:
-                                                                            inline
-                                                                                ? "#1a1a1a"
-                                                                                : "transparent",
+                                                                            "transparent",
                                                                         padding:
-                                                                            inline
-                                                                                ? "2px 4px"
-                                                                                : "0",
+                                                                            "0",
                                                                         borderRadius:
-                                                                            inline
-                                                                                ? "3px"
-                                                                                : "0",
+                                                                            "0",
                                                                     }}
                                                                 >
                                                                     {children}
