@@ -138,6 +138,18 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // Ensure schema supports budget_limit (self-healing)
+        try {
+            const sowCols: any[] = await query('SHOW COLUMNS FROM sows');
+            const sowColNames = sowCols.map((c: any) => c.Field);
+            if (!sowColNames.includes('budget_limit')) {
+                await query('ALTER TABLE sows ADD COLUMN budget_limit DECIMAL(12,2) NULL AFTER total_investment');
+            }
+        } catch (schemaErr) {
+            // Non-blocking: insertion will still succeed via fallback if other columns are missing
+            console.warn(' [SOW CREATE] Schema self-heal skipped:', schemaErr instanceof Error ? schemaErr.message : schemaErr);
+        }
+
         // Generate unique ID
         const sowId = generateSOWId();
 
