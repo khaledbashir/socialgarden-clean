@@ -30,6 +30,9 @@ interface UseChatManagerProps {
     currentWorkspaceId?: string;
     currentSOWId?: string;
     setLatestEditorJSON?: (content: any) => void;
+    // Optional SOW UI locking status and setter injected from parent
+    sowStatus?: "idle" | "processing" | "done";
+    setSowStatus?: (status: "idle" | "processing" | "done") => void;
 }
 
 export function useChatManager({
@@ -38,6 +41,9 @@ export function useChatManager({
     documents = [],
     editorRef = undefined,
     setLatestEditorJSON,
+    // Receive optional sowStatus and setter from caller; provide safe defaults
+    sowStatus = "idle",
+    setSowStatus = (_: "idle" | "processing" | "done") => {},
 }: UseChatManagerProps) {
     const [agents, setAgents] = useState<Agent[]>([]);
     const [currentAgentId, setCurrentAgentId] = useState<string | null>(null);
@@ -149,6 +155,15 @@ export function useChatManager({
         async (content: string, suggestedRoles: any[] = []) => {
             let localMultiScopeData: any = undefined;
 
+            // If SOW generation is already running, block manual insertion to avoid UI duplication
+            if (sowStatus === "processing") {
+                log("⚠️ Insert blocked: SOW generation in progress");
+                toast.error(
+                    "SOW generation in progress. Please wait for the current result.",
+                );
+                return;
+            }
+
             // Trim content to check if it's actually empty
             const trimmedContent = content?.trim() || "";
 
@@ -165,6 +180,8 @@ export function useChatManager({
                 toast.error(
                     "Editor not ready. Please wait a moment and try again.",
                 );
+                // Ensure UI unlock in case upstream logic expected this insertion
+                setSowStatus("idle");
                 return;
             }
 
@@ -173,6 +190,7 @@ export function useChatManager({
                 toast.error(
                     "No content to insert. The AI response appears to be empty or contains only internal processing tags.",
                 );
+                setSowStatus("idle");
                 return;
             }
 
@@ -181,6 +199,7 @@ export function useChatManager({
                 toast.error(
                     "No document is open. Please open a document first.",
                 );
+                setSowStatus("idle");
                 return;
             }
 
@@ -258,6 +277,7 @@ export function useChatManager({
                         "❌ CRITICAL INSERTION FAILURE: Final content is not a valid TipTap JSON object (type: 'doc'). Inserting raw string is blocked.",
                     );
                     toast.error("Insertion failed: Content conversion error.");
+                    setSowStatus("idle");
                     return; // Block insertion of invalid data
                 }
 
@@ -332,13 +352,29 @@ export function useChatManager({
                     })();
                 }
 
+                // Mark SOW result as ready now that insertion completed
+                try {
+                    setSowStatus("done");
+                } catch (e) {
+                    // ignore if setter unavailable
+                }
+
                 toast.success("✅ Content inserted into editor!");
             } catch (error) {
                 log("Error inserting content:", error);
+                setSowStatus("idle");
                 toast.error("❌ Failed to insert content. Please try again.");
             }
         },
-        [currentDoc, currentAgentId, editorRef, log],
+        [
+            currentDoc,
+            currentAgentId,
+            editorRef,
+            log,
+            sowStatus,
+            setSowStatus,
+            setLatestEditorJSON,
+        ],
     );
 
     const handleSendMessage = useCallback(
@@ -354,6 +390,17 @@ export function useChatManager({
             const isDashboardMode = viewMode === "dashboard";
 
             if (!message.trim()) return;
+
+            // Prevent duplicate submissions if a SOW generation is already running
+            if (sowStatus === "processing") {
+                log(
+                    "⚠️ Submission blocked: SOW generation already in progress",
+                );
+                toast.error(
+                    "SOW generation already in progress. Please wait for the current result.",
+                );
+                return;
+            }
 
             const now = Date.now();
             if (now - lastMessageSentTimeRef.current < MESSAGE_RATE_LIMIT) {
@@ -376,6 +423,13 @@ export function useChatManager({
             currentRequestControllerRef.current = controller;
 
             setIsChatLoading(true);
+
+            // Mark SOW status as processing to lock UI
+            try {
+                setSowStatus("processing");
+            } catch (e) {
+                // ignore if setter unavailable
+            }
 
             // Remove auto-insert command path; insertion is only via explicit UI
 
@@ -409,6 +463,9 @@ export function useChatManager({
                     );
                     setIsChatLoading(false);
                     currentRequestControllerRef.current = null;
+                    try {
+                        setSowStatus("idle");
+                    } catch {}
                     return;
                 }
 
@@ -433,23 +490,27 @@ export function useChatManager({
                     content: "", // Start empty, will be filled by streaming
                     timestamp: Date.now(),
                 };
-                
+
                 // Add the assistant message to state immediately for streaming
                 setChatMessages((prev) => [...prev, assistantMessage]);
                 setStreamingMessageId(assistantMessageId);
 
                 // Build the streaming endpoint URL
-                const streamEndpoint = threadSlug 
+                const streamEndpoint = threadSlug
                     ? `/api/anythingllm/stream-chat?thread=${encodeURIComponent(threadSlug)}`
                     : `/api/anythingllm/stream-chat`;
 
-                log("📡 [Chat] Starting SSE stream:", { streamEndpoint, threadSlug, workspace });
+                log("📡 [Chat] Starting SSE stream:", {
+                    streamEndpoint,
+                    threadSlug,
+                    workspace,
+                });
 
                 // Start streaming request
                 const streamResponse = await fetch(streamEndpoint, {
-                    method: 'POST',
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json',
+                        "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
                         workspaceSlug: workspace,
@@ -460,34 +521,51 @@ export function useChatManager({
                             context: {
                                 documentTitle: currentDoc.title,
                                 documentContent: currentDoc.content,
-                            }
-                        })
+                            },
+                        }),
                     }),
                     signal: controller.signal,
                 });
 
                 if (!streamResponse.ok) {
-                    const errorText = await streamResponse.text().catch(() => "Unknown error");
-                    log("❌ [Chat] Stream response failed:", { status: streamResponse.status, error: errorText });
-                    toast.error(`Stream failed: ${streamResponse.status} ${errorText}`);
-                    
+                    const errorText = await streamResponse
+                        .text()
+                        .catch(() => "Unknown error");
+                    log("❌ [Chat] Stream response failed:", {
+                        status: streamResponse.status,
+                        error: errorText,
+                    });
+                    toast.error(
+                        `Stream failed: ${streamResponse.status} ${errorText}`,
+                    );
+
                     // Remove the empty assistant message
-                    setChatMessages((prev) => prev.filter(msg => msg.id !== assistantMessageId));
+                    setChatMessages((prev) =>
+                        prev.filter((msg) => msg.id !== assistantMessageId),
+                    );
                     setStreamingMessageId(null);
                     setIsChatLoading(false);
                     currentRequestControllerRef.current = null;
+                    try {
+                        setSowStatus("idle");
+                    } catch {}
                     return;
                 }
 
                 if (!streamResponse.body) {
                     log("❌ [Chat] No response body for streaming");
                     toast.error("Streaming not supported by the server");
-                    
+
                     // Remove the empty assistant message
-                    setChatMessages((prev) => prev.filter(msg => msg.id !== assistantMessageId));
+                    setChatMessages((prev) =>
+                        prev.filter((msg) => msg.id !== assistantMessageId),
+                    );
                     setStreamingMessageId(null);
                     setIsChatLoading(false);
                     currentRequestControllerRef.current = null;
+                    try {
+                        setSowStatus("idle");
+                    } catch {}
                     return;
                 }
 
@@ -505,69 +583,105 @@ export function useChatManager({
                         if (done) break;
 
                         buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
+                        const lines = buffer.split("\n");
                         buffer = lines.pop() || "";
 
                         for (const line of lines) {
-                            if (line.startsWith('data: ')) {
+                            if (line.startsWith("data: ")) {
                                 try {
                                     const data = JSON.parse(line.slice(6));
-                                    
-                                    if (data.type === 'textResponseChunk' && data.textResponse) {
+
+                                    if (
+                                        data.type === "textResponseChunk" &&
+                                        data.textResponse
+                                    ) {
                                         // Append the new chunk to accumulated content
                                         accumulatedContent += data.textResponse;
-                                        
+
                                         // Update the assistant message in real-time
-                                        setChatMessages((prev) => 
-                                            prev.map(msg => 
-                                                msg.id === assistantMessageId 
-                                                    ? { ...msg, content: accumulatedContent }
-                                                    : msg
-                                            )
+                                        setChatMessages((prev) =>
+                                            prev.map((msg) =>
+                                                msg.id === assistantMessageId
+                                                    ? {
+                                                          ...msg,
+                                                          content:
+                                                              accumulatedContent,
+                                                      }
+                                                    : msg,
+                                            ),
                                         );
-                                        
+
                                         // Dispatch thinking update event for editor accordion
-                                        if (accumulatedContent.includes('<thinking>') || accumulatedContent.includes('<think>')) {
-                                            window.dispatchEvent(new CustomEvent('thinking-updated', {
-                                                detail: {
-                                                    messageId: assistantMessageId,
-                                                    thinking: accumulatedContent,
-                                                    isStreaming: true
-                                                }
-                                            }));
+                                        if (
+                                            accumulatedContent.includes(
+                                                "<thinking>",
+                                            ) ||
+                                            accumulatedContent.includes(
+                                                "<think>",
+                                            )
+                                        ) {
+                                            window.dispatchEvent(
+                                                new CustomEvent(
+                                                    "thinking-updated",
+                                                    {
+                                                        detail: {
+                                                            messageId:
+                                                                assistantMessageId,
+                                                            thinking:
+                                                                accumulatedContent,
+                                                            isStreaming: true,
+                                                        },
+                                                    },
+                                                ),
+                                            );
                                         }
-                                    } else if (data.type === 'textResponse' && data.textResponse) {
+                                    } else if (
+                                        data.type === "textResponse" &&
+                                        data.textResponse
+                                    ) {
                                         // Final response
                                         accumulatedContent = data.textResponse;
-                                        setChatMessages((prev) => 
-                                            prev.map(msg => 
-                                                msg.id === assistantMessageId 
-                                                    ? { ...msg, content: accumulatedContent }
-                                                    : msg
-                                            )
+                                        setChatMessages((prev) =>
+                                            prev.map((msg) =>
+                                                msg.id === assistantMessageId
+                                                    ? {
+                                                          ...msg,
+                                                          content:
+                                                              accumulatedContent,
+                                                      }
+                                                    : msg,
+                                            ),
                                         );
                                     }
                                 } catch (parseError) {
-                                    log("⚠️ [Chat] Failed to parse SSE data:", line, parseError);
+                                    log(
+                                        "⚠️ [Chat] Failed to parse SSE data:",
+                                        line,
+                                        parseError,
+                                    );
                                 }
                             }
                         }
                     }
 
-                    log("✅ [Chat] Stream completed, total content length:", accumulatedContent.length);
-                    
-                    // Final thinking update
-                    window.dispatchEvent(new CustomEvent('thinking-updated', {
-                        detail: {
-                            messageId: assistantMessageId,
-                            thinking: accumulatedContent,
-                            isStreaming: false
-                        }
-                    }));
+                    log(
+                        "✅ [Chat] Stream completed, total content length:",
+                        accumulatedContent.length,
+                    );
 
+                    // Final thinking update
+                    window.dispatchEvent(
+                        new CustomEvent("thinking-updated", {
+                            detail: {
+                                messageId: assistantMessageId,
+                                thinking: accumulatedContent,
+                                isStreaming: false,
+                            },
+                        }),
+                    );
                 } catch (streamError) {
                     log("❌ [Chat] Stream reading error:", streamError);
-                    if (streamError.name !== 'AbortError') {
+                    if (streamError.name !== "AbortError") {
                         toast.error("Error reading stream response");
                     }
                 } finally {
@@ -707,10 +821,14 @@ export function useChatManager({
 
                 setIsChatLoading(false);
                 currentRequestControllerRef.current = null;
+                // keep sowStatus as 'processing' until insertion handler marks 'done'
             } catch (error) {
                 log("Error sending message:", error);
                 setIsChatLoading(false);
                 currentRequestControllerRef.current = null;
+                try {
+                    setSowStatus("idle");
+                } catch {}
             }
         },
         [
@@ -720,6 +838,8 @@ export function useChatManager({
             chatMessages,
             handleInsertContent,
             log,
+            sowStatus,
+            setSowStatus,
         ],
     );
 

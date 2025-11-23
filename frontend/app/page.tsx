@@ -121,6 +121,11 @@ export default function Page() {
         setShowGuidedSetup,
     });
 
+    // NEW: SOW generation status state
+    const [sowStatus, setSowStatus] = useState<"idle" | "processing" | "done">(
+        "idle",
+    );
+
     const {
         agents,
         currentAgentId,
@@ -149,6 +154,8 @@ export default function Page() {
         currentWorkspaceId,
         currentSOWId,
         setLatestEditorJSON,
+        sowStatus, // NEW: Pass current status
+        setSowStatus, // NEW: Pass setter
     });
 
     // --- Role sanitization helpers ---
@@ -2530,7 +2537,16 @@ export default function Page() {
                         )}
 
                         {viewMode === "editor" &&
-                            (currentDoc ? (
+                            (sowStatus === "processing" ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center">
+                                        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
+                                        <p className="mt-4 text-lg">
+                                            Generating your SOW...
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : currentDoc ? (
                                 <EditorPanel
                                     currentDoc={currentDoc}
                                     editorRef={editorRef}
