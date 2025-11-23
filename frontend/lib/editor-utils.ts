@@ -326,6 +326,31 @@ function convertJSONToPricingTable(jsonData: any): any | null {
     };
   }
 
+  // Handle Social Media Retainer style schema with scope_items
+  if (jsonData.scope_items && Array.isArray(jsonData.scope_items)) {
+    const rows = jsonData.scope_items.map((item: any) => ({
+      role: item.role_name || item.role || "",
+      hours: item.hours_assigned ?? item.hours ?? null,
+      rate: item.role_rate_per_hour ?? item.rate ?? null,
+      total:
+        item.role_total ??
+        (item.hours_assigned != null && item.role_rate_per_hour != null
+          ? Number(item.hours_assigned) * Number(item.role_rate_per_hour)
+          : null),
+    }));
+    return {
+      type: "editablePricingTable",
+      attrs: {
+        rows,
+        discount: jsonData.discount_percent || jsonData.discount || 0,
+        scopeName:
+          jsonData.project_name || jsonData.phase_name || "Project Pricing",
+        scopeDescription:
+          jsonData.project_type || (jsonData.currency ? `Currency: ${jsonData.currency}` : ""),
+      },
+    };
+  }
+
   return null;
 }
 

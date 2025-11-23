@@ -510,12 +510,31 @@ export default function SidebarNav({
                         {/* Add New Doc in Folder */}
                         {!isDeleteMode && (
                             <button
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                     e.stopPropagation();
-                                    onCreateDocument(
-                                        folder.id,
-                                        "Untitled Document",
-                                    );
+                                    try {
+                                        if (typeof onCreateSOW === "function") {
+                                            await onCreateSOW(
+                                                folder.id,
+                                                "Untitled SOW",
+                                            );
+                                            return;
+                                        }
+                                        if (typeof onCreateDocument === "function") {
+                                            onCreateDocument(
+                                                folder.id,
+                                                "Untitled Document",
+                                            );
+                                            return;
+                                        }
+                                        toast.error(
+                                            "Create action not available",
+                                        );
+                                    } catch (err) {
+                                        toast.error(
+                                            `Failed to create: ${err instanceof Error ? err.message : "Unknown error"}`,
+                                        );
+                                    }
                                 }}
                                 className="p-1.5 bg-gray-700/50 hover:bg-green-500/30 rounded text-green-400 hover:text-white transition-all"
                                 title="New document in this folder"
