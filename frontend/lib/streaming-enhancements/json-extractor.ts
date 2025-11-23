@@ -132,9 +132,3 @@ export function isAIStillWorking(content: string): boolean {
   return workingIndicators.some(indicator => lowerContent.includes(indicator));
 }
 ```
-
-<file_path>
-the11-dev-clean/frontend/lib/streaming-enhancements/streaming-ui-updater.ts
-</file_path>
-<edit_description>
-Create UI updater to show intermediate results during streaming</edit_description>

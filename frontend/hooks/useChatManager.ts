@@ -428,8 +428,7 @@ export function useChatManager({
                 const assistantMessage: ChatMessage = {
                     id: `msg${Date.now()}-assistant`,
                     role: "assistant",
-                    content:
-                        "Commands: /new, /rename, /export, /share",
+                    content: "Commands: /new, /rename, /export, /share",
                     timestamp: Date.now(),
                 };
                 setChatMessages((prev) => [...prev, assistantMessage]);
@@ -657,8 +656,26 @@ export function useChatManager({
                                         // Append the new chunk to accumulated content
                                         accumulatedContent += data.textResponse;
 
+                                        // Update the assistant message in real-time
+                                        setChatMessages((prev) =>
+                                            prev.map((msg) =>
+                                                msg.id === assistantMessageId
+                                                    ? {
+                                                          ...msg,
+                                                          content:
+                                                              accumulatedContent,
+                                                      }
+                                                    : msg,
+                                            ),
+                                        );
 
-                                                "<think>",
+                                        // Dispatch thinking update event for editor accordion
+                                        if (
+                                            accumulatedContent.includes(
+                                                "<thinking>",
+                                            ) ||
+                                            accumulatedContent.includes(
+                                                "let me",
                                             )
                                         ) {
                                             window.dispatchEvent(
