@@ -1084,65 +1084,7 @@ export default function WorkspaceChat({
                                             }
                                             className="flex-1 text-left"
                                         >
-                                            {msg.role === "assistant" && (
-                                                <div className="absolute top-2 right-2 flex items-center gap-1.5">
-                                                    <button
-                                                        onClick={() =>
-                                                            handleCopyProse(
-                                                                msg.content,
-                                                                msg.id,
-                                                            )
-                                                        }
-                                                        className="p-1 hover:bg-[#1b5e5e] rounded"
-                                                        title="Copy prose content"
-                                                    >
-                                                        {copiedMessageId ===
-                                                        msg.id ? (
-                                                            <Check className="w-3.5 h-3.5 text-green-400" />
-                                                        ) : (
-                                                            <Copy className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
-                                                        )}
-                                                    </button>
-                                                    {/```json/i.test(
-                                                        msg.content,
-                                                    ) && (
-                                                        <button
-                                                            onClick={() =>
-                                                                handleCopyJSON(
-                                                                    msg.content,
-                                                                    msg.id,
-                                                                )
-                                                            }
-                                                            className="p-1 hover:bg-[#1b5e5e] rounded"
-                                                            title="Copy JSON block"
-                                                        >
-                                                            {copiedJsonId ===
-                                                            msg.id ? (
-                                                                <Check className="w-3.5 h-3.5 text-green-400" />
-                                                            ) : (
-                                                                <Copy className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
-                                                            )}
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        onClick={() =>
-                                                            handleInsertWithFeedback(
-                                                                cleaned,
-                                                                msg.id,
-                                                            )
-                                                        }
-                                                        className="p-1 hover:bg-[#1b5e5e] rounded"
-                                                        title="Insert this response only"
-                                                    >
-                                                        {insertingMessageId ===
-                                                        msg.id ? (
-                                                            <Loader2 className="w-4 h-4 text-gray-300 animate-spin" />
-                                                        ) : (
-                                                            <Plus className="w-3.5 h-3.5 text-gray-400" />
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            )}
+                                            
                                             <div className="flex items-center gap-2">
                                                 <span>
                                                     {currentThreadSlug ===

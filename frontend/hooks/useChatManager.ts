@@ -483,7 +483,8 @@ export function useChatManager({
                 generationTimeoutRef.current = null;
             }
             generationTimeoutRef.current = setTimeout(() => {
-                if (isChatLoading || streamingMessageId || sowStatus === "processing") {
+                const stillProcessing = isChatLoading || !!streamingMessageId;
+                if (stillProcessing) {
                     cancelCurrentGeneration();
                     toast.error("Generation timed out");
                 }
