@@ -8,6 +8,7 @@ import { query, generateSOWId, formatDateForMySQL } from "@/lib/db";
 import { validatePricing, proposeAdjustments } from "@/lib/pricing-validation";
 import { validateMandatoryRoles } from "@/lib/mandatory-roles-enforcer";
 // import removed: enforceHeadOfRole is now a no-op
+import { extractPricingFromContent } from "@/lib/export-utils";
 
 /**
  * Extract pricing tables from TipTap JSON content
