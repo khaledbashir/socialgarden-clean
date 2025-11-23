@@ -14,7 +14,7 @@ import {
 import { WORKSPACE_CONFIG, getWorkspaceForAgent } from "@/lib/workspace-config";
 import { ROLES } from "@/lib/rateCard";
 import { sanitizeEmptyTextNodes } from "@/lib/page-utils";
-import { extractSOWStructuredJson } from "@/lib/export-utils";
+import { extractSOWStructuredJson, formatSOWToHTML } from "@/lib/export-utils";
 import { convertMarkdownToNovelJSON } from "@/lib/editor-utils";
 import {
     extractJSONFromContent,
@@ -796,7 +796,22 @@ export function useChatManager({
                         );
                     }
 
-                    // Process content through conversion logic
+                    // If the assistant returned structured SOW JSON, format to clean HTML for TipTap
+                    try {
+                        const maybeJson = extractJSONFromContent(
+                            contentToInsert,
+                        );
+                        if (maybeJson) {
+                            const html = formatSOWToHTML(maybeJson as any);
+                            editorRef.current?.commands?.setContent?.(html);
+                            toast.success(
+                                "✅ Inserted formatted SOW HTML into editor",
+                            );
+                            return;
+                        }
+                    } catch {}
+
+                    // Fallback: process content through markdown→TipTap conversion
                     let filteredContent = contentToInsert;
                     filteredContent = filteredContent.replace(
                         /<thinking>([\s\S]*?)<\/thinking>/gi,
@@ -807,15 +822,12 @@ export function useChatManager({
                         "",
                     );
 
-                    // Convert to TipTap JSON structure
                     let convertedContent: any;
                     let finalContent: any;
-
                     const convertOptions: any = {
                         preserveFormatting: true,
                         extractPricing: true,
                     };
-
                     try {
                         convertedContent = convertMarkdownToNovelJSON(
                             filteredContent,
@@ -828,49 +840,27 @@ export function useChatManager({
                         finalContent = { type: "doc", content: [] };
                     }
 
-                    // CRITICAL DIAGNOSTIC: Check content type before insertion
-                    console.log(
-                        "🧩 [Automatic Insertion] Final Content Type Check:",
-                    );
-                    console.log(
-                        "FinalContent is object:",
-                        typeof finalContent === "object" &&
-                            finalContent !== null,
-                    );
-                    console.log(
-                        "FinalContent type attribute:",
-                        finalContent?.type,
-                    );
                     if (
                         typeof finalContent === "string" ||
                         !finalContent ||
                         finalContent.type !== "doc"
                     ) {
-                        console.error(
-                            "❌ CRITICAL INSERTION FAILURE: Final content is not a valid TipTap JSON object (type: 'doc'). Inserting raw string is blocked.",
-                        );
                         toast.error(
                             "Insertion failed: Content conversion error.",
                         );
-                        return; // Block insertion of invalid data
+                        return;
                     }
 
-                    // [INJECT FIX HERE: Direct Editor Update]
                     if (editorRef.current) {
                         if (editorRef.current.commands?.setContent) {
                             editorRef.current.commands.setContent(finalContent);
                         } else {
                             editorRef.current.insertContent(finalContent);
                         }
-                        // Sync latestEditorJSON immediately after insertion
                         if (setLatestEditorJSON) {
                             setLatestEditorJSON(finalContent);
                         }
-                        console.log(
-                            "🔒 [Automatic Fix] Editor updated and state locked.",
-                        );
                     }
-                    // [END FIX]
 
                     toast.success(
                         "✅ Content automatically inserted into SOW editor",

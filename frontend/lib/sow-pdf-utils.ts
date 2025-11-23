@@ -303,9 +303,9 @@ export function prepareSOWForNewPDF(currentDoc: any): SOWData | null {
         );
 
         const totalInvestment = pricingRows.reduce((sum, row) => {
-            const rowTotal = row.total || (row.hours || 0) * (row.rate || 0);
+            const rowTotal = (row.hours || 0) * (row.rate || 0);
             return sum + (rowTotal || 0);
-        }, currentDoc.totalInvestment || 0);
+        }, 0);
 
         const totalHours = pricingRows.reduce(
             (sum, row) => sum + (row.hours || 0),

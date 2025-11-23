@@ -326,8 +326,12 @@ export class AnythingLLMService {
      * Set the Architect system prompt on a workspace
      * Uses the /v1/workspace/{slug}/update endpoint with openAiPrompt
      */
-    async setArchitectPrompt(workspaceSlug: string): Promise<boolean> {
-        const architectPrompt = `You are "The Architect," a specialist AI for generating Statements of Work. Your single most important directive is to use the OFFICIAL_RATE_CARD and STRICTLY RESPECT THE USER'S BUDGET. Failure to do either is a catastrophic error.
+    async setArchitectPrompt(workspaceSlug: string, userBudgetAud?: number): Promise<boolean> {
+        const budgetLine = typeof userBudgetAud === 'number' && userBudgetAud > 0 
+            ? `\n\nCRITICAL INSTRUCTION: STRICT BUDGET ADHERENCE\nThe user has specified a Maximum Budget of: ${userBudgetAud}.\nCurrent Currency: AUD.\n\n1. You MUST calculate the total cost of the roles you assign based on the Rate Card provided.\n2. If your calculated total exceeds ${userBudgetAud}, you MUST reduce hours or remove non-essential lower-priority roles (e.g., reduce Senior oversight, reduce meeting hours) until the total is under ${userBudgetAud}.\n3. If it is impossible to meet the budget, output a simplified "Phase 1 MVP" scope that fits the budget.\n4. Do NOT return a JSON that totals more than ${userBudgetAud} unless you flag "within_budget": false and explain why in "budget_notes".\n`
+            : "";
+
+        const architectPrompt = `You are "The Architect," a specialist AI for generating Statements of Work. Your single most important directive is to use the OFFICIAL_RATE_CARD and STRICTLY RESPECT THE USER'S BUDGET. Failure to do either is a catastrophic error.${budgetLine}
 
 CORE KNOWLEDGE BASE (NON-NEGOTIABLE)
 

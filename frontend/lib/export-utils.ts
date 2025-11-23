@@ -125,6 +125,59 @@ export function extractPricingFromContent(content: any): PricingRow[] {
     return rows;
 }
 
+export function formatSOWToHTML(sowJson: any): string {
+    let htmlContent = "";
+    try {
+        const overview = sowJson?.investment_overview || sowJson?.overview || "";
+        if (overview) {
+            htmlContent += `<h2>Project Overview</h2><p>${overview}</p>`;
+        }
+        const phases = Array.isArray(sowJson?.phases)
+            ? sowJson.phases
+            : Array.isArray(sowJson?.scopes)
+              ? sowJson.scopes.map((s: any) => ({
+                    scope_name: s.scope_name || s.name || "Untitled Phase",
+                    scope_description: s.scope_description || s.description || "",
+                    deliverables: s.deliverables || [],
+                }))
+              : [];
+        if (Array.isArray(phases) && phases.length > 0) {
+            phases.forEach((phase: any) => {
+                const name = phase?.scope_name || phase?.name || "Untitled Phase";
+                const desc = phase?.scope_description || phase?.description || "";
+                htmlContent += `<h3>${name}</h3>`;
+                if (desc) htmlContent += `<p>${desc}</p>`;
+                const deliverables = Array.isArray(phase?.deliverables)
+                    ? phase.deliverables
+                    : [];
+                if (deliverables.length > 0) {
+                    htmlContent += `<h4>Deliverables:</h4><ul>`;
+                    deliverables.forEach((item: any) => {
+                        htmlContent += `<li>${String(item)}</li>`;
+                    });
+                    htmlContent += `</ul>`;
+                }
+            });
+        }
+        const assumptions = Array.isArray(sowJson?.assumptions)
+            ? sowJson.assumptions
+            : Array.isArray(sowJson?.global_assumptions)
+              ? sowJson.global_assumptions
+              : [];
+        if (assumptions.length > 0) {
+            htmlContent += `<h3>Assumptions</h3><ul>`;
+            assumptions.forEach((assump: any) => {
+                htmlContent += `<li>${String(assump)}</li>`;
+            });
+            htmlContent += `</ul>`;
+        }
+        htmlContent += `<br/><hr/><p>*** This concludes the Scope of Work document. ***</p>`;
+    } catch {
+        htmlContent = `<p>Unable to format SOW content.</p>`;
+    }
+    return htmlContent;
+}
+
 /**
  * Calculate totals with optional discount
  */

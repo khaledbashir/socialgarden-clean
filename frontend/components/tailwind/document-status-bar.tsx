@@ -12,6 +12,7 @@ import {
     FilePlus,
 } from "lucide-react";
 import { Button } from "./ui/button";
+import { Label } from "./ui/label";
 
 interface DocumentStatusBarProps {
     title: string;
@@ -77,29 +78,32 @@ export function DocumentStatusBar({
                 {/* Export Buttons */}
                 <div className="flex items-center gap-2">
                     {onToggleGrandTotal && (
-                        <Button
-                            onClick={onToggleGrandTotal}
-                            variant="outline"
-                            size="sm"
-                            className="bg-[#1A1A1D] hover:bg-[#2A2A2D] text-gray-300 hover:text-white border-[#2A2A2D] transition-colors"
-                            title={
-                                isGrandTotalVisible
-                                    ? "Hide combined total"
-                                    : "Show combined total"
-                            }
-                        >
-                            {isGrandTotalVisible ? (
-                                <>
-                                    <EyeOff className="w-4 h-4 mr-2" />
-                                    Hide Total
-                                </>
-                            ) : (
-                                <>
-                                    <Eye className="w-4 h-4 mr-2" />
-                                    Show Total
-                                </>
-                            )}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Label className="text-sm text-gray-300">Client Presentation Mode</Label>
+                            <Button
+                                onClick={onToggleGrandTotal}
+                                variant="outline"
+                                size="sm"
+                                className="bg-[#1A1A1D] hover:bg-[#2A2A2D] text-gray-300 hover:text-white border-[#2A2A2D] transition-colors"
+                                title={
+                                    isGrandTotalVisible
+                                        ? "Hide combined total"
+                                        : "Show combined total"
+                                }
+                            >
+                                {isGrandTotalVisible ? (
+                                    <>
+                                        <EyeOff className="w-4 h-4 mr-2" />
+                                        Hide Total
+                                    </>
+                                ) : (
+                                    <>
+                                        <Eye className="w-4 h-4 mr-2" />
+                                        Show Total
+                                    </>
+                                )}
+                            </Button>
+                        </div>
                     )}
 
                     {onExportPDF && (

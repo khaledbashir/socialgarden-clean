@@ -74,37 +74,28 @@ export function calculateTotalInvestment(contentJSON: string | any): number {
       return 0;
     }
 
-    // Iterate through top-level nodes to find the first pricing table
-    for (const node of content.content) {
-      // Check if this is a pricing table node
-      if (node.type === 'editablePricingTable' && node.attrs?.rows) {
-        const rows = node.attrs.rows;
-
-        // Guard: rows is not an array
-        if (!Array.isArray(rows)) {
-          return 0;
-        }
-
-        // Sum the cost for each line item, excluding total rows
-        for (const row of rows) {
-          // Extract values with defaults to prevent NaN
-          const hours = Number(row.hours) || 0;
-          const rate = Number(row.rate) || 0;
-          const role = String(row.role || '').toLowerCase();
-
-          // Validation: Skip rows that don't represent actual billable line items
-          // - rate must be > 0 (pricing must be valid)
-          // - role must not contain "total" (skip the total row itself)
-          if (rate > 0 && !role.includes('total')) {
-            totalInvestment += hours * rate;
+    // Iterate through all nodes and sum across ALL pricing tables (global total)
+    const walk = (nodes: TipTapNode[]) => {
+      for (const node of nodes) {
+        if (node.type === 'editablePricingTable' && node.attrs?.rows) {
+          const rows = node.attrs.rows || [];
+          if (Array.isArray(rows)) {
+            for (const row of rows) {
+              const hours = Number(row.hours) || 0;
+              const rate = Number(row.rate) || 0;
+              const role = String(row.role || '').toLowerCase();
+              if (rate > 0 && !role.includes('total')) {
+                totalInvestment += hours * rate;
+              }
+            }
           }
         }
-
-        // Once we've processed the first pricing table, we stop
-        // (SOWs typically only have one pricing table at the top level)
-        return totalInvestment;
+        if (Array.isArray(node.content)) walk(node.content as TipTapNode[]);
       }
-    }
+    };
+
+    walk(content.content as TipTapNode[]);
+    return totalInvestment;
 
     // No pricing table found in the document
     return 0;
