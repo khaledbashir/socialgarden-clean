@@ -77,7 +77,13 @@ const MessageContent = ({ content }: { content: string }) => {
                         if (part.startsWith("```json")) {
                             const isExpanded = expandedJSON[index];
                             // Extract JSON content for display
-                            const jsonContent = part.replace(/```json\s*|\s*```/g, "");
+                            let formattedJsonContent = "Invalid JSON";
+                            try {
+                                const parsedJson = JSON.parse(part.replace(/```json\s*|\s*```/g, ""));
+                                formattedJsonContent = JSON.stringify(parsedJson, null, 2);
+                            } catch (e) {
+                                console.error("Failed to parse JSON content:", e);
+                            }
                             
                             return (
                                 <div key={index} className="my-2 border rounded-md overflow-hidden bg-gray-50 w-full">
@@ -93,7 +99,7 @@ const MessageContent = ({ content }: { content: string }) => {
                                     </button>
                                     {isExpanded && (
                                         <div className="p-2 overflow-x-auto bg-white">
-                                            <pre className="text-xs font-mono text-gray-800 whitespace-pre">{jsonContent}</pre>
+                                            <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">{formattedJsonContent}</pre>
                                         </div>
                                     )}
                                 </div>
