@@ -139,6 +139,8 @@ export function formatSOWToHTML(sowJson: any): string {
                     scope_name: s.scope_name || s.name || "Untitled Phase",
                     scope_description: s.scope_description || s.description || "",
                     deliverables: s.deliverables || [],
+                    role_allocation: s.role_allocation || s.roles || [],
+                    discount_percent: s.discount_percent || sowJson?.discount_percent || 0,
                 }))
               : [];
         if (Array.isArray(phases) && phases.length > 0) {
@@ -156,6 +158,23 @@ export function formatSOWToHTML(sowJson: any): string {
                         htmlContent += `<li>${String(item)}</li>`;
                     });
                     htmlContent += `</ul>`;
+                }
+                // Inject custom TipTap node for pricing table with AI roles
+                const roles = Array.isArray(phase?.role_allocation) ? phase.role_allocation : [];
+                if (roles.length > 0) {
+                    const rows = roles
+                      .filter((r: any) => r && r.role)
+                      .map((r: any, idx: number) => ({
+                        id: `row-${idx}-${Date.now()}`,
+                        role: String(r.role || ""),
+                        description: String(r.description || ""),
+                        hours: Number(r.hours) || 0,
+                        rate: Number(r.rate) || Number(r.cost) / (Number(r.hours) || 1) || 0,
+                      }));
+                    const discount = Number(phase?.discount_percent) || 0;
+                    const attrs = { rows, discount, scopeName: name, scopeDescription: desc };
+                    const dataAttr = JSON.stringify(attrs).replace(/"/g, '&quot;');
+                    htmlContent += `<div data-type="editable-pricing-table" data-attrs="${dataAttr}"></div>`;
                 }
             });
         }

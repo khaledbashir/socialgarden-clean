@@ -267,12 +267,49 @@ export async function POST(req: NextRequest) {
             // non-blocking
         }
 
-        return NextResponse.json({
-            success: true,
-            id: sowId, // Return 'id' for consistency with frontend expectations
-            sowId, // Keep for backward compatibility
-            message: "SOW created successfully",
-        });
+        // Backend budget enforcement: adjust management roles if over max
+        try {
+            if (typeof budgetLimit === 'number' && budgetLimit > 0 && content && typeof content === 'object') {
+                const rows = extractPricingFromContent(content);
+                const total = rows.reduce((sum, r) => sum + ((Number(r.hours)||0) * (Number(r.rate)||0)), 0);
+                if (total > budgetLimit) {
+                    // Reduce management roles first
+                    const isMgmt = (role: string) => /Account|Project Management|Senior Project Manager|Head Of/i.test(role);
+                    let adjustedRows = JSON.parse(JSON.stringify(rows));
+                    let attempts = 0;
+                    while (attempts < 10) {
+                        const subtotal = adjustedRows.reduce((s, r) => s + ((Number(r.hours)||0) * (Number(r.rate)||0)), 0);
+                        if (subtotal <= budgetLimit) break;
+                        adjustedRows = adjustedRows.map(r => {
+                            if (isMgmt(r.role) && (Number(r.hours)||0) > 0) {
+                                return { ...r, hours: Math.max(0, (Number(r.hours)||0) * 0.9) };
+                            }
+                            return r;
+                        });
+                        attempts++;
+                    }
+                    // Write back adjusted content pricing tables (first table only for now)
+                    try {
+                        const newContent = JSON.parse(JSON.stringify(content));
+                        const patchRows = adjustedRows.map((r, idx) => ({ id: `row-${idx}`, role: r.role, description: r.description || '', hours: Number(r.hours)||0, rate: Number(r.rate)||0 }));
+                        const patched = (nodes: any[]): boolean => {
+                            for (const node of nodes) {
+                                if (node.type === 'editablePricingTable' && node.attrs?.rows) {
+                                    node.attrs.rows = patchRows;
+                                    return true;
+                                }
+                                if (Array.isArray(node.content) && patched(node.content)) return true;
+                            }
+                            return false;
+                        };
+                        if (Array.isArray(newContent?.content)) patched(newContent.content);
+                        await query('UPDATE sows SET content = ? WHERE id = ?', [JSON.stringify(newContent), sowId]);
+                    } catch {}
+                }
+            }
+        } catch {}
+
+        return NextResponse.json({ success: true, id: sowId, sowId, message: "SOW created successfully" });
     } catch (error) {
         console.error(" [SOW CREATE] FATAL ERROR:", error);
         console.error(
