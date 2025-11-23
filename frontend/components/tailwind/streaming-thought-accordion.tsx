@@ -11,6 +11,11 @@ import { ChevronDown, FileText, DollarSign, Brain } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cleanSOWContent } from "@/lib/export-utils";
+import { StreamingProgress } from "./streaming-progress";
+import {
+    extractStreamingJSON,
+    cleanStreamContent,
+} from "@/lib/streaming-enhancements/json-extractor";
 
 interface StreamingThoughtAccordionProps {
     content: string;
@@ -28,6 +33,7 @@ export function StreamingThoughtAccordion({
 }: StreamingThoughtAccordionProps) {
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     const [displayedThinking, setDisplayedThinking] = useState<string>("");
+    const [showProgress, setShowProgress] = useState(true);
     const streamTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Process content once per change
@@ -67,25 +73,40 @@ export function StreamingThoughtAccordion({
             .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
             .trim();
 
-        // Extract pricing JSON blocks
+        // Extract pricing JSON blocks - collect ALL matches to find the LAST one
         const pricingBlocks: any[] = [];
-        const jsonMatches = workingContent.matchAll(
-            /\{[\s\S]*?"scope_name"[\s\S]*?\}/g,
-        );
+        const jsonMatches = [
+            ...workingContent.matchAll(/\{[\s\S]*?"scope_name"[\s\S]*?\}/g),
+        ];
 
-        for (const match of jsonMatches) {
+        // Parse all JSON blocks first to identify the valid ones
+        const validJSONBlocks: { parsed: any; index: number }[] = [];
+
+        for (let i = 0; i < jsonMatches.length; i++) {
+            const match = jsonMatches[i];
             try {
                 const parsed = JSON.parse(match[0]);
                 if (parsed.scope_name && parsed.role_allocation) {
-                    pricingBlocks.push(parsed);
-                    // Remove this JSON from content
-                    workingContent = workingContent
-                        .replace(match[0], "")
-                        .trim();
+                    validJSONBlocks.push({ parsed, index: i });
                 }
             } catch (e) {
                 console.warn("Could not parse JSON block:", e);
             }
+        }
+
+        // Use ONLY the LAST valid JSON block
+        if (validJSONBlocks.length > 0) {
+            const lastValidJSON = validJSONBlocks[validJSONBlocks.length - 1];
+            pricingBlocks.push(lastValidJSON.parsed);
+
+            // Remove ALL JSON blocks from content
+            workingContent = workingContent
+                .replace(/\{[\s\S]*?"scope_name"[\s\S]*?\}/g, "")
+                .trim();
+
+            console.log(
+                `🎯 [JSON-EXTRACT] Using LAST valid JSON out of ${validJSONBlocks.length} found`,
+            );
         }
 
         // Clean the remaining content
@@ -177,6 +198,15 @@ export function StreamingThoughtAccordion({
 
     return (
         <div className="w-full space-y-4">
+            {/* Enhanced Streaming Progress - Show during long generation processes */}
+            {isStreaming && showProgress && (
+                <StreamingProgress
+                    content={content}
+                    isStreaming={isStreaming}
+                    onComplete={() => setShowProgress(false)}
+                />
+            )}
+
             {/* Thinking Accordion - Only show if there's thinking content */}
             {thinking && (
                 <details

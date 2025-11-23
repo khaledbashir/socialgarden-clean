@@ -657,25 +657,7 @@ export function useChatManager({
                                         // Append the new chunk to accumulated content
                                         accumulatedContent += data.textResponse;
 
-                                        // Update the assistant message in real-time
-                                        setChatMessages((prev) =>
-                                            prev.map((msg) =>
-                                                msg.id === assistantMessageId
-                                                    ? {
-                                                          ...msg,
-                                                          content:
-                                                              accumulatedContent,
-                                                      }
-                                                    : msg,
-                                            ),
-                                        );
 
-                                        // Dispatch thinking update event for editor accordion
-                                        if (
-                                            accumulatedContent.includes(
-                                                "<thinking>",
-                                            ) ||
-                                            accumulatedContent.includes(
                                                 "<think>",
                                             )
                                         ) {
