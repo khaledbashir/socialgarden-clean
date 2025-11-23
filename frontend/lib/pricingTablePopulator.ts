@@ -44,30 +44,85 @@ export interface PricingTablePopulationResult {
 }
 
 /**
- * Find exact match for role name in official rate card
- * Case-sensitive, complete word matching
+ * Find match for role name in official rate card
+ * Uses fuzzy matching for variants like "Sr. Consultant" to find "Tech - Sr. Consultant - Advisory & Consultation"
  *
  * @param roleNameFromAI - Role name from AI response
- * @returns Object with { found: boolean, rate: number | null, exactMatch: boolean }
+ * @returns Object with { found: boolean, rate: number | null, exactMatch: boolean, matchedRole: string }
  */
 export function findRoleInRateCard(roleNameFromAI: string): {
     found: boolean;
     rate: number | null;
     exactMatch: boolean;
+    matchedRole?: string;
 } {
     if (!roleNameFromAI || typeof roleNameFromAI !== "string") {
         return { found: false, rate: null, exactMatch: false };
     }
 
     const trimmed = roleNameFromAI.trim();
+    const lowerTrimmed = trimmed.toLowerCase();
 
     // Try exact match first
     const exactMatch = ROLES.find((r) => r.name === trimmed);
     if (exactMatch) {
-        return { found: true, rate: exactMatch.rate, exactMatch: true };
+        return {
+            found: true,
+            rate: exactMatch.rate,
+            exactMatch: true,
+            matchedRole: exactMatch.name,
+        };
     }
 
-    // No partial matching - be strict about role names
+    // Try fuzzy matching for common abbreviations and variants
+    // Handle "Sr. Consultant" → "Tech - Sr. Consultant - Advisory & Consultation"
+    if (lowerTrimmed.includes("sr") || lowerTrimmed.includes("senior")) {
+        const seniorMatch = ROLES.find(
+            (r) =>
+                r.name.toLowerCase().includes("senior") ||
+                r.name.toLowerCase().includes("sr."),
+        );
+        if (seniorMatch) {
+            return {
+                found: true,
+                rate: seniorMatch.rate,
+                exactMatch: false,
+                matchedRole: seniorMatch.name,
+            };
+        }
+    }
+
+    // Handle "Producer" variants
+    if (lowerTrimmed.includes("producer")) {
+        const producerMatch = ROLES.find((r) =>
+            r.name.toLowerCase().includes("producer"),
+        );
+        if (producerMatch) {
+            return {
+                found: true,
+                rate: producerMatch.rate,
+                exactMatch: false,
+                matchedRole: producerMatch.name,
+            };
+        }
+    }
+
+    // Handle "Consultant" variants
+    if (lowerTrimmed.includes("consultant")) {
+        const consultantMatch = ROLES.find((r) =>
+            r.name.toLowerCase().includes("consultant"),
+        );
+        if (consultantMatch) {
+            return {
+                found: true,
+                rate: consultantMatch.rate,
+                exactMatch: false,
+                matchedRole: consultantMatch.name,
+            };
+        }
+    }
+
+    // No match found
     return { found: false, rate: null, exactMatch: false };
 }
 
@@ -180,15 +235,17 @@ export function convertAIResponseToPricingRows(
                 const rate = Number(roleData.rate) || roleMatch.rate || 0;
                 const cost = hours * rate;
 
+                // CRITICAL FIX: Always preserve the role, even if not found in rate card
+                // This ensures no rows are missing from the pricing table
                 const row: PricingRow = {
                     id: `row-${Date.now()}-${Math.random()}`,
-                    role: roleData.role,
+                    role: roleMatch.matchedRole || roleData.role, // Use matched role if found, otherwise original
                     description: roleData.description || "",
                     hours,
                     rate,
                     cost,
                     scopeName: scope.scope_name,
-                    isUnknownRole: !roleMatch.found,
+                    isUnknownRole: !roleMatch.found, // Mark as unknown for visual indication
                     isHeader: false,
                 };
 

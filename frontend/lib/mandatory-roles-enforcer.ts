@@ -391,9 +391,22 @@ export function enforceMandatoryRoles(
         if (!rateCardEntry) {
             console.warn(
                 `⚠️ [Enforcer] Role "${aiRole.role}" not found in Rate Card. ` +
-                    `This role will be REJECTED. Please select roles from official Rate Card.`,
+                    `This role will be PRESERVED with a default rate to prevent data loss.`,
             );
-            continue; // Skip invalid roles
+            // CRITICAL FIX: Preserve role instead of skipping to prevent missing rows
+            const additionalRow: PricingRow = {
+                id: ensureUniqueId(aiRole.id),
+                role: aiRole.role, // Keep original role name
+                description: String(aiRole.description || "").trim(),
+                hours: validatedHours,
+                rate: 120, // Default rate for unknown roles (Producer rate)
+            };
+
+            // Add to middle roles by default
+            middleRoles.push(additionalRow);
+            technicalRolesAdded++;
+            processedRoles.add(normalizedAiRole);
+            continue;
         }
 
         // Validate hours and rate

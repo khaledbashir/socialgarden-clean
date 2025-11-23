@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import type { ChatMessage } from "@/types";
 import { Button } from "@/components/tailwind/ui/button";
 import { Textarea } from "@/components/tailwind/ui/textarea";
+import { extractJsonFromMarkdown } from "@/lib/jsonExtraction";
+import { convertAIResponseToPricingRows } from "@/lib/pricingTablePopulator";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -38,83 +40,57 @@ import { ScrollArea } from "@/components/tailwind/ui/scroll-area";
 import { Badge } from "@/components/tailwind/ui/badge";
 import { handleDocumentUploadAndPin } from "@/lib/document-pinning";
 
-const MessageContent = ({ content }: { content: string }) => {
+const MessageContent = ({ content, onPricingUpdate }: { content: string, onPricingUpdate?: (rows: any[]) => void }) => {
     const [expandedJSON, setExpandedJSON] = useState<Record<number, boolean>>({});
 
-    // Hide the "Insert into editor" marker for display
-    // We perform a non-destructive check first
-    const hasMarker = content.includes("*** Insert into editor:");
+    // Process JSON when content changes - extract and send to parent if pricing update callback is provided
+    React.useEffect(() => {
+        if (content.includes("```json") && onPricingUpdate) {
+            const extracted = extractJsonFromMarkdown(content);
+            if (extracted.json) {
+                try {
+                    // Handle both single scope and multi-scope formats
+                    const pricingData = Array.isArray(extracted.json.scopeItems)
+                        ? extracted.json // Multi-scope format
+                        : { scopeItems: [extracted.json] }; // Single scope format
+
+                    const result = convertAIResponseToPricingRows(pricingData);
+                    if (result.rows.length > 0) {
+                        onPricingUpdate(result.rows);
+                        console.log("✅ Processed pricing data:", result.rows);
+                    }
+                } catch (error) {
+                    console.error("❌ Failed to process pricing JSON:", error);
+                }
+            }
+        }
+    }, [content, onPricingUpdate]);
+
+    // Check for JSON blocks in content
     const hasJSON = content.includes("```json");
-    
-    // If content was auto-inserted, hide JSON blocks and show success badge instead
-    const shouldHideJSON = hasMarker && hasJSON;
-    
-    let displayContent = content.replace(/\*\*\* Insert into editor:[\s\S]*/, "").trim();
-    
-    // If auto-inserted, remove JSON blocks from display
-    if (shouldHideJSON) {
-        displayContent = displayContent.replace(/```json[\s\S]*?```/g, "").trim();
-    }
-    
-    // Split by JSON blocks (only if not hidden)
-    const parts = shouldHideJSON ? [displayContent] : displayContent.split(/(```json[\s\S]*?```)/g);
+
+    // ALWAYS hide JSON blocks from display - they're for system processing, not user viewing
+    const displayContent = content.replace(/```json[\s\S]*?```/g, "").trim();
+
+    // Hide "Insert into editor" marker if present
+    const cleanContent = displayContent.replace(/\*\*\* Insert into editor:[\s\S]*/, "").trim();
 
     return (
         <div className="whitespace-pre-wrap text-sm leading-relaxed">
-            {shouldHideJSON ? (
-                // Show clean content without JSON when auto-inserted
-                <>
-                    <div>{displayContent}</div>
-                    <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 rounded-md text-xs text-green-700">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span className="font-medium">Pricing & Scope Updated</span>
-                    </div>
-                </>
-            ) : (
-                // Show normal content with collapsible JSON blocks
-                <>
-                    {parts.map((part, index) => {
-                        if (part.startsWith("```json")) {
-                            const isExpanded = expandedJSON[index];
-                            // Extract JSON content for display
-                            let formattedJsonContent = "Invalid JSON";
-                            try {
-                                const parsedJson = JSON.parse(part.replace(/```json\s*|\s*```/g, ""));
-                                formattedJsonContent = JSON.stringify(parsedJson, null, 2);
-                            } catch (e) {
-                                console.error("Failed to parse JSON content:", e);
-                            }
-                            
-                            return (
-                                <div key={index} className="my-2 border rounded-md overflow-hidden bg-gray-50 w-full">
-                                    <button 
-                                        onClick={() => setExpandedJSON(prev => ({...prev, [index]: !isExpanded}))}
-                                        className="w-full flex items-center justify-between p-2 bg-gray-100 hover:bg-gray-200 text-xs font-mono text-gray-600 transition-colors"
-                                    >
-                                        <span className="flex items-center font-semibold">
-                                            {isExpanded ? <ChevronDown className="h-3 w-3 mr-1" /> : <ChevronRight className="h-3 w-3 mr-1" />}
-                                            Generated SOW Data (JSON)
-                                        </span>
-                                        <span className="text-[10px] uppercase opacity-70">{isExpanded ? "Hide" : "Show"}</span>
-                                    </button>
-                                    {isExpanded && (
+            {/* Always show cleaned content without JSON blocks */}
+            <div>{cleanContent}</div>
+
+            {/* Show processing indicator if JSON was present */}
+            {hasJSON && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-700">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span className="font-medium">Pricing data processed and applied</span>
+                </div>
+            )}
                                         <div className="p-2 overflow-x-auto bg-white">
                                             <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">{formattedJsonContent}</pre>
                                         </div>
                                     )}
-                                </div>
-                            );
-                        }
-                        return <span key={index}>{part}</span>;
-                    })}
-                    {hasMarker && (
-                        <div className="mt-2 text-xs text-green-600 italic flex items-center border-t pt-2">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Content automatically inserted into editor
-                        </div>
-                    )}
-                </>
-            )}
         </div>
     );
 };
@@ -128,6 +104,7 @@ const ChatInterface = ({
     isLoading: isLoadingProp,
     streamingMessageId: streamingMessageIdProp,
     onReplaceChatMessages,
+    onPricingUpdate,
 }: {
     workspaceSlug: string;
     documentId?: string;
@@ -137,6 +114,7 @@ const ChatInterface = ({
     isLoading?: boolean;
     streamingMessageId?: string | null;
     onReplaceChatMessages?: (messages: ChatMessage[]) => void;
+    onPricingUpdate?: (rows: any[]) => void;
 }) => {
     const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([
         {
@@ -513,7 +491,10 @@ const ChatInterface = ({
                                     }`}
                                 >
                                     <div className="w-full">
-                                        <MessageContent content={message.content} />
+                                        <MessageContent
+                                            content={message.content}
+                                            onPricingUpdate={onPricingUpdate}
+                                        />
                                     </div>
                                     {message.role === "assistant" && (
                                         <div className="flex items-center space-x-1 mt-2 text-gray-500">
