@@ -86,7 +86,7 @@ export const SafeStreamingAccordion: React.FC<{
       {extractedJSON && (
         <div className="bg-white border rounded p-3 mb-3">
           <div className="text-sm font-medium text-green-700 mb-2">✅ JSON Data Detected</div>
-          <div className="text-xs bg-gray-100 p-2 rounded font-mono">
+          <div className="text-xs bg-gray-100 p-2 rounded font-mono whitespace-pre-wrap break-words">
             {JSON.stringify(extractedJSON, null, 2)}
           </div>
         </div>

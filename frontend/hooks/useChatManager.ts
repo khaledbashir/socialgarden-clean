@@ -61,6 +61,18 @@ export function useChatManager({
     const currentRequestControllerRef = useRef<AbortController | null>(null);
     const lastMessageSentTimeRef = useRef<number>(0);
     const MESSAGE_RATE_LIMIT = 1000;
+    const generationTimeoutRef = useRef<number | null>(null);
+    const pendingQueueRef = useRef<
+        Array<{
+            message: string;
+            threadSlug?: string | null;
+            attachments?: Array<{
+                name: string;
+                mime: string;
+                contentString: string;
+            }>;
+        }>
+    >([]);
 
     const log = useCallback((...args: any[]) => {
         if (process.env.NODE_ENV === "development") {
@@ -91,6 +103,27 @@ export function useChatManager({
         },
         [log],
     );
+
+    const cancelCurrentGeneration = useCallback(() => {
+        if (currentRequestControllerRef.current) {
+            try {
+                currentRequestControllerRef.current.abort();
+            } catch {}
+            currentRequestControllerRef.current = null;
+        }
+        setIsChatLoading(false);
+        setStreamingMessageId(null);
+        try {
+            setSowStatus("idle");
+        } catch {}
+        toast.warning("Generation cancelled");
+        if (generationTimeoutRef.current) {
+            try {
+                clearTimeout(generationTimeoutRef.current);
+            } catch {}
+            generationTimeoutRef.current = null;
+        }
+    }, [setSowStatus]);
 
     const handleSelectAgent = useCallback(
         async (id: string) => {
@@ -391,14 +424,26 @@ export function useChatManager({
 
             if (!message.trim()) return;
 
+            if (message.trim().toLowerCase() === "/help") {
+                const assistantMessage: ChatMessage = {
+                    id: `msg${Date.now()}-assistant`,
+                    role: "assistant",
+                    content:
+                        "Commands: /new, /rename, /export, /share",
+                    timestamp: Date.now(),
+                };
+                setChatMessages((prev) => [...prev, assistantMessage]);
+                return;
+            }
+
             // Prevent duplicate submissions if a SOW generation is already running
             if (sowStatus === "processing") {
-                log(
-                    "⚠️ Submission blocked: SOW generation already in progress",
-                );
-                toast.error(
-                    "SOW generation already in progress. Please wait for the current result.",
-                );
+                pendingQueueRef.current.push({
+                    message,
+                    threadSlug: threadSlugParam,
+                    attachments,
+                });
+                toast.info("Queued. Will run after current generation.");
                 return;
             }
 
@@ -430,6 +475,19 @@ export function useChatManager({
             } catch (e) {
                 // ignore if setter unavailable
             }
+
+            if (generationTimeoutRef.current) {
+                try {
+                    clearTimeout(generationTimeoutRef.current);
+                } catch {}
+                generationTimeoutRef.current = null;
+            }
+            generationTimeoutRef.current = setTimeout(() => {
+                if (isChatLoading || streamingMessageId || sowStatus === "processing") {
+                    cancelCurrentGeneration();
+                    toast.error("Generation timed out");
+                }
+            }, 60000) as unknown as number;
 
             // Remove auto-insert command path; insertion is only via explicit UI
 
@@ -821,7 +879,30 @@ export function useChatManager({
 
                 setIsChatLoading(false);
                 currentRequestControllerRef.current = null;
-                // keep sowStatus as 'processing' until insertion handler marks 'done'
+                try {
+                    setSowStatus("done");
+                } catch {}
+                try {
+                    toast.success("✅ Generation complete");
+                } catch {}
+                if (generationTimeoutRef.current) {
+                    try {
+                        clearTimeout(generationTimeoutRef.current);
+                    } catch {}
+                    generationTimeoutRef.current = null;
+                }
+
+                // Process next queued request if available
+                const next = pendingQueueRef.current.shift();
+                if (next && next.message) {
+                    setTimeout(() => {
+                        handleSendMessage(
+                            next.message,
+                            next.threadSlug,
+                            next.attachments,
+                        );
+                    }, 0);
+                }
             } catch (error) {
                 log("Error sending message:", error);
                 setIsChatLoading(false);
@@ -829,6 +910,12 @@ export function useChatManager({
                 try {
                     setSowStatus("idle");
                 } catch {}
+                if (generationTimeoutRef.current) {
+                    try {
+                        clearTimeout(generationTimeoutRef.current);
+                    } catch {}
+                    generationTimeoutRef.current = null;
+                }
             }
         },
         [
@@ -840,6 +927,8 @@ export function useChatManager({
             log,
             sowStatus,
             setSowStatus,
+            cancelCurrentGeneration,
+            handleSendMessage,
         ],
     );
 
@@ -982,5 +1071,6 @@ export function useChatManager({
         handleDeleteAgent,
         handleInsertContent,
         handleSendMessage,
+        cancelCurrentGeneration,
     };
 }

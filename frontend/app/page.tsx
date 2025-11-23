@@ -145,6 +145,7 @@ export default function Page() {
         handleDeleteAgent,
         handleInsertContent,
         handleSendMessage,
+        cancelCurrentGeneration,
     } = useChatManager({
         viewMode,
         currentDoc,
@@ -2544,6 +2545,12 @@ export default function Page() {
                                         <p className="mt-4 text-lg">
                                             Generating your SOW...
                                         </p>
+                                        <button
+                                            onClick={cancelCurrentGeneration}
+                                            className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded"
+                                        >
+                                            Cancel
+                                        </button>
                                     </div>
                                 </div>
                             ) : currentDoc ? (
@@ -2558,8 +2565,8 @@ export default function Page() {
                                     onShare={handleShare}
                                     onExportPDF={handleExportPDF}
                                     onExportNewPDF={handleExportNewPDF}
-                                    onExportExcel={undefined}
-                                    onSharePortal={undefined}
+                                    onExportExcel={handleExportExcel}
+                                    onSharePortal={handleSharePortal}
                                     onOpenAIChat={handleOpenAIChat}
                                     isGrandTotalVisible={isGrandTotalVisible}
                                     toggleGrandTotal={setIsGrandTotalVisible}
