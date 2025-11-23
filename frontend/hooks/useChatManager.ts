@@ -929,7 +929,6 @@ export function useChatManager({
             sowStatus,
             setSowStatus,
             cancelCurrentGeneration,
-            handleSendMessage,
         ],
     );
 

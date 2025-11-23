@@ -378,6 +378,35 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     // This ensures consistency across all displays and exports
     const financialBreakdown = calculateFinancialBreakdown(rows, discount);
     const formattedBreakdown = formatFinancialBreakdown(financialBreakdown);
+    const applyRounding = (targetTotal: number) => {
+        const currentTotal = financialBreakdown.grandTotal;
+        const delta = targetTotal - currentTotal;
+        if (Math.abs(delta) < 1) return;
+        const factor = (1 - (discount || 0) / 100) * 1.1;
+        const deltaBeforeTax = delta / factor;
+        const adjustable = rows.filter(
+            (r) =>
+                typeof r.role === "string" &&
+                !/head\s*of|account\s*management/i.test(r.role) &&
+                /producer|specialist|coordination|delivery|testing|email|copy/i.test(
+                    r.role,
+                ),
+        );
+        const sumRates = adjustable.reduce(
+            (sum, r) => sum + (Number(r.rate) || 0),
+            0,
+        );
+        if (adjustable.length === 0 || sumRates <= 0) return;
+        const baseInc = deltaBeforeTax / sumRates;
+        const updated = rows.map((row) => {
+            if (!adjustable.includes(row)) return row;
+            const incHours = Math.round(baseInc * 2) / 2;
+            const nextHours = (Number(row.hours) || 0) + incHours;
+            return { ...row, hours: nextHours < 0 ? 0 : nextHours } as any;
+        });
+        setRows(updated);
+        setMode('edit');
+    };
 
     // Legacy function wrappers for backward compatibility
     const calculateSubtotal = () => financialBreakdown.subtotal;
@@ -747,6 +776,28 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                     max="100"
                                     className="w-20 px-2 py-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-right"
                                 />
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    type="button"
+                                    className="px-3 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded"
+                                    onClick={() => {
+                                        const t = Math.round((financialBreakdown.grandTotal) / 500) * 500;
+                                        applyRounding(t);
+                                    }}
+                                >
+                                    Round to nearest 500
+                                </button>
+                                <button
+                                    type="button"
+                                    className="px-3 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded"
+                                    onClick={() => {
+                                        const t = Math.round((financialBreakdown.grandTotal) / 1000) * 1000;
+                                        applyRounding(t);
+                                    }}
+                                >
+                                    Round to nearest 1000
+                                </button>
                             </div>
                             <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
                                 <span>Subtotal (ex GST):</span>
