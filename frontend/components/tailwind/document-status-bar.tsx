@@ -41,6 +41,7 @@ export function DocumentStatusBar({
     onSharePortal,
     isGrandTotalVisible,
     onToggleGrandTotal,
+    onChangeMaxBudget,
 }: DocumentStatusBarProps) {
     const statusConfig = {
         unsaved: {
