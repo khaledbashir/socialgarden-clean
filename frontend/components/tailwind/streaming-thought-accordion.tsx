@@ -93,13 +93,14 @@ export function StreamingThoughtAccordion({
                 const lastValidJSON = validJSONBlocks[validJSONBlocks.length - 1];
                 pricingBlocks.push(lastValidJSON.parsed);
 
-                // Remove ALL JSON blocks from content using robust cleaner
-                workingContent = cleanStreamContent(workingContent);
-
                 console.log(
                     `🎯 [JSON-EXTRACT] Using LAST valid JSON out of ${validJSONBlocks.length} found`,
                 );
             }
+
+            // ALWAYS clean JSON blocks from content if they look like pricing data
+            // This ensures we don't show raw JSON even if we didn't extract it for the visualizer
+            workingContent = cleanStreamContent(workingContent);
         }
 
 

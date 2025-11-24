@@ -526,15 +526,18 @@ export function useDocumentState({
 
     const currentDoc = documents.find((d) => d.id === currentDocId);
 
+    const loadedDocIdRef = useRef<string | null>(null);
+
     useEffect(() => {
-        if (currentDoc && editorRef.current) {
+        if (currentDoc && editorRef.current && currentDoc.id !== loadedDocIdRef.current) {
             console.log("📄 Loading content for SOW", currentDocId, "...");
             editorRef.current.commands?.setContent
                 ? editorRef.current.commands.setContent(currentDoc.content)
                 : editorRef.current.insertContent(currentDoc.content);
             console.log("✅ LOAD SUCCESS for", currentDocId);
+            loadedDocIdRef.current = currentDoc.id;
         }
-    }, [currentDocId]);
+    }, [currentDocId, currentDoc]);
 
     return {
         documents,

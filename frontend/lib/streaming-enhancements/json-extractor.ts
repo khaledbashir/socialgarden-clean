@@ -141,6 +141,30 @@ export function extractStreamingJSON(content: string): StreamUpdate {
                     gstAmount: parsed.gstAmount ?? parsed.gst_amount ?? undefined,
                 };
                 validJSONBlocks.push(normalized);
+            } else if (parsed && parsed.scope_name) {
+                // Handle single scope object (AI sometimes outputs just one scope)
+                const normalized: PricingData = {
+                    currency: "AUD", // Default
+                    discountPercent: 0,
+                    scopes: [{
+                        scope_name: parsed.scope_name,
+                        scope_description: parsed.scope_description,
+                        deliverables: Array.isArray(parsed.deliverables) ? parsed.deliverables : [],
+                        assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions : [],
+                        roles: Array.isArray(parsed.roles)
+                            ? parsed.roles
+                            : Array.isArray(parsed.role_allocation)
+                                ? parsed.role_allocation
+                                : [],
+                        subTotal: parsed.subTotal ?? parsed.scope_subtotal ?? undefined,
+                        discountAmount: parsed.discountAmount ?? parsed.discount_amount ?? undefined,
+                        gstAmount: parsed.gstAmount ?? parsed.gst_amount ?? undefined,
+                        total: parsed.total ?? parsed.scope_total ?? undefined,
+                    }],
+                    grandTotal: parsed.total ?? parsed.scope_total ?? undefined,
+                    gstAmount: parsed.gstAmount ?? parsed.gst_amount ?? undefined,
+                };
+                validJSONBlocks.push(normalized);
             }
         } catch (e) {
             // Invalid structure, skip
