@@ -188,20 +188,39 @@ export default function WorkspaceChat({
         return cleanedContent;
     };
 
-    // Insert with feedback
+    // Insert with feedback - ASYNC to prevent UI freeze on large content
     const handleInsertWithFeedback = (content: string, messageId: string) => {
         setInsertingMessageId(messageId);
-        try {
-            const cleanedContent = stripReasoningAndToolTags(content);
-            insertPricingToEditor(cleanedContent, (formatted) => {
-                onInsertToEditor(formatted);
-            });
-            toast.success("Content inserted to editor");
-        } catch {
-            onInsertToEditor(content);
-            toast.warning("Inserted raw content");
+
+        // Show loading toast immediately
+        const loadingToast = toast.loading("Processing content for insertion...");
+
+        // Use requestIdleCallback to prevent UI freeze on large content (e.g., 715KB)
+        const processInsert = () => {
+            try {
+                const cleanedContent = stripReasoningAndToolTags(content);
+                insertPricingToEditor(cleanedContent, (formatted) => {
+                    onInsertToEditor(formatted);
+                    toast.dismiss(loadingToast);
+                    toast.success("Content inserted to editor");
+                    setInsertingMessageId(null);
+                });
+            } catch (error) {
+                console.error("❌ [INSERT] Error processing content:", error);
+                onInsertToEditor(content);
+                toast.dismiss(loadingToast);
+                toast.warning("Inserted raw content");
+                setInsertingMessageId(null);
+            }
+        };
+
+        // Defer processing to prevent blocking UI
+        if (typeof requestIdleCallback !== 'undefined') {
+            requestIdleCallback(processInsert, { timeout: 2000 });
+        } else {
+            // Fallback for browsers without requestIdleCallback
+            setTimeout(processInsert, 0);
         }
-        setTimeout(() => setInsertingMessageId(null), 1000);
     };
 
     // 🎯 Auto-collapse upload area when all files complete
