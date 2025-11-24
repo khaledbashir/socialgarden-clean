@@ -198,7 +198,17 @@ export default function WorkspaceChat({
         // Use requestIdleCallback to prevent UI freeze on large content (e.g., 715KB)
         const processInsert = () => {
             try {
-                const cleanedContent = stripReasoningAndToolTags(content);
+                // 🛡️ SAFETY: Ensure content is a string
+                const contentStr = typeof content === 'string' ? content : String(content || '');
+
+                if (!contentStr || !contentStr.trim()) {
+                    toast.dismiss(loadingToast);
+                    toast.error("No content to insert");
+                    setInsertingMessageId(null);
+                    return;
+                }
+
+                const cleanedContent = stripReasoningAndToolTags(contentStr);
                 insertPricingToEditor(cleanedContent, (formatted) => {
                     onInsertToEditor(formatted);
                     toast.dismiss(loadingToast);
@@ -207,7 +217,8 @@ export default function WorkspaceChat({
                 });
             } catch (error) {
                 console.error("❌ [INSERT] Error processing content:", error);
-                onInsertToEditor(content);
+                const fallbackContent = typeof content === 'string' ? content : String(content || '');
+                onInsertToEditor(fallbackContent);
                 toast.dismiss(loadingToast);
                 toast.warning("Inserted raw content");
                 setInsertingMessageId(null);
