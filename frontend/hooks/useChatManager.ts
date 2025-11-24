@@ -11,7 +11,7 @@ import {
     extractPricingJSON,
     buildSuggestedRolesFromArchitectSOW,
 } from "@/lib/page-utils";
-import { WORKSPACE_CONFIG, getWorkspaceForAgent } from "@/lib/workspace-config";
+import { WORKSPACE_CONFIG } from "@/lib/workspace-config";
 import { ROLES } from "@/lib/rateCard";
 import { sanitizeEmptyTextNodes } from "@/lib/page-utils";
 import { extractSOWStructuredJson, formatSOWToHTML } from "@/lib/export-utils";
@@ -379,12 +379,11 @@ export function useChatManager({
                     );
                 }
 
-                // Attempt to embed to AnythingLLM workspace if configured (non-blocking)
+                // 🎯 ARCHITECTURAL COMPLIANCE: Client = Workspace, SOW = Thread
+                // Embed ONLY to the client's dedicated workspace (no dual-embedding)
                 // This runs asynchronously and won't block content insertion
-                const workspaceForAgent = getWorkspaceForAgent(
-                    currentAgentId || "",
-                );
-                if (workspaceForAgent && currentDoc?.id) {
+                const clientWorkspaceSlug = currentDoc?.workspaceSlug;
+                if (clientWorkspaceSlug && currentDoc?.id) {
                     // Run embedding in background - don't await to avoid blocking insertion
                     (async () => {
                         try {
@@ -399,9 +398,9 @@ export function useChatManager({
                                     processedContent;
                             }
 
-                            // Fix parameter order: workspaceSlug, sowTitle, htmlContent, metadata
+                            // Embed to CLIENT workspace only (not sow-generator)
                             const success = await anythingLLM.embedSOWDocument(
-                                workspaceForAgent,
+                                clientWorkspaceSlug,
                                 currentDoc?.title ||
                                 currentDoc?.id ||
                                 "Untitled SOW",
@@ -413,7 +412,7 @@ export function useChatManager({
                             );
                             if (success) {
                                 log(
-                                    "✅ Document embedded in AnythingLLM workspace",
+                                    `✅ Document embedded in client workspace: ${clientWorkspaceSlug}`,
                                 );
                             } else {
                                 log(

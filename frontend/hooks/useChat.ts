@@ -32,14 +32,14 @@ export function useChat({
     useEffect(() => {
         // Load thread history when document context changes
         const loadThreadHistory = async () => {
-            if (!currentDoc?.threadSlug) {
+            if (!currentDoc?.threadSlug || !currentDoc?.workspaceSlug) {
                 setChatMessages([]);
                 return;
             }
 
             try {
                 const history = await anythingLLM.getThreadChats(
-                    currentDoc.workspaceSlug || "sow-generator",
+                    currentDoc.workspaceSlug,
                     currentDoc.threadSlug,
                 );
 
@@ -176,7 +176,12 @@ What would you like to work on today?`,
             return;
         }
 
-        const workspaceSlug = currentDoc?.workspaceSlug || "sow-generator";
+        if (!currentDoc?.workspaceSlug) {
+            toast.error("No workspace configured for this document.");
+            return;
+        }
+
+        const workspaceSlug = currentDoc.workspaceSlug;
         const threadSlug = currentDoc?.threadSlug;
 
         // Check if thread is a temporary one (starts with "temp-")
@@ -220,9 +225,9 @@ What would you like to work on today?`,
                                 prev.map((msg) =>
                                     msg.id === assistantMessageId
                                         ? {
-                                              ...msg,
-                                              content: msg.content + data.text,
-                                          }
+                                            ...msg,
+                                            content: msg.content + data.text,
+                                        }
                                         : msg,
                                 ),
                             );
