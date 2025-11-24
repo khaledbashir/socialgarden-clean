@@ -36,7 +36,7 @@ export function convertV41JSONToEditorFormat(
     let markdownContent = `# Statement of Work\n\n`;
 
     // Helper to safely format numbers
-    const fmt = (num: number | undefined) => (num || 0).toLocaleString();
+    const fmt = (num: number | undefined) => (num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     // Add project header
     markdownContent += `**Currency:** ${pricingData.currency}  \n`;
@@ -67,52 +67,65 @@ export function convertV41JSONToEditorFormat(
             markdownContent += `\n`;
         }
 
-        // Add pricing table
-        markdownContent += `### Investment Breakdown\n\n`;
-        markdownContent += `| Role | Description | Hours | Rate | Cost |\n`;
-        markdownContent += `|------|-------------|-------|------|----- |\n`;
+        // Add pricing table for this scope
+        markdownContent += `### Investment Breakdown - Phase ${scopeNumber}\n\n`;
 
-        (scope.role_allocation || []).forEach((role) => {
-            markdownContent += `| ${role.role} | ${role.description} | ${role.hours} | ${pricingData.currency} ${role.rate} | ${pricingData.currency} ${role.cost} |\n`;
-        });
+        // Create the rows for this scope's table
+        const tableRows = (scope.role_allocation || []).map((role, idx) => ({
+            id: `row-${scopeIndex}-${idx}-${Date.now()}`,
+            role: role.role,
+            description: role.description,
+            hours: role.hours,
+            rate: role.rate,
+        }));
 
-        // Calculate scope total
-        const scopeTotal = (scope.role_allocation || []).reduce(
-            (sum, role) => sum + (role.cost || 0),
-            0,
-        );
-        markdownContent += `\n**Scope Total:** ${pricingData.currency} ${fmt(scopeTotal)}\n\n`;
+        // Serialize rows and other data for the custom node
+        const rowsJson = JSON.stringify(tableRows).replace(/"/g, '&quot;');
+        const aiDataJson = JSON.stringify({ rows: tableRows, discount: scope.discount || 0 }).replace(/"/g, '&quot;');
 
-        // Add scope discount if specified
-        if (scope.discount && scope.discount > 0) {
-            const discountAmount = scopeTotal * (scope.discount / 100);
-            const finalScopeTotal = scopeTotal - discountAmount;
-            markdownContent += `**Discount:** ${scope.discount}% (-${pricingData.currency} ${fmt(discountAmount)})\n`;
-            markdownContent += `**Final Scope Total:** ${pricingData.currency} ${fmt(finalScopeTotal)}\n\n`;
-        }
+        // Construct the HTML for the custom node
+        // We use data attributes to pass the structured data
+        markdownContent += `<div data-type="editable-pricing-table" 
+            data-rows="${rowsJson}" 
+            data-discount="${scope.discount || 0}"
+            data-scope-name="${scope.scope_name}"
+            data-scope-description="${scope.scope_description}"
+            data-scope-index="${scopeIndex}"
+            data-total-scopes="${pricingData.scopes.length}"
+            data-mode="view"
+            data-ai-generated-data="${aiDataJson}"
+            data-show-totals="true"></div>\n\n`;
     });
 
-    // Add overall financial summary
+    // Add overall financial summary table (ReadOnly Markdown Table)
     markdownContent += `## Investment Summary\n\n`;
-    markdownContent += `**Subtotal (before discount):** ${pricingData.currency} ${fmt(pricingData.grand_total_pre_gst)}\n`;
+    markdownContent += `| Scope | Estimated Hours | Total Cost |\n`;
+    markdownContent += `|-------|-----------------|------------|\n`;
 
+    pricingData.scopes.forEach((scope, idx) => {
+        const scopeTotal = (scope.role_allocation || []).reduce((sum, r) => sum + (r.cost || 0), 0);
+        const scopeHours = (scope.role_allocation || []).reduce((sum, r) => sum + (r.hours || 0), 0);
+        const discountAmount = scopeTotal * ((scope.discount || 0) / 100);
+        const finalScopeTotal = scopeTotal - discountAmount;
+
+        markdownContent += `| **Scope ${idx + 1}: ${scope.scope_name}** | **${scopeHours}** | **${pricingData.currency} ${fmt(finalScopeTotal)}** |\n`;
+    });
+
+    markdownContent += `| **TOTAL PROJECT** | **${pricingData.scopes.reduce((acc, s) => acc + (s.role_allocation || []).reduce((h, r) => h + (r.hours || 0), 0), 0)}** | **${pricingData.currency} ${fmt(pricingData.grand_total_pre_gst)}** |\n\n`;
+
+    // Final totals
     if (pricingData.discount > 0) {
-        const discountAmount =
-            (pricingData.grand_total_pre_gst || 0) * (pricingData.discount / 100);
-        const discountedSubtotal =
-            (pricingData.grand_total_pre_gst || 0) - discountAmount;
+        const discountAmount = (pricingData.grand_total_pre_gst || 0) * (pricingData.discount / 100);
+        const discountedSubtotal = (pricingData.grand_total_pre_gst || 0) - discountAmount;
+        markdownContent += `**Subtotal (before discount):** ${pricingData.currency} ${fmt(pricingData.grand_total_pre_gst)}\n`;
         markdownContent += `**Discount:** ${pricingData.discount}% (-${pricingData.currency} ${fmt(discountAmount)})\n`;
         markdownContent += `**Subtotal (after discount):** ${pricingData.currency} ${fmt(discountedSubtotal)}\n`;
     } else {
-        const discountedSubtotal = pricingData.grand_total_pre_gst || 0;
-        markdownContent += `**Subtotal (after discount):** ${pricingData.currency} ${fmt(discountedSubtotal)}\n`;
+        markdownContent += `**Subtotal:** ${pricingData.currency} ${fmt(pricingData.grand_total_pre_gst)}\n`;
     }
 
     markdownContent += `**GST:** ${pricingData.gst_rate}% (${pricingData.currency} ${fmt(pricingData.gst_amount)})\n`;
     markdownContent += `**TOTAL PROJECT VALUE:** ${pricingData.currency} ${fmt(pricingData.grand_total)}\n\n`;
-
-    // Add editable pricing table marker for TipTap processing
-    markdownContent += `[editablePricingTable]\n\n`;
 
     // Add closing
     markdownContent += `---\n\n`;

@@ -40,7 +40,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         const currentRows = node.attrs.rows || [];
         const currentRowsStr = JSON.stringify(currentRows);
         const storedRowsStr = JSON.stringify(initialRowsRef.current.map(r => ({ role: r.role, hours: r.hours, rate: r.rate, total: r.total })));
-        
+
         // Only update if rows actually changed (not just a reference change)
         if (currentRowsStr !== storedRowsStr && currentRows.length > 0) {
             console.log("🔄 [Pricing Table] Detected node.attrs.rows change, updating initialRowsRef", {
@@ -48,12 +48,12 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                 newCount: currentRows.length,
                 newRows: currentRows.slice(0, 3).map((r: any) => ({ role: r.role, hours: r.hours, rate: r.rate }))
             });
-            
+
             initialRowsRef.current = currentRows.map((row: any, idx: number) => ({
                 ...row,
                 id: row.id || `row-${idx}-${Date.now()}`,
             }));
-            
+
             // Force re-render by updating state
             setIsUserModified(false); // Reset user modification flag so new data can populate
         }
@@ -102,13 +102,13 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     const [rows, setRows] = useState<PricingRow[]>(enforcedRows);
     const [discount, setDiscount] = useState(node.attrs.discount || 0);
     const [showTotal, setShowTotal] = useState(node.attrs.showTotal !== false); // Default to true
-    
+
     // 🎯 Save/Revert metadata tracking
     const [mode, setMode] = useState<'view' | 'edit'>(node.attrs.mode || 'view');
     const aiGeneratedDataRef = useRef<{ rows: PricingRow[]; discount: number } | null>(
         node.attrs.aiGeneratedData ? JSON.parse(node.attrs.aiGeneratedData) : null
     );
-    
+
     // 🎯 Store AI-generated data on initial load if not already stored
     useEffect(() => {
         // Store AI data if:
@@ -133,7 +133,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     // Update rows when enforcedRows changes (after rate card loads)
     // BUT: Don't overwrite if user has manually added rows
     const [isUserModified, setIsUserModified] = useState(false);
-    
+
     useEffect(() => {
         // Only auto-update rows if user hasn't manually modified them
         if (enforcedRows.length > 0 && !isUserModified) {
@@ -148,14 +148,14 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     // 🎯 CRITICAL FIX: Sync discount state with node.attrs.discount when it changes
     // Use ref to track if we're updating from internal state change to prevent loop
     const isInternalUpdateRef = useRef(false);
-    
+
     useEffect(() => {
         // Skip if this is an internal update (we're the ones changing it)
         if (isInternalUpdateRef.current) {
             isInternalUpdateRef.current = false;
             return;
         }
-        
+
         // Only sync if node.attrs actually changed from external source
         if (
             node.attrs.discount !== undefined &&
@@ -174,7 +174,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         if (isInternalUpdateRef.current) {
             return;
         }
-        
+
         if (
             node.attrs.showTotal !== undefined &&
             node.attrs.showTotal !== showTotal
@@ -222,21 +222,21 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     // 🔒 CRITICAL FIX: Prevent infinite loop by checking if values actually changed
     // and using useRef to track previous values
     const prevValuesRef = useRef({ rows, discount, showTotal });
-    
+
     useEffect(() => {
         // Only update if values actually changed
         const prev = prevValuesRef.current;
         const rowsChanged = JSON.stringify(prev.rows) !== JSON.stringify(rows);
         const discountChanged = prev.discount !== discount;
         const showTotalChanged = prev.showTotal !== showTotal;
-        
+
         if (rowsChanged || discountChanged || showTotalChanged) {
             // Mark as internal update to prevent sync loop
             isInternalUpdateRef.current = true;
-            
+
             // Update ref before calling updateAttributes
             prevValuesRef.current = { rows, discount, showTotal };
-            
+
             // Defer updateAttributes to a microtask to avoid flushSync errors
             // This prevents calling updateAttributes from within a React lifecycle
             Promise.resolve().then(() => {
@@ -267,7 +267,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                         );
                         alert(
                             `Role "${value}" is not in the official Rate Card. ` +
-                                `Please select a role from the dropdown.`,
+                            `Please select a role from the dropdown.`,
                         );
                         return row; // Don't update - keep previous valid role
                     }
@@ -294,12 +294,12 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
             hours: 0,
             rate: 0,
         };
-        
+
         console.log("➕ [Pricing Table] Adding new row:", newRow);
         console.log("➕ [Pricing Table] Current rows count:", rows.length);
-        
+
         setIsUserModified(true); // Mark as user-modified to prevent enforcedRows from overwriting
-        
+
         setRows((prevRows) => {
             const updatedRows = [...prevRows, newRow];
             console.log("➕ [Pricing Table] Updated rows count:", updatedRows.length);
@@ -509,7 +509,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                         >
                             + Add Role
                         </button>
-                        
+
                         {/* 🎯 Save/Revert buttons for metadata tracking */}
                         {mode === 'view' && aiGeneratedDataRef.current && (
                             <button
@@ -537,7 +537,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                 Revert to AI
                             </button>
                         )}
-                        
+
                         {mode === 'edit' && (
                             <button
                                 onClick={(e) => {
@@ -761,77 +761,77 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                             </button>
                         </div>
                         {showTotal && (
-                        <div className="bg-muted dark:bg-gray-800 rounded-lg p-4 space-y-2">
-                            <div className="flex justify-between items-center text-sm text-foreground dark:text-gray-100">
-                                <span>Discount (%):</span>
-                                <input
-                                    type="number"
-                                    value={discount}
-                                    onChange={(e) =>
-                                        setDiscount(
-                                            parseFloat(e.target.value) || 0,
-                                        )
-                                    }
-                                    min="0"
-                                    max="100"
-                                    className="w-20 px-2 py-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-right"
-                                />
+                            <div className="bg-muted dark:bg-gray-800 rounded-lg p-4 space-y-2">
+                                <div className="flex justify-between items-center text-sm text-foreground dark:text-gray-100">
+                                    <span>Discount (%):</span>
+                                    <input
+                                        type="number"
+                                        value={discount}
+                                        onChange={(e) =>
+                                            setDiscount(
+                                                parseFloat(e.target.value) || 0,
+                                            )
+                                        }
+                                        min="0"
+                                        max="100"
+                                        className="w-20 px-2 py-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded text-right"
+                                    />
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <button
+                                        type="button"
+                                        className="px-3 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded"
+                                        onClick={() => {
+                                            const t = Math.round((financialBreakdown.grandTotal) / 500) * 500;
+                                            applyRounding(t);
+                                        }}
+                                    >
+                                        Round to nearest 500
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="px-3 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded"
+                                        onClick={() => {
+                                            const t = Math.round((financialBreakdown.grandTotal) / 1000) * 1000;
+                                            applyRounding(t);
+                                        }}
+                                    >
+                                        Round to nearest 1000
+                                    </button>
+                                </div>
+                                <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
+                                    <span>Subtotal (ex GST):</span>
+                                    <span className="font-semibold">
+                                        ${calculateSubtotal().toFixed(2)}
+                                    </span>
+                                </div>
+                                {discount > 0 && (
+                                    <>
+                                        <div className="flex justify-between text-sm text-red-600">
+                                            <span>Discount ({discount}%):</span>
+                                            <span>
+                                                -${calculateDiscount().toFixed(2)}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
+                                            <span>After Discount (ex GST):</span>
+                                            <span className="font-semibold">
+                                                ${calculateSubtotalAfterDiscount().toFixed(2)}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
+                                <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
+                                    <span>GST (10%):</span>
+                                    <span>${calculateGST().toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-base font-bold text-foreground dark:text-gray-100 border-t border-border pt-2 mt-2">
+                                    <span>Total Project Value:</span>
+                                    <span className="text-[#0e2e33] dark:text-[#1CBF79]">
+                                        ${calculateTotal().toFixed(2)} incl GST
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex gap-2 justify-end">
-                                <button
-                                    type="button"
-                                    className="px-3 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded"
-                                    onClick={() => {
-                                        const t = Math.round((financialBreakdown.grandTotal) / 500) * 500;
-                                        applyRounding(t);
-                                    }}
-                                >
-                                    Round to nearest 500
-                                </button>
-                                <button
-                                    type="button"
-                                    className="px-3 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded"
-                                    onClick={() => {
-                                        const t = Math.round((financialBreakdown.grandTotal) / 1000) * 1000;
-                                        applyRounding(t);
-                                    }}
-                                >
-                                    Round to nearest 1000
-                                </button>
-                            </div>
-                            <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
-                                <span>Subtotal (ex GST):</span>
-                                <span className="font-semibold">
-                                    ${calculateSubtotal().toFixed(2)}
-                                </span>
-                            </div>
-                            {discount > 0 && (
-                                <>
-                                    <div className="flex justify-between text-sm text-red-600">
-                                        <span>Discount ({discount}%):</span>
-                                        <span>
-                                            -${calculateDiscount().toFixed(2)}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
-                                        <span>After Discount (ex GST):</span>
-                                        <span className="font-semibold">
-                                            ${calculateSubtotalAfterDiscount().toFixed(2)}
-                                        </span>
-                                    </div>
-                                </>
-                            )}
-                            <div className="flex justify-between text-sm text-foreground dark:text-gray-100">
-                                <span>GST (10%):</span>
-                                <span>${calculateGST().toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between text-base font-bold text-foreground dark:text-gray-100 border-t border-border pt-2 mt-2">
-                                <span>Total Project Value:</span>
-                                <span className="text-[#0e2e33] dark:text-[#1CBF79]">
-                                    ${calculateTotal().toFixed(2)} incl GST
-                                </span>
-                            </div>
-                        </div>
                         )}
                     </div>
                 </div>
@@ -859,15 +859,54 @@ export const EditablePricingTable = Node.create({
                         rate: 0,
                     },
                 ],
+                parseHTML: (element) => {
+                    const rows = element.getAttribute("data-rows");
+                    return rows ? JSON.parse(rows) : [];
+                },
             },
             discount: {
                 default: 0,
+                parseHTML: (element) => {
+                    const discount = element.getAttribute("data-discount");
+                    return discount ? Number(discount) : 0;
+                },
             },
             scopeName: {
                 default: "",
+                parseHTML: (element) => element.getAttribute("data-scope-name") || "",
             },
             scopeDescription: {
                 default: "",
+                parseHTML: (element) => element.getAttribute("data-scope-description") || "",
+            },
+            scopeIndex: {
+                default: 0,
+                parseHTML: (element) => {
+                    const idx = element.getAttribute("data-scope-index");
+                    return idx ? Number(idx) : 0;
+                },
+            },
+            totalScopes: {
+                default: 1,
+                parseHTML: (element) => {
+                    const total = element.getAttribute("data-total-scopes");
+                    return total ? Number(total) : 1;
+                },
+            },
+            mode: {
+                default: "view",
+                parseHTML: (element) => element.getAttribute("data-mode") || "view",
+            },
+            aiGeneratedData: {
+                default: null,
+                parseHTML: (element) => element.getAttribute("data-ai-generated-data") || null,
+            },
+            showTotal: {
+                default: true,
+                parseHTML: (element) => {
+                    const show = element.getAttribute("data-show-totals");
+                    return show !== "false";
+                },
             },
         };
     },
@@ -1042,31 +1081,31 @@ export const EditablePricingTable = Node.create({
                 ],
                 ...(discount > 0
                     ? [
-                          [
-                              "div",
-                              {
-                                  style: "display:flex; justify-content:space-between; padding:0.5rem 0; color:#ef4444;",
-                              },
-                              ["span", {}, `Discount (${discount}%):`],
-                              ["span", {}, `-$${discountAmount.toFixed(2)}`],
-                          ],
-                          [
-                              "div",
-                              {
-                                  style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
-                              },
-                              [
-                                  "span",
-                                  { style: "font-weight:600;" },
-                                  "Subtotal After Discount:",
-                              ],
-                              [
-                                  "span",
-                                  { style: "font-weight:600;" },
-                                  `$${subtotalAfterDiscount.toFixed(2)}`,
-                              ],
-                          ],
-                      ]
+                        [
+                            "div",
+                            {
+                                style: "display:flex; justify-content:space-between; padding:0.5rem 0; color:#ef4444;",
+                            },
+                            ["span", {}, `Discount (${discount}%):`],
+                            ["span", {}, `-$${discountAmount.toFixed(2)}`],
+                        ],
+                        [
+                            "div",
+                            {
+                                style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
+                            },
+                            [
+                                "span",
+                                { style: "font-weight:600;" },
+                                "Subtotal After Discount:",
+                            ],
+                            [
+                                "span",
+                                { style: "font-weight:600;" },
+                                `$${subtotalAfterDiscount.toFixed(2)}`,
+                            ],
+                        ],
+                    ]
                     : []),
                 [
                     "div",
