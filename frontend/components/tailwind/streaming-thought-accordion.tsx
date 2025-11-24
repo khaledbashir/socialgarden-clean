@@ -83,10 +83,22 @@ export function StreamingThoughtAccordion({
             // Use robust extractor
             const allBlocks = extractAllJSONBlocks(workingContent);
 
-            // Filter for blocks that look like scopes (have scope_name and role_allocation)
-            const validJSONBlocks = allBlocks.filter(block =>
-                block.parsed && block.parsed.scope_name && block.parsed.role_allocation
-            );
+            // Filter for blocks that look like pricing data
+            // Accept both formats:
+            // 1. Single-scope: { scope_name, role_allocation, ... }
+            // 2. Multi-scope: { scopes: [{ scope_name, roles, ... }] }
+            const validJSONBlocks = allBlocks.filter(block => {
+                const parsed = block.parsed;
+                if (!parsed) return false;
+
+                // Format 1: Single-scope with role_allocation at root
+                const hasSingleScope = parsed.scope_name && parsed.role_allocation;
+
+                // Format 2: Multi-scope with scopes array
+                const hasMultiScope = Array.isArray(parsed.scopes) && parsed.scopes.length > 0;
+
+                return hasSingleScope || hasMultiScope;
+            });
 
             // Use ONLY the LAST valid JSON block
             if (validJSONBlocks.length > 0) {
@@ -357,228 +369,253 @@ export function StreamingThoughtAccordion({
             {/* Pricing Blocks */}
             {pricingBlocks.length > 0 && (
                 <div className="space-y-3">
-                    {pricingBlocks.map((block, index) => (
-                        <div
-                            key={index}
-                            className="bg-[#0a0a0a] border border-[#20e28f]/30 rounded-lg overflow-hidden"
-                        >
-                            {/* Header */}
-                            <div className="bg-[#20e28f]/10 px-4 py-3 border-b border-[#20e28f]/30">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <DollarSign className="w-4 h-4 text-[#20e28f]" />
-                                        <span className="text-sm font-medium text-[#20e28f]">
-                                            {block.scope_name}
+                    {pricingBlocks.map((block, index) => {
+                        // Normalize block structure to handle both formats
+                        // Format 1: Single-scope { scope_name, role_allocation, ... }
+                        // Format 2: Multi-scope { scopes: [{ scope_name, roles, ... }] }
+                        const scopesToRender = block.scopes
+                            ? block.scopes.map((scope: any) => ({
+                                ...scope,
+                                role_allocation: scope.role_allocation || scope.roles || []
+                            }))
+                            : [{
+                                scope_name: block.scope_name,
+                                scope_description: block.scope_description,
+                                deliverables: block.deliverables,
+                                assumptions: block.assumptions,
+                                role_allocation: block.role_allocation || [],
+                                scope_subtotal: block.scope_subtotal,
+                                discount_percent: block.discount_percent,
+                                discount_amount: block.discount_amount,
+                                subtotal_after_discount: block.subtotal_after_discount,
+                                gst_percent: block.gst_percent,
+                                gst_amount: block.gst_amount,
+                                scope_total: block.scope_total
+                            }];
+
+                        return scopesToRender.map((scope: any, scopeIndex: number) => (
+                            <div
+                                key={`${index}-${scopeIndex}`}
+                                className="bg-[#0a0a0a] border border-[#20e28f]/30 rounded-lg overflow-hidden"
+                            >
+                                {/* Header */}
+                                <div className="bg-[#20e28f]/10 px-4 py-3 border-b border-[#20e28f]/30">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <DollarSign className="w-4 h-4 text-[#20e28f]" />
+                                            <span className="text-sm font-medium text-[#20e28f]">
+                                                {scope.scope_name || 'Pricing Scope'}
+                                            </span>
+                                        </div>
+                                        <span className="text-sm font-bold text-[#20e28f]">
+                                            $
+                                            {(
+                                                scope.scope_total || 0
+                                            ).toLocaleString("en-AU", {
+                                                minimumFractionDigits: 2,
+                                            })}
                                         </span>
                                     </div>
-                                    <span className="text-sm font-bold text-[#20e28f]">
-                                        $
-                                        {(
-                                            block.scope_total || 0
-                                        ).toLocaleString("en-AU", {
-                                            minimumFractionDigits: 2,
-                                        })}
-                                    </span>
+                                    {scope.scope_description && (
+                                        <p className="text-xs text-gray-300 mt-2 leading-relaxed">
+                                            {scope.scope_description}
+                                        </p>
+                                    )}
                                 </div>
-                                {block.scope_description && (
-                                    <p className="text-xs text-gray-300 mt-2 leading-relaxed">
-                                        {block.scope_description}
-                                    </p>
-                                )}
-                            </div>
 
-                            {/* Content */}
-                            <div className="p-4 space-y-4">
-                                {/* Deliverables */}
-                                {block.deliverables &&
-                                    block.deliverables.length > 0 && (
-                                        <div>
-                                            <h4 className="text-sm font-medium text-white mb-2">
-                                                Key Deliverables
-                                            </h4>
-                                            <ul className="text-xs text-gray-300 space-y-1">
-                                                {block.deliverables.map(
-                                                    (
-                                                        deliverable: string,
-                                                        idx: number,
-                                                    ) => (
-                                                        <li
-                                                            key={idx}
-                                                            className="flex items-start gap-2"
-                                                        >
-                                                            <span className="text-[#20e28f] mt-1">
-                                                                •
-                                                            </span>
-                                                            <span>
-                                                                {deliverable}
-                                                            </span>
-                                                        </li>
-                                                    ),
-                                                )}
-                                            </ul>
-                                        </div>
-                                    )}
-
-                                {/* Resource Allocation */}
-                                {block.role_allocation &&
-                                    block.role_allocation.length > 0 && (
-                                        <div>
-                                            <h4 className="text-sm font-medium text-white mb-2">
-                                                Resource Allocation
-                                            </h4>
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-xs">
-                                                    <thead>
-                                                        <tr className="border-b border-[#1b5e5e]/30">
-                                                            <th className="text-left py-2 text-gray-300 font-medium">
-                                                                Role
-                                                            </th>
-                                                            <th className="text-right py-2 text-gray-300 font-medium">
-                                                                Hours
-                                                            </th>
-                                                            <th className="text-right py-2 text-gray-300 font-medium">
-                                                                Rate
-                                                            </th>
-                                                            <th className="text-right py-2 text-gray-300 font-medium">
-                                                                Cost
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {block.role_allocation.map(
-                                                            (
-                                                                role: any,
-                                                                roleIndex: number,
-                                                            ) => (
-                                                                <tr
-                                                                    key={
-                                                                        roleIndex
-                                                                    }
-                                                                    className="border-b border-[#1b5e5e]/10"
-                                                                >
-                                                                    <td className="py-2 text-white text-left">
-                                                                        {
-                                                                            role.role
-                                                                        }
-                                                                    </td>
-                                                                    <td className="py-2 text-right text-gray-300">
-                                                                        {
-                                                                            role.hours
-                                                                        }
-                                                                    </td>
-                                                                    <td className="py-2 text-right text-gray-300">
-                                                                        $
-                                                                        {role.rate?.toFixed(
-                                                                            2,
-                                                                        )}
-                                                                    </td>
-                                                                    <td className="py-2 text-right text-white font-medium">
-                                                                        $
-                                                                        {role.cost?.toFixed(
-                                                                            2,
-                                                                        )}
-                                                                    </td>
-                                                                </tr>
-                                                            ),
-                                                        )}
-                                                    </tbody>
-                                                </table>
+                                {/* Content */}
+                                <div className="p-4 space-y-4">
+                                    {/* Deliverables */}
+                                    {scope.deliverables &&
+                                        scope.deliverables.length > 0 && (
+                                            <div>
+                                                <h4 className="text-sm font-medium text-white mb-2">
+                                                    Key Deliverables
+                                                </h4>
+                                                <ul className="text-xs text-gray-300 space-y-1">
+                                                    {scope.deliverables.map(
+                                                        (
+                                                            deliverable: string,
+                                                            idx: number,
+                                                        ) => (
+                                                            <li
+                                                                key={idx}
+                                                                className="flex items-start gap-2"
+                                                            >
+                                                                <span className="text-[#20e28f] mt-1">
+                                                                    •
+                                                                </span>
+                                                                <span>
+                                                                    {deliverable}
+                                                                </span>
+                                                            </li>
+                                                        ),
+                                                    )}
+                                                </ul>
                                             </div>
-                                        </div>
-                                    )}
-
-                                {/* Financial Summary */}
-                                <div className="bg-[#1b5e5e]/10 rounded p-3 space-y-2">
-                                    <h4 className="text-sm font-medium text-white mb-2">
-                                        Financial Summary
-                                    </h4>
-                                    <div className="space-y-1">
-                                        <div className="flex justify-between text-xs">
-                                            <span className="text-gray-300">
-                                                Subtotal:
-                                            </span>
-                                            <span className="text-white">
-                                                $
-                                                {(
-                                                    block.scope_subtotal || 0
-                                                ).toLocaleString("en-AU", {
-                                                    minimumFractionDigits: 2,
-                                                })}
-                                            </span>
-                                        </div>
-                                        {block.discount_percent > 0 && (
-                                            <>
-                                                <div className="flex justify-between text-xs">
-                                                    <span className="text-gray-300">
-                                                        Discount (
-                                                        {block.discount_percent}
-                                                        %):
-                                                    </span>
-                                                    <span className="text-red-400">
-                                                        -$
-                                                        {(
-                                                            block.discount_amount ||
-                                                            0
-                                                        ).toLocaleString(
-                                                            "en-AU",
-                                                            {
-                                                                minimumFractionDigits: 2,
-                                                            },
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between text-xs">
-                                                    <span className="text-gray-300">
-                                                        After Discount:
-                                                    </span>
-                                                    <span className="text-white">
-                                                        $
-                                                        {(
-                                                            block.subtotal_after_discount ||
-                                                            0
-                                                        ).toLocaleString(
-                                                            "en-AU",
-                                                            {
-                                                                minimumFractionDigits: 2,
-                                                            },
-                                                        )}
-                                                    </span>
-                                                </div>
-                                            </>
                                         )}
-                                        {block.gst_percent && (
+
+                                    {/* Resource Allocation */}
+                                    {scope.role_allocation &&
+                                        scope.role_allocation.length > 0 && (
+                                            <div>
+                                                <h4 className="text-sm font-medium text-white mb-2">
+                                                    Resource Allocation
+                                                </h4>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-xs">
+                                                        <thead>
+                                                            <tr className="border-b border-[#1b5e5e]/30">
+                                                                <th className="text-left py-2 text-gray-300 font-medium">
+                                                                    Role
+                                                                </th>
+                                                                <th className="text-right py-2 text-gray-300 font-medium">
+                                                                    Hours
+                                                                </th>
+                                                                <th className="text-right py-2 text-gray-300 font-medium">
+                                                                    Rate
+                                                                </th>
+                                                                <th className="text-right py-2 text-gray-300 font-medium">
+                                                                    Cost
+                                                                </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {scope.role_allocation.map(
+                                                                (
+                                                                    role: any,
+                                                                    roleIndex: number,
+                                                                ) => (
+                                                                    <tr
+                                                                        key={
+                                                                            roleIndex
+                                                                        }
+                                                                        className="border-b border-[#1b5e5e]/10"
+                                                                    >
+                                                                        <td className="py-2 text-white text-left">
+                                                                            {
+                                                                                role.role
+                                                                            }
+                                                                        </td>
+                                                                        <td className="py-2 text-right text-gray-300">
+                                                                            {
+                                                                                role.hours
+                                                                            }
+                                                                        </td>
+                                                                        <td className="py-2 text-right text-gray-300">
+                                                                            $
+                                                                            {role.rate?.toFixed(
+                                                                                2,
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="py-2 text-right text-white font-medium">
+                                                                            $
+                                                                            {role.cost?.toFixed(
+                                                                                2,
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                ),
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                    {/* Financial Summary */}
+                                    <div className="bg-[#1b5e5e]/10 rounded p-3 space-y-2">
+                                        <h4 className="text-sm font-medium text-white mb-2">
+                                            Financial Summary
+                                        </h4>
+                                        <div className="space-y-1">
                                             <div className="flex justify-between text-xs">
                                                 <span className="text-gray-300">
-                                                    GST ({block.gst_percent}%):
+                                                    Subtotal:
                                                 </span>
                                                 <span className="text-white">
                                                     $
                                                     {(
-                                                        block.gst_amount || 0
+                                                        scope.scope_subtotal || 0
                                                     ).toLocaleString("en-AU", {
                                                         minimumFractionDigits: 2,
                                                     })}
                                                 </span>
                                             </div>
-                                        )}
-                                        <div className="flex justify-between text-sm font-medium pt-2 border-t border-[#1b5e5e]/30">
-                                            <span className="text-[#20e28f]">
-                                                Total:
-                                            </span>
-                                            <span className="text-[#20e28f] font-bold">
-                                                $
-                                                {(
-                                                    block.scope_total || 0
-                                                ).toLocaleString("en-AU", {
-                                                    minimumFractionDigits: 2,
-                                                })}
-                                            </span>
+                                            {scope.discount_percent > 0 && (
+                                                <>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-gray-300">
+                                                            Discount (
+                                                            {scope.discount_percent}
+                                                            %):
+                                                        </span>
+                                                        <span className="text-red-400">
+                                                            -$
+                                                            {(
+                                                                scope.discount_amount ||
+                                                                0
+                                                            ).toLocaleString(
+                                                                "en-AU",
+                                                                {
+                                                                    minimumFractionDigits: 2,
+                                                                },
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-gray-300">
+                                                            After Discount:
+                                                        </span>
+                                                        <span className="text-white">
+                                                            $
+                                                            {(
+                                                                scope.subtotal_after_discount ||
+                                                                0
+                                                            ).toLocaleString(
+                                                                "en-AU",
+                                                                {
+                                                                    minimumFractionDigits: 2,
+                                                                },
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
+                                            {scope.gst_percent && (
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-gray-300">
+                                                        GST ({scope.gst_percent}%):
+                                                    </span>
+                                                    <span className="text-white">
+                                                        $
+                                                        {(
+                                                            scope.gst_amount || 0
+                                                        ).toLocaleString("en-AU", {
+                                                            minimumFractionDigits: 2,
+                                                        })}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between text-sm font-medium pt-2 border-t border-[#1b5e5e]/30">
+                                                <span className="text-[#20e28f]">
+                                                    Total:
+                                                </span>
+                                                <span className="text-[#20e28f] font-bold">
+                                                    $
+                                                    {(
+                                                        scope.scope_total || 0
+                                                    ).toLocaleString("en-AU", {
+                                                        minimumFractionDigits: 2,
+                                                    })}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ));
+                    })}
                 </div>
             )}
         </div>
