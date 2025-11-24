@@ -185,7 +185,7 @@ export function useChatManager({
     );
 
     const handleInsertContent = useCallback(
-        async (content: string, suggestedRoles: any[] = []) => {
+        async (content: string | any, suggestedRoles: any[] = []) => {
             let localMultiScopeData: any = undefined;
 
             // If SOW generation is already running, block manual insertion to avoid UI duplication
@@ -197,8 +197,26 @@ export function useChatManager({
                 return;
             }
 
-            // Trim content to check if it's actually empty
-            const trimmedContent = content?.trim() || "";
+            // 🛡️ SAFETY: Handle both string content and TipTap JSON objects
+            // Content might be:
+            // 1. A string (markdown/HTML)
+            // 2. A TipTap JSON object from V4.1 conversion (already formatted)
+            let processableContent: string;
+            let isTipTapJSON = false;
+
+            if (typeof content === 'object' && content !== null && content.type === 'doc') {
+                // Content is already a TipTap JSON object - use it directly
+                console.log("✅ Content is already TipTap JSON format");
+                isTipTapJSON = true;
+                processableContent = JSON.stringify(content); // For logging purposes
+            } else if (typeof content === 'string') {
+                processableContent = content;
+            } else {
+                // Fallback: convert to string
+                processableContent = typeof content === 'object' ? JSON.stringify(content) : String(content || '');
+            }
+
+            const trimmedContent = processableContent.trim();
 
             log(
                 "📝 Inserting content into editor:",
@@ -239,6 +257,37 @@ export function useChatManager({
             extractFinancialReasoning(trimmedContent);
 
             try {
+                // 🎯 If content is already a TipTap JSON object, use it directly
+                if (isTipTapJSON && typeof content === 'object' && content !== null) {
+                    console.log("🚀 Using pre-formatted TipTap JSON directly");
+                    const finalContent = content;
+
+                    // Update editor with the TipTap JSON object
+                    if (editorRef.current) {
+                        if (editorRef.current.commands?.setContent) {
+                            editorRef.current.commands.setContent(finalContent);
+                        } else {
+                            editorRef.current.insertContent(finalContent);
+                        }
+                        // Sync with parent component state
+                        if (setLatestEditorJSON) {
+                            setLatestEditorJSON(finalContent);
+                        }
+                        log("✅ TipTap JSON inserted successfully");
+                    }
+
+                    // Mark SOW result as ready
+                    try {
+                        setSowStatus("done");
+                    } catch (e) {
+                        // ignore if setter unavailable
+                    }
+
+                    toast.success("✅ Content inserted into editor!");
+                    return; // Early return - skip markdown processing
+                }
+
+                // 📝 String content - process through markdown conversion
                 let filteredContent = trimmedContent;
                 filteredContent = filteredContent.replace(
                     /<thinking>([\s\S]*?)<\/thinking>/gi,
