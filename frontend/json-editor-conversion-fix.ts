@@ -49,13 +49,13 @@ export function convertV41JSONToEditorFormat(
     content.push({
         type: "paragraph",
         content: [
-            { type: "text", marks: [{ type: "strong" }], text: "Currency:" },
+            { type: "text", marks: [{ type: "bold" }], text: "Currency:" },
             { type: "text", text: ` ${pricingData.currency}  ` },
             { type: "hardBreak" },
-            { type: "text", marks: [{ type: "strong" }], text: "GST Rate:" },
+            { type: "text", marks: [{ type: "bold" }], text: "GST Rate:" },
             { type: "text", text: ` ${pricingData.gst_rate}%  ` },
             { type: "hardBreak" },
-            { type: "text", marks: [{ type: "strong" }], text: "Total Investment:" },
+            { type: "text", marks: [{ type: "bold" }], text: "Total Investment:" },
             { type: "text", text: ` ${pricingData.currency} ${fmt(pricingData.grand_total)}` }
         ]
     });
@@ -75,7 +75,7 @@ export function convertV41JSONToEditorFormat(
         content.push({
             type: "paragraph",
             content: [
-                { type: "text", marks: [{ type: "strong" }], text: "Description:" },
+                { type: "text", marks: [{ type: "bold" }], text: "Description:" },
                 { type: "text", text: ` ${scope.scope_description}` }
             ]
         });
@@ -84,7 +84,7 @@ export function convertV41JSONToEditorFormat(
         if (scope.deliverables && scope.deliverables.length > 0) {
             content.push({
                 type: "paragraph",
-                content: [{ type: "text", marks: [{ type: "strong" }], text: "Deliverables:" }]
+                content: [{ type: "text", marks: [{ type: "bold" }], text: "Deliverables:" }]
             });
             content.push({
                 type: "bulletList",
@@ -102,7 +102,7 @@ export function convertV41JSONToEditorFormat(
         if (scope.assumptions && scope.assumptions.length > 0) {
             content.push({
                 type: "paragraph",
-                content: [{ type: "text", marks: [{ type: "strong" }], text: "Assumptions:" }]
+                content: [{ type: "text", marks: [{ type: "bold" }], text: "Assumptions:" }]
             });
             content.push({
                 type: "bulletList",
@@ -168,19 +168,19 @@ export function convertV41JSONToEditorFormat(
     content.push({
         type: "paragraph",
         content: [
-            { type: "text", marks: [{ type: "strong" }], text: "Subtotal (before discount):" },
+            { type: "text", marks: [{ type: "bold" }], text: "Subtotal (before discount):" },
             { type: "text", text: ` ${pricingData.currency} ${fmt(pricingData.grand_total_pre_gst)}  ` },
             { type: "hardBreak" },
-            { type: "text", marks: [{ type: "strong" }], text: "Discount:" },
+            { type: "text", marks: [{ type: "bold" }], text: "Discount:" },
             { type: "text", text: ` ${pricingData.discount}% (-${pricingData.currency} ${fmt(discountAmount)})  ` },
             { type: "hardBreak" },
-            { type: "text", marks: [{ type: "strong" }], text: "Subtotal (after discount):" },
+            { type: "text", marks: [{ type: "bold" }], text: "Subtotal (after discount):" },
             { type: "text", text: ` ${pricingData.currency} ${fmt(subtotalAfterDiscount)}  ` },
             { type: "hardBreak" },
-            { type: "text", marks: [{ type: "strong" }], text: "GST:" },
+            { type: "text", marks: [{ type: "bold" }], text: "GST:" },
             { type: "text", text: ` ${pricingData.gst_rate}% (${pricingData.currency} ${fmt(pricingData.gst_amount)})  ` },
             { type: "hardBreak" },
-            { type: "text", marks: [{ type: "strong" }], text: "TOTAL PROJECT VALUE:" },
+            { type: "text", marks: [{ type: "bold" }], text: "TOTAL PROJECT VALUE:" },
             { type: "text", text: ` ${pricingData.currency} ${fmt(pricingData.grand_total)}` }
         ]
     });
@@ -192,7 +192,7 @@ export function convertV41JSONToEditorFormat(
     content.push({
         type: "paragraph",
         content: [
-            { type: "text", marks: [{ type: "em" }], text: "This Statement of Work was generated using The Architect V4.1 AI system." }
+            { type: "text", marks: [{ type: "italic" }], text: "This Statement of Work was generated using The Architect V4.1 AI system." }
         ]
     });
 
