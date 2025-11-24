@@ -2,6 +2,7 @@
 // This fixes the issue where JSON is inserted as raw text instead of editable tables
 
 import { cleanSOWContent } from "@/lib/export-utils";
+import { extractAllJSONBlocks } from "@/lib/streaming-enhancements/json-extractor";
 
 interface V41PricingData {
     currency: string;
@@ -124,60 +125,35 @@ export function extractJSONFromContent(content: string): V41PricingData | null {
     );
 
     try {
-        // Clean the content first
-        const cleanedContent = cleanSOWContent(content);
+        // Use robust extractor
+        const allBlocks = extractAllJSONBlocks(content);
 
-        // Look for JSON blocks - collect all matches to find the LAST valid one
-        const jsonPatterns = [
-            /```json\s*([\s\S]*?)\s*```/gi,
-            /\{[\s\S]*?"currency"[\s\S]*?\}/gi,
-            /\{[\s\S]*?"scopes"[\s\S]*?\}/,
-        ];
+        const validJSONs: V41PricingData[] = [];
 
-        const allValidJSONs: any[] = [];
-
-        // Collect all potential JSON blocks
-        for (const pattern of jsonPatterns) {
-            let match;
-            const regex = new RegExp(pattern);
-
-            // Find ALL matches for this pattern, not just the first one
-            while ((match = regex.exec(cleanedContent)) !== null) {
-                try {
-                    const jsonStr = match[0]
-                        .replace(/```json\s*/, "")
-                        .replace(/\s*```/, "")
-                        .trim();
-                    const parsed = JSON.parse(jsonStr);
-
-                    // Validate that this looks like our V4.1 format
-                    if (
-                        parsed.currency &&
-                        parsed.scopes &&
-                        Array.isArray(parsed.scopes)
-                    ) {
-                        allValidJSONs.push(parsed);
-                        console.log(
-                            `✅ [JSON-EXTRACT] Found valid V4.1 JSON (total: ${allValidJSONs.length})`,
-                        );
-                    }
-                } catch (parseError) {
-                    console.log(
-                        "⚠️ [JSON-EXTRACT] JSON parse failed, trying next match",
-                    );
-                    continue;
-                }
+        for (const block of allBlocks) {
+            const parsed = block.parsed;
+            // Validate that this looks like our V4.1 format
+            if (
+                parsed &&
+                parsed.currency &&
+                parsed.scopes &&
+                Array.isArray(parsed.scopes)
+            ) {
+                validJSONs.push(parsed as V41PricingData);
+                console.log(
+                    `✅ [JSON-EXTRACT] Found valid V4.1 JSON (total: ${validJSONs.length})`,
+                );
             }
         }
 
         // Return the LAST valid JSON if we found any
-        if (allValidJSONs.length > 0) {
-            const lastValidJSON = allValidJSONs[allValidJSONs.length - 1];
+        if (validJSONs.length > 0) {
+            const lastValidJSON = validJSONs[validJSONs.length - 1];
             console.log(
-                `✅ [JSON-EXTRACT] Successfully extracted LAST V4.1 JSON out of ${allValidJSONs.length}:`,
+                `✅ [JSON-EXTRACT] Successfully extracted LAST V4.1 JSON out of ${validJSONs.length}:`,
                 lastValidJSON,
             );
-            return lastValidJSON as V41PricingData;
+            return lastValidJSON;
         }
 
         console.log("❌ [JSON-EXTRACT] No valid JSON found");

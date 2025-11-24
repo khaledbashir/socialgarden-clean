@@ -15,6 +15,7 @@ import { StreamingProgress } from "./streaming-progress";
 import {
     extractStreamingJSON,
     cleanStreamContent,
+    extractAllJSONBlocks,
 } from "@/lib/streaming-enhancements/json-extractor";
 
 interface StreamingThoughtAccordionProps {
@@ -79,34 +80,21 @@ export function StreamingThoughtAccordion({
 
         // Skip expensive JSON parsing during streaming to prevent UI freeze
         if (!isStreaming) {
-            const jsonMatches = [
-                ...workingContent.matchAll(/\{[\s\S]*?"scope_name"[\s\S]*?\}/g),
-            ];
+            // Use robust extractor
+            const allBlocks = extractAllJSONBlocks(workingContent);
 
-            // Parse all JSON blocks first to identify the valid ones
-            const validJSONBlocks: { parsed: any; index: number }[] = [];
-
-            for (let i = 0; i < jsonMatches.length; i++) {
-                const match = jsonMatches[i];
-                try {
-                    const parsed = JSON.parse(match[0]);
-                    if (parsed.scope_name && parsed.role_allocation) {
-                        validJSONBlocks.push({ parsed, index: i });
-                    }
-                } catch (e) {
-                    // Silently skip invalid JSON - normal during streaming
-                }
-            }
+            // Filter for blocks that look like scopes (have scope_name and role_allocation)
+            const validJSONBlocks = allBlocks.filter(block =>
+                block.parsed && block.parsed.scope_name && block.parsed.role_allocation
+            );
 
             // Use ONLY the LAST valid JSON block
             if (validJSONBlocks.length > 0) {
                 const lastValidJSON = validJSONBlocks[validJSONBlocks.length - 1];
                 pricingBlocks.push(lastValidJSON.parsed);
 
-                // Remove ALL JSON blocks from content
-                workingContent = workingContent
-                    .replace(/\{[\s\S]*?"scope_name"[\s\S]*?\}/g, "")
-                    .trim();
+                // Remove ALL JSON blocks from content using robust cleaner
+                workingContent = cleanStreamContent(workingContent);
 
                 console.log(
                     `🎯 [JSON-EXTRACT] Using LAST valid JSON out of ${validJSONBlocks.length} found`,

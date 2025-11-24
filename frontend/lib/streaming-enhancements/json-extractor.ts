@@ -40,25 +40,83 @@ interface StreamUpdate {
 }
 
 /**
+ * Robustly extract all valid JSON blocks from content using brace counting.
+ * This handles nested objects correctly, which regex often fails at.
+ * Returns parsed object and its location in the string.
+ */
+export function extractAllJSONBlocks(content: string): { parsed: any; start: number; end: number; raw: string }[] {
+    const blocks: { parsed: any; start: number; end: number; raw: string }[] = [];
+    let startIndex = 0;
+
+    // Safety limit to prevent infinite loops on extremely large content
+    const MAX_ITERATIONS = 1000;
+    let iterations = 0;
+
+    while (startIndex < content.length && iterations < MAX_ITERATIONS) {
+        iterations++;
+        const openBraceIndex = content.indexOf('{', startIndex);
+        if (openBraceIndex === -1) break;
+
+        let braceCount = 1;
+        let currentIndex = openBraceIndex + 1;
+        let foundClose = false;
+        let inString = false;
+        let escape = false;
+
+        while (currentIndex < content.length) {
+            const char = content[currentIndex];
+
+            if (escape) {
+                escape = false;
+            } else if (char === '\\') {
+                escape = true;
+            } else if (char === '"') {
+                inString = !inString;
+            } else if (!inString) {
+                if (char === '{') {
+                    braceCount++;
+                } else if (char === '}') {
+                    braceCount--;
+                    if (braceCount === 0) {
+                        foundClose = true;
+                        break;
+                    }
+                }
+            }
+            currentIndex++;
+        }
+
+        if (foundClose) {
+            const jsonStr = content.substring(openBraceIndex, currentIndex + 1);
+            try {
+                const parsed = JSON.parse(jsonStr);
+                blocks.push({ parsed, start: openBraceIndex, end: currentIndex + 1, raw: jsonStr });
+            } catch (e) {
+                // Ignore invalid JSON
+            }
+            startIndex = currentIndex + 1;
+        } else {
+            // No matching close brace, stop searching
+            break;
+        }
+    }
+    return blocks;
+}
+
+/**
  * Extract all valid JSON blocks from streaming content
  * @param content - The current streaming content
  * @returns Object with extracted JSON data and metadata
  */
 export function extractStreamingJSON(content: string): StreamUpdate {
-    // Look for JSON blocks that match our pricing structure
-    const jsonMatches = [
-        ...content.matchAll(/\{[\s\S]*?"currency"[\s\S]*?\}/gi),
-        ...content.matchAll(/\{[\s\S]*?"scopes"[\s\S]*?\}/gi),
-    ];
+    // Use robust brace counting instead of regex
+    const allBlocks = extractAllJSONBlocks(content);
 
     const validJSONBlocks: PricingData[] = [];
 
-    for (let i = 0; i < jsonMatches.length; i++) {
-        const match = jsonMatches[i];
+    for (const block of allBlocks) {
+        const parsed = block.parsed;
         try {
-            const jsonStr = match[0].trim();
-            const parsed = JSON.parse(jsonStr);
-
             if (parsed && parsed.currency && Array.isArray(parsed.scopes)) {
                 // Normalize legacy keys to the new schema when present
                 const normalized: PricingData = {
@@ -85,7 +143,7 @@ export function extractStreamingJSON(content: string): StreamUpdate {
                 validJSONBlocks.push(normalized);
             }
         } catch (e) {
-            // Invalid JSON, skip
+            // Invalid structure, skip
             continue;
         }
     }
@@ -133,11 +191,26 @@ export function extractStreamingJSON(content: string): StreamUpdate {
  * @returns Cleaned content without JSON blocks
  */
 export function cleanStreamContent(content: string): string {
-    return content
-        .replace(/\{[\s\S]*?"currency"[\s\S]*?\}/gi, "")
-        .replace(/\{[\s\S]*?"scopes"[\s\S]*?\}/gi, "")
+    // Remove code blocks first
+    let cleaned = content
         .replace(/```json[\s\S]*?```/gi, "")
         .trim();
+
+    // Use robust extractor to find remaining JSON blocks and remove them
+    const blocks = extractAllJSONBlocks(cleaned);
+
+    // Sort blocks by start index descending to remove from end to start without affecting indices
+    blocks.sort((a, b) => b.start - a.start);
+
+    for (const block of blocks) {
+        // Only remove if it looks like a pricing block (currency or scopes or scope_name)
+        const p = block.parsed;
+        if (p && (p.currency || p.scopes || p.scope_name)) {
+            cleaned = cleaned.substring(0, block.start) + cleaned.substring(block.end);
+        }
+    }
+
+    return cleaned.trim();
 }
 
 /**
