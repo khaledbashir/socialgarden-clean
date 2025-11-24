@@ -934,269 +934,263 @@ export const EditablePricingTable = Node.create({
                     const show = element.getAttribute("data-show-totals");
                     return show !== "false";
                 },
-                showTotal: {
-                    default: true,
-                    parseHTML: (element) => {
-                        const show = element.getAttribute("data-show-totals");
-                        return show !== "false";
-                    },
+            },
+            deliverables: {
+                default: [],
+                parseHTML: (element) => {
+                    const data = element.getAttribute("data-deliverables");
+                    return data ? JSON.parse(data) : [];
                 },
-                deliverables: {
-                    default: [],
-                    parseHTML: (element) => {
-                        const data = element.getAttribute("data-deliverables");
-                        return data ? JSON.parse(data) : [];
-                    },
+            },
+            assumptions: {
+                default: [],
+                parseHTML: (element) => {
+                    const data = element.getAttribute("data-assumptions");
+                    return data ? JSON.parse(data) : [];
                 },
-                assumptions: {
-                    default: [],
-                    parseHTML: (element) => {
-                        const data = element.getAttribute("data-assumptions");
-                        return data ? JSON.parse(data) : [];
-                    },
-                },
-            };
-        },
+            },
+        };
+    },
 
-            parseHTML() {
-            return [
-                {
-                    tag: 'div[data-type="editable-pricing-table"]',
-                },
-            ];
-        },
+    parseHTML() {
+        return [
+            {
+                tag: 'div[data-type="editable-pricing-table"]',
+            },
+        ];
+    },
 
-        renderHTML({ node, HTMLAttributes }) {
-            const rows: PricingRow[] = node.attrs.rows || [];
-            const discount = node.attrs.discount || 0;
+    renderHTML({ node, HTMLAttributes }) {
+        const rows: PricingRow[] = node.attrs.rows || [];
+        const discount = node.attrs.discount || 0;
 
-            const subtotal = rows.reduce(
-                (sum, row) => sum + (Number(row.hours) || 0) * (Number(row.rate) || 0),
-                0,
-            );
-            const discountAmount = (subtotal * discount) / 100;
-            const subtotalAfterDiscount = subtotal - discountAmount;
-            const gst = subtotalAfterDiscount * 0.1;
-            const total = subtotalAfterDiscount + gst;
+        const subtotal = rows.reduce(
+            (sum, row) => sum + (Number(row.hours) || 0) * (Number(row.rate) || 0),
+            0,
+        );
+        const discountAmount = (subtotal * discount) / 100;
+        const subtotalAfterDiscount = subtotal - discountAmount;
+        const gst = subtotalAfterDiscount * 0.1;
+        const total = subtotalAfterDiscount + gst;
 
-            const tableContent: any[] = [
-                "table",
-                {
-                    style: "width:100%; border-collapse:collapse; margin:1.5rem 0; border:2px solid #0e2e33;",
-                },
+        const tableContent: any[] = [
+            "table",
+            {
+                style: "width:100%; border-collapse:collapse; margin:1.5rem 0; border:2px solid #0e2e33;",
+            },
+            [
+                "thead",
+                {},
                 [
-                    "thead",
+                    "tr",
                     {},
                     [
-                        "tr",
-                        {},
-                        [
-                            "th",
-                            {
-                                style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:left; border:1px solid #0e2e33;",
-                            },
-                            "Role",
-                        ],
-                        [
-                            "th",
-                            {
-                                style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:left; border:1px solid #0e2e33;",
-                            },
-                            "Description",
-                        ],
-                        [
-                            "th",
-                            {
-                                style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
-                            },
-                            "Hours",
-                        ],
-                        [
-                            "th",
-                            {
-                                style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
-                            },
-                            "Rate",
-                        ],
-                        [
-                            "th",
-                            {
-                                style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
-                            },
-                            "Total",
-                        ],
+                        "th",
+                        {
+                            style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:left; border:1px solid #0e2e33;",
+                        },
+                        "Role",
+                    ],
+                    [
+                        "th",
+                        {
+                            style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:left; border:1px solid #0e2e33;",
+                        },
+                        "Description",
+                    ],
+                    [
+                        "th",
+                        {
+                            style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
+                        },
+                        "Hours",
+                    ],
+                    [
+                        "th",
+                        {
+                            style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
+                        },
+                        "Rate",
+                    ],
+                    [
+                        "th",
+                        {
+                            style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
+                        },
+                        "Total",
                     ],
                 ],
-                [
-                    "tbody",
-                    {},
-                    ...rows.map((row, index) => {
-                        // Ensure numeric types for calculations
-                        const hours = Number(row.hours) || 0;
-                        const rate = Number(row.rate) || 0;
-                        const rowTotal = hours * rate;
-                        const bgColor = index % 2 === 0 ? "#f9fafb" : "white";
-                        return [
-                            "tr",
-                            { style: `background:${bgColor};` },
-                            [
-                                "td",
-                                {
-                                    style: "padding:0.875rem 1rem; border:1px solid #d1d5db;",
-                                },
-                                row.role,
-                            ],
-                            [
-                                "td",
-                                {
-                                    style: "padding:0.875rem 1rem; border:1px solid #d1d5db;",
-                                },
-                                row.description || "",
-                            ],
-                            [
-                                "td",
-                                {
-                                    style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right;",
-                                },
-                                hours.toString(),
-                            ],
-                            [
-                                "td",
-                                {
-                                    style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right;",
-                                },
-                                `$${rate.toFixed(2)}`,
-                            ],
-                            [
-                                "td",
-                                {
-                                    style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right; font-weight:600;",
-                                },
-                                `$${rowTotal.toFixed(2)}`,
-                            ],
-                        ];
-                    }),
-                ],
-            ];
+            ],
+            [
+                "tbody",
+                {},
+                ...rows.map((row, index) => {
+                    // Ensure numeric types for calculations
+                    const hours = Number(row.hours) || 0;
+                    const rate = Number(row.rate) || 0;
+                    const rowTotal = hours * rate;
+                    const bgColor = index % 2 === 0 ? "#f9fafb" : "white";
+                    return [
+                        "tr",
+                        { style: `background:${bgColor};` },
+                        [
+                            "td",
+                            {
+                                style: "padding:0.875rem 1rem; border:1px solid #d1d5db;",
+                            },
+                            row.role,
+                        ],
+                        [
+                            "td",
+                            {
+                                style: "padding:0.875rem 1rem; border:1px solid #d1d5db;",
+                            },
+                            row.description || "",
+                        ],
+                        [
+                            "td",
+                            {
+                                style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right;",
+                            },
+                            hours.toString(),
+                        ],
+                        [
+                            "td",
+                            {
+                                style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right;",
+                            },
+                            `$${rate.toFixed(2)}`,
+                        ],
+                        [
+                            "td",
+                            {
+                                style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right; font-weight:600;",
+                            },
+                            `$${rowTotal.toFixed(2)}`,
+                        ],
+                    ];
+                }),
+            ],
+        ];
 
-            // Optional scope header for PDF/HTML export
-            const scopeHeader: any[] = [];
-            if (node.attrs.scopeName) {
+        // Optional scope header for PDF/HTML export
+        const scopeHeader: any[] = [];
+        if (node.attrs.scopeName) {
+            scopeHeader.push([
+                "div",
+                { style: "margin-bottom:0.5rem;" },
+                [
+                    "h4",
+                    {
+                        style: "margin:0; font-size:1rem; color:#0e2e33; font-weight:700;",
+                    },
+                    node.attrs.scopeName,
+                ],
+            ]);
+            if (node.attrs.scopeDescription) {
                 scopeHeader.push([
                     "div",
-                    { style: "margin-bottom:0.5rem;" },
-                    [
-                        "h4",
-                        {
-                            style: "margin:0; font-size:1rem; color:#0e2e33; font-weight:700;",
-                        },
-                        node.attrs.scopeName,
-                    ],
+                    { style: "margin-bottom:0.75rem; color:#374151;" },
+                    node.attrs.scopeDescription,
                 ]);
-                if (node.attrs.scopeDescription) {
-                    scopeHeader.push([
-                        "div",
-                        { style: "margin-bottom:0.75rem; color:#374151;" },
-                        node.attrs.scopeDescription,
-                    ]);
-                }
             }
+        }
 
-            const totalsSection: any[] = [
+        const totalsSection: any[] = [
+            "div",
+            {
+                style: "margin-top:1.5rem; padding-top:1rem; border-top:2px solid #0e2e33;",
+            },
+            [
                 "div",
-                {
-                    style: "margin-top:1.5rem; padding-top:1rem; border-top:2px solid #0e2e33;",
-                },
+                { style: "max-width:400px; margin-left:auto;" },
                 [
                     "div",
-                    { style: "max-width:400px; margin-left:auto;" },
+                    {
+                        style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
+                    },
                     [
-                        "div",
-                        {
-                            style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
-                        },
-                        [
-                            "span",
-                            { style: "font-weight:600; color:#0e2e33;" },
-                            "Subtotal:",
-                        ],
-                        [
-                            "span",
-                            { style: "font-weight:600; color:#0e2e33;" },
-                            `$${subtotal.toFixed(2)}`,
-                        ],
-                    ],
-                    ...(discount > 0
-                        ? [
-                            [
-                                "div",
-                                {
-                                    style: "display:flex; justify-content:space-between; padding:0.5rem 0; color:#ef4444;",
-                                },
-                                ["span", {}, `Discount (${discount}%):`],
-                                ["span", {}, `-$${discountAmount.toFixed(2)}`],
-                            ],
-                            [
-                                "div",
-                                {
-                                    style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
-                                },
-                                [
-                                    "span",
-                                    { style: "font-weight:600;" },
-                                    "Subtotal After Discount:",
-                                ],
-                                [
-                                    "span",
-                                    { style: "font-weight:600;" },
-                                    `$${subtotalAfterDiscount.toFixed(2)}`,
-                                ],
-                            ],
-                        ]
-                        : []),
-                    [
-                        "div",
-                        {
-                            style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
-                        },
-                        ["span", {}, "GST (10%):"],
-                        ["span", {}, `$${gst.toFixed(2)}`],
+                        "span",
+                        { style: "font-weight:600; color:#0e2e33;" },
+                        "Subtotal:",
                     ],
                     [
-                        "div",
-                        {
-                            style: "display:flex; justify-content:space-between; padding:0.75rem 0; border-top:2px solid #0e2e33; margin-top:0.5rem;",
-                        },
-                        [
-                            "span",
-                            {
-                                style: "font-size:1.25rem; font-weight:700; color:#0e2e33;",
-                            },
-                            "Scope Total:",
-                        ],
-                        [
-                            "span",
-                            {
-                                style: "font-size:1.25rem; font-weight:700; color:#0e2e33;",
-                            },
-                            `$${total.toFixed(2)}`,
-                        ],
+                        "span",
+                        { style: "font-weight:600; color:#0e2e33;" },
+                        `$${subtotal.toFixed(2)}`,
                     ],
                 ],
-            ];
+                ...(discount > 0
+                    ? [
+                        [
+                            "div",
+                            {
+                                style: "display:flex; justify-content:space-between; padding:0.5rem 0; color:#ef4444;",
+                            },
+                            ["span", {}, `Discount (${discount}%):`],
+                            ["span", {}, `-$${discountAmount.toFixed(2)}`],
+                        ],
+                        [
+                            "div",
+                            {
+                                style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
+                            },
+                            [
+                                "span",
+                                { style: "font-weight:600;" },
+                                "Subtotal After Discount:",
+                            ],
+                            [
+                                "span",
+                                { style: "font-weight:600;" },
+                                `$${subtotalAfterDiscount.toFixed(2)}`,
+                            ],
+                        ],
+                    ]
+                    : []),
+                [
+                    "div",
+                    {
+                        style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
+                    },
+                    ["span", {}, "GST (10%):"],
+                    ["span", {}, `$${gst.toFixed(2)}`],
+                ],
+                [
+                    "div",
+                    {
+                        style: "display:flex; justify-content:space-between; padding:0.75rem 0; border-top:2px solid #0e2e33; margin-top:0.5rem;",
+                    },
+                    [
+                        "span",
+                        {
+                            style: "font-size:1.25rem; font-weight:700; color:#0e2e33;",
+                        },
+                        "Scope Total:",
+                    ],
+                    [
+                        "span",
+                        {
+                            style: "font-size:1.25rem; font-weight:700; color:#0e2e33;",
+                        },
+                        `$${total.toFixed(2)}`,
+                    ],
+                ],
+            ],
+        ];
 
-            return [
-                "div",
-                mergeAttributes(HTMLAttributes, {
-                    "data-type": "editable-pricing-table",
-                }),
-                ...scopeHeader,
-                tableContent,
-                totalsSection,
-            ];
-        },
+        return [
+            "div",
+            mergeAttributes(HTMLAttributes, {
+                "data-type": "editable-pricing-table",
+            }),
+            ...scopeHeader,
+            tableContent,
+            totalsSection,
+        ];
+    },
 
-        addNodeView() {
-            return ReactNodeViewRenderer(EditablePricingTableComponent);
-        },
-    });
+    addNodeView() {
+        return ReactNodeViewRenderer(EditablePricingTableComponent);
+    },
+});
