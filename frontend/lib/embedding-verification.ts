@@ -27,7 +27,7 @@ export async function waitForEmbeddingCompletion(
 
             const data = await response.json();
 
-            if (data.ready) {
+            if (data.ready || data.documentsCount === 0) {
                 console.log(
                     `✅ Embedding complete: ${data.embeddedCount}/${data.documentsCount} documents ready`,
                 );

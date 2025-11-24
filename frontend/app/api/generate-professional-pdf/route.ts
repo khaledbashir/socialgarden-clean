@@ -67,36 +67,48 @@ export async function POST(request: NextRequest) {
             if (!BACKEND_PDF_SERVICE_URL) {
                 throw new Error("PDF service not configured. Set PDF_SERVICE_URL or NEXT_PUBLIC_PDF_SERVICE_URL");
             }
-            const response = await fetch(
-                `${BACKEND_PDF_SERVICE_URL}/generate-professional-pdf`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
+
+            // Add timeout for professional PDF generation (120s)
+            const controller = new AbortController();
+            const timeoutMs = 120000;
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+            let response;
+            try {
+                response = await fetch(
+                    `${BACKEND_PDF_SERVICE_URL}/generate-professional-pdf`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            company: body.company || { name: "Social Garden" },
+                            clientName: body.clientName,
+                            projectTitle: body.projectTitle,
+                            projectSubtitle: body.projectSubtitle || "",
+                            projectOverview: body.projectOverview || "",
+                            budgetNotes: body.budgetNotes || "",
+                            scopes: body.scopes,
+                            currency: body.currency || "AUD",
+                            gstApplicable:
+                                body.gstApplicable !== undefined
+                                    ? body.gstApplicable
+                                    : true,
+                            generatedDate:
+                                body.generatedDate || new Date().toISOString(),
+                            discount: validateDiscount(body.discount),
+                            show_pricing_summary:
+                                body.showPricingSummary !== undefined
+                                    ? body.showPricingSummary
+                                    : true, // 🎯 Pass showTotal flag to backend for professional PDF
+                        }),
+                        signal: controller.signal,
                     },
-                    body: JSON.stringify({
-                        company: body.company || { name: "Social Garden" },
-                        clientName: body.clientName,
-                        projectTitle: body.projectTitle,
-                        projectSubtitle: body.projectSubtitle || "",
-                        projectOverview: body.projectOverview || "",
-                        budgetNotes: body.budgetNotes || "",
-                        scopes: body.scopes,
-                        currency: body.currency || "AUD",
-                        gstApplicable:
-                            body.gstApplicable !== undefined
-                                ? body.gstApplicable
-                                : true,
-                        generatedDate:
-                            body.generatedDate || new Date().toISOString(),
-                        discount: validateDiscount(body.discount),
-                        show_pricing_summary:
-                            body.showPricingSummary !== undefined
-                                ? body.showPricingSummary
-                                : true, // 🎯 Pass showTotal flag to backend for professional PDF
-                    }),
-                },
-            );
+                );
+            } finally {
+                clearTimeout(timeout);
+            }
 
             if (!response.ok) {
                 const errorText = await response.text();

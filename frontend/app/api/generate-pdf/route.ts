@@ -135,9 +135,9 @@ async function handlePDFGeneration(body: any) {
             }
         }
 
-        // Forward request to PDF service with timeout (increased to 60s for large documents)
+        // Forward request to PDF service with timeout (increased to 120s for large documents)
         const controller = new AbortController();
-        const timeoutMs = 60000; // 60 second timeout (increased from 30s)
+        const timeoutMs = 120000; // 120 second timeout (increased from 60s)
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
         try {

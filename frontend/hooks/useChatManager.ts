@@ -43,7 +43,7 @@ export function useChatManager({
     setLatestEditorJSON,
     // Receive optional sowStatus and setter from caller; provide safe defaults
     sowStatus = "idle",
-    setSowStatus = (_: "idle" | "processing" | "done") => {},
+    setSowStatus = (_: "idle" | "processing" | "done") => { },
 }: UseChatManagerProps) {
     const [agents, setAgents] = useState<Agent[]>([]);
     const [currentAgentId, setCurrentAgentId] = useState<string | null>(null);
@@ -108,19 +108,19 @@ export function useChatManager({
         if (currentRequestControllerRef.current) {
             try {
                 currentRequestControllerRef.current.abort();
-            } catch {}
+            } catch { }
             currentRequestControllerRef.current = null;
         }
         setIsChatLoading(false);
         setStreamingMessageId(null);
         try {
             setSowStatus("idle");
-        } catch {}
+        } catch { }
         toast.warning("Generation cancelled");
         if (generationTimeoutRef.current) {
             try {
                 clearTimeout(generationTimeoutRef.current);
-            } catch {}
+            } catch { }
             generationTimeoutRef.current = null;
         }
     }, [setSowStatus]);
@@ -354,8 +354,8 @@ export function useChatManager({
                             const success = await anythingLLM.embedSOWDocument(
                                 workspaceForAgent,
                                 currentDoc?.title ||
-                                    currentDoc?.id ||
-                                    "Untitled SOW",
+                                currentDoc?.id ||
+                                "Untitled SOW",
                                 htmlContent,
                                 {
                                     clientContext: currentDoc?.clientName || "",
@@ -478,7 +478,7 @@ export function useChatManager({
             if (generationTimeoutRef.current) {
                 try {
                     clearTimeout(generationTimeoutRef.current);
-                } catch {}
+                } catch { }
                 generationTimeoutRef.current = null;
             }
             generationTimeoutRef.current = setTimeout(() => {
@@ -523,7 +523,7 @@ export function useChatManager({
                     currentRequestControllerRef.current = null;
                     try {
                         setSowStatus("idle");
-                    } catch {}
+                    } catch { }
                     return;
                 }
 
@@ -581,7 +581,47 @@ export function useChatManager({
                                 if (val > 0) {
                                     m = `${message}\n\n[MaxBudgetAUD:${val}]`;
                                 }
-                            } catch {}
+                            } catch { }
+
+                            // 📎 INJECT ATTACHMENTS DIRECTLY INTO PROMPT
+                            // This ensures the LLM gets the FULL document context, bypassing RAG chunking
+                            if (attachments && attachments.length > 0) {
+                                m += "\n\n--- ATTACHED DOCUMENTS ---\n";
+                                attachments.forEach((att) => {
+                                    try {
+                                        // Only inject text-based formats
+                                        const isText = att.mime.startsWith("text/") ||
+                                            att.mime === "application/json" ||
+                                            att.mime === "application/javascript" ||
+                                            att.mime.includes("xml");
+
+                                        if (!isText) {
+                                            // For non-text files (PDF, Word), we still rely on AnythingLLM embedding
+                                            // We add a note to the prompt so the LLM knows it exists
+                                            m += `\n[Document: ${att.name} (See RAG context)]\n`;
+                                            return;
+                                        }
+
+                                        let content = "";
+                                        if (att.contentString.startsWith("data:")) {
+                                            // Decode base64 data URL
+                                            const base64 = att.contentString.split(",")[1];
+                                            if (base64) {
+                                                content = atob(base64);
+                                            }
+                                        } else {
+                                            content = att.contentString;
+                                        }
+
+                                        if (content) {
+                                            m += `\n[Document: ${att.name}]\n${content}\n-------------------\n`;
+                                        }
+                                    } catch (e) {
+                                        console.warn("Failed to decode attachment for prompt injection:", att.name);
+                                    }
+                                });
+                            }
+
                             return m;
                         })(),
                         mode: "chat",
@@ -618,7 +658,7 @@ export function useChatManager({
                     currentRequestControllerRef.current = null;
                     try {
                         setSowStatus("idle");
-                    } catch {}
+                    } catch { }
                     return;
                 }
 
@@ -635,7 +675,7 @@ export function useChatManager({
                     currentRequestControllerRef.current = null;
                     try {
                         setSowStatus("idle");
-                    } catch {}
+                    } catch { }
                     return;
                 }
 
@@ -673,10 +713,10 @@ export function useChatManager({
                                             prev.map((msg) =>
                                                 msg.id === assistantMessageId
                                                     ? {
-                                                          ...msg,
-                                                          content:
-                                                              accumulatedContent,
-                                                      }
+                                                        ...msg,
+                                                        content:
+                                                            accumulatedContent,
+                                                    }
                                                     : msg,
                                             ),
                                         );
@@ -715,10 +755,10 @@ export function useChatManager({
                                             prev.map((msg) =>
                                                 msg.id === assistantMessageId
                                                     ? {
-                                                          ...msg,
-                                                          content:
-                                                              accumulatedContent,
-                                                      }
+                                                        ...msg,
+                                                        content:
+                                                            accumulatedContent,
+                                                    }
                                                     : msg,
                                             ),
                                         );
@@ -821,7 +861,7 @@ export function useChatManager({
                             );
                             return;
                         }
-                    } catch {}
+                    } catch { }
 
                     // Fallback: process content through markdown→TipTap conversion
                     let filteredContent = contentToInsert;
@@ -883,14 +923,14 @@ export function useChatManager({
                 currentRequestControllerRef.current = null;
                 try {
                     setSowStatus("done");
-                } catch {}
+                } catch { }
                 try {
                     toast.success("✅ Generation complete");
-                } catch {}
+                } catch { }
                 if (generationTimeoutRef.current) {
                     try {
                         clearTimeout(generationTimeoutRef.current);
-                    } catch {}
+                    } catch { }
                     generationTimeoutRef.current = null;
                 }
 
@@ -911,11 +951,11 @@ export function useChatManager({
                 currentRequestControllerRef.current = null;
                 try {
                     setSowStatus("idle");
-                } catch {}
+                } catch { }
                 if (generationTimeoutRef.current) {
                     try {
                         clearTimeout(generationTimeoutRef.current);
-                    } catch {}
+                    } catch { }
                     generationTimeoutRef.current = null;
                 }
             }
