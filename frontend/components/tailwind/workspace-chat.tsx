@@ -48,6 +48,7 @@ import {
     uploadAndPinSingleFile,
     type FileUploadProgress,
 } from "@/lib/document-pinning";
+import { waitForEmbeddingCompletion } from "@/lib/embedding-verification";
 
 interface ChatMessage {
     id: string;
@@ -128,6 +129,10 @@ export default function WorkspaceChat({
     const [isDragOver, setIsDragOver] = useState(false);
     const [isUploadAreaCollapsed, setIsUploadAreaCollapsed] = useState(false);
     const [isUploadAreaHidden, setIsUploadAreaHidden] = useState(false);
+
+    // 🔄 EMBEDDING VERIFICATION STATE
+    const [isEmbedding, setIsEmbedding] = useState(false);
+    const [embeddingProgress, setEmbeddingProgress] = useState<string>("");
 
     // ⚙️ ADVANCED FEATURES STATE
     const [showSettings, setShowSettings] = useState(false);
@@ -937,6 +942,28 @@ export default function WorkspaceChat({
             setIsUploadAreaCollapsed(false);
         }, 8000); // 8 second delay before clearing
 
+        // 🔄 CRITICAL: Wait for embedding to complete before allowing generation
+        if (successMessages.length > 0 && editorWorkspaceSlug) {
+            setIsEmbedding(true);
+            setEmbeddingProgress("Indexing documents for AI context...");
+
+            const embeddingReady = await waitForEmbeddingCompletion(editorWorkspaceSlug);
+
+            if (embeddingReady) {
+                setEmbeddingProgress("✅ Documents ready for generation");
+                toast.success("Documents are now available for AI generation");
+            } else {
+                setEmbeddingProgress("⚠️ Embedding verification timed out");
+                toast.warning("Document indexing is taking longer than expected. You can try generating, but context may be incomplete.");
+            }
+
+            // Clear embedding state after a delay
+            setTimeout(() => {
+                setIsEmbedding(false);
+                setEmbeddingProgress("");
+            }, 3000);
+        }
+
         setUploading(false);
     };
 
@@ -1072,11 +1099,10 @@ export default function WorkspaceChat({
                                 threads.map((thread) => (
                                     <div
                                         key={thread.slug}
-                                        className={`group flex items-center gap-2 p-2 rounded text-xs transition-colors ${
-                                            currentThreadSlug === thread.slug
-                                                ? "bg-[#15a366] text-white"
-                                                : "text-gray-300 hover:bg-[#0e0f0f]"
-                                        }`}
+                                        className={`group flex items-center gap-2 p-2 rounded text-xs transition-colors ${currentThreadSlug === thread.slug
+                                            ? "bg-[#15a366] text-white"
+                                            : "text-gray-300 hover:bg-[#0e0f0f]"
+                                            }`}
                                     >
                                         <button
                                             onClick={() =>
@@ -1084,11 +1110,11 @@ export default function WorkspaceChat({
                                             }
                                             className="flex-1 text-left"
                                         >
-                                            
+
                                             <div className="flex items-center gap-2">
                                                 <span>
                                                     {currentThreadSlug ===
-                                                    thread.slug
+                                                        thread.slug
                                                         ? "●"
                                                         : "○"}
                                                 </span>
@@ -1160,11 +1186,11 @@ export default function WorkspaceChat({
                                     msg.role === "assistant"
                                         ? []
                                         : [
-                                              {
-                                                  type: "text" as const,
-                                                  content: msg.content,
-                                              },
-                                          ];
+                                            {
+                                                type: "text" as const,
+                                                content: msg.content,
+                                            },
+                                        ];
 
                                 return (
                                     <div
@@ -1172,11 +1198,10 @@ export default function WorkspaceChat({
                                         className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                                     >
                                         <div
-                                            className={`relative w-full max-w-[85%] min-w-0 rounded-lg p-4 break-words whitespace-pre-wrap overflow-x-hidden ${
-                                                msg.role === "user"
-                                                    ? "bg-[#0E2E33]/30 text-white border border-[#1b5e5e]"
-                                                    : "bg-[#0E2E33] text-white border border-[#1b5e5e]"
-                                            }`}
+                                            className={`relative w-full max-w-[85%] min-w-0 rounded-lg p-4 break-words whitespace-pre-wrap overflow-x-hidden ${msg.role === "user"
+                                                ? "bg-[#0E2E33]/30 text-white border border-[#1b5e5e]"
+                                                : "bg-[#0E2E33] text-white border border-[#1b5e5e]"
+                                                }`}
                                         >
                                             {/* Assistant thinking / reasoning (streaming) */}
                                             {isAssistant && (
@@ -1282,7 +1307,7 @@ export default function WorkspaceChat({
                                                             title="Copy prose content"
                                                         >
                                                             {copiedMessageId ===
-                                                            msg.id ? (
+                                                                msg.id ? (
                                                                 <Check className="w-3.5 h-3.5 text-green-400" />
                                                             ) : (
                                                                 <Copy className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
@@ -1293,24 +1318,24 @@ export default function WorkspaceChat({
                                                         {/```json/i.test(
                                                             msg.content,
                                                         ) && (
-                                                            <button
-                                                                onClick={() =>
-                                                                    handleCopyJSON(
-                                                                        msg.content,
-                                                                        msg.id,
-                                                                    )
-                                                                }
-                                                                className="p-1.5 hover:bg-[#1b5e5e] rounded transition-colors"
-                                                                title="Copy JSON block"
-                                                            >
-                                                                {copiedJsonId ===
-                                                                msg.id ? (
-                                                                    <Check className="w-3.5 h-3.5 text-green-400" />
-                                                                ) : (
-                                                                    <Copy className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
-                                                                )}
-                                                            </button>
-                                                        )}
+                                                                <button
+                                                                    onClick={() =>
+                                                                        handleCopyJSON(
+                                                                            msg.content,
+                                                                            msg.id,
+                                                                        )
+                                                                    }
+                                                                    className="p-1.5 hover:bg-[#1b5e5e] rounded transition-colors"
+                                                                    title="Copy JSON block"
+                                                                >
+                                                                    {copiedJsonId ===
+                                                                        msg.id ? (
+                                                                        <Check className="w-3.5 h-3.5 text-green-400" />
+                                                                    ) : (
+                                                                        <Copy className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
+                                                                    )}
+                                                                </button>
+                                                            )}
 
                                                         {/* Insert or Insert with feedback */}
                                                         <button
@@ -1324,7 +1349,7 @@ export default function WorkspaceChat({
                                                             title="Insert this response only"
                                                         >
                                                             {insertingMessageId ===
-                                                            msg.id ? (
+                                                                msg.id ? (
                                                                 <Loader2 className="w-4 h-4 text-gray-300 animate-spin" />
                                                             ) : (
                                                                 <Plus className="w-3.5 h-3.5 text-gray-400" />
@@ -1418,24 +1443,24 @@ export default function WorkspaceChat({
                                                 <div className="flex-shrink-0">
                                                     {fileProgress.status ===
                                                         "pending" && (
-                                                        <div className="w-4 h-4 rounded-full border-2 border-gray-400" />
-                                                    )}
+                                                            <div className="w-4 h-4 rounded-full border-2 border-gray-400" />
+                                                        )}
                                                     {fileProgress.status ===
                                                         "uploading" && (
-                                                        <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                                                    )}
+                                                            <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                                                        )}
                                                     {fileProgress.status ===
                                                         "pinning" && (
-                                                        <Loader2 className="w-4 h-4 animate-spin text-yellow-400" />
-                                                    )}
+                                                            <Loader2 className="w-4 h-4 animate-spin text-yellow-400" />
+                                                        )}
                                                     {fileProgress.status ===
                                                         "success" && (
-                                                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                                    )}
+                                                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                                        )}
                                                     {fileProgress.status ===
                                                         "error" && (
-                                                        <AlertCircle className="w-4 h-4 text-red-500" />
-                                                    )}
+                                                            <AlertCircle className="w-4 h-4 text-red-500" />
+                                                        )}
                                                 </div>
 
                                                 {/* File Info */}
@@ -1458,16 +1483,16 @@ export default function WorkspaceChat({
                                                     {(fileProgress.status ===
                                                         "uploading" ||
                                                         fileProgress.status ===
-                                                            "pinning") && (
-                                                        <div className="mt-1.5 w-full bg-[#1b1b1e] rounded-full h-1">
-                                                            <div
-                                                                className="bg-[#15a366] h-1 rounded-full transition-all duration-300"
-                                                                style={{
-                                                                    width: `${fileProgress.progress}%`,
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    )}
+                                                        "pinning") && (
+                                                            <div className="mt-1.5 w-full bg-[#1b1b1e] rounded-full h-1">
+                                                                <div
+                                                                    className="bg-[#15a366] h-1 rounded-full transition-all duration-300"
+                                                                    style={{
+                                                                        width: `${fileProgress.progress}%`,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        )}
                                                     {/* Status Text */}
                                                     <div className="mt-1 text-[10px] text-gray-400">
                                                         {fileProgress.status ===
@@ -1481,23 +1506,23 @@ export default function WorkspaceChat({
                                                             "Pinning to workspace..."}
                                                         {fileProgress.status ===
                                                             "success" && (
-                                                            <span className="text-green-400">
-                                                                ✅ Uploaded &
-                                                                pinned
-                                                                {fileProgress.wordCount &&
-                                                                    ` • ${fileProgress.wordCount} words`}
-                                                                {fileProgress.tokenCount &&
-                                                                    ` • ~${fileProgress.tokenCount} tokens`}
-                                                            </span>
-                                                        )}
+                                                                <span className="text-green-400">
+                                                                    ✅ Uploaded &
+                                                                    pinned
+                                                                    {fileProgress.wordCount &&
+                                                                        ` • ${fileProgress.wordCount} words`}
+                                                                    {fileProgress.tokenCount &&
+                                                                        ` • ~${fileProgress.tokenCount} tokens`}
+                                                                </span>
+                                                            )}
                                                         {fileProgress.status ===
                                                             "error" && (
-                                                            <span className="text-red-400">
-                                                                ❌{" "}
-                                                                {fileProgress.error ||
-                                                                    "Upload failed"}
-                                                            </span>
-                                                        )}
+                                                                <span className="text-red-400">
+                                                                    ❌{" "}
+                                                                    {fileProgress.error ||
+                                                                        "Upload failed"}
+                                                                </span>
+                                                            )}
                                                     </div>
                                                 </div>
 
@@ -1505,19 +1530,19 @@ export default function WorkspaceChat({
                                                 {(fileProgress.status ===
                                                     "pending" ||
                                                     fileProgress.status ===
-                                                        "error") && (
-                                                    <button
-                                                        onClick={() =>
-                                                            removePendingFile(
-                                                                fileProgress.id,
-                                                            )
-                                                        }
-                                                        className="flex-shrink-0 p-1 hover:bg-[#1b1b1e] rounded transition-colors"
-                                                        title="Remove file"
-                                                    >
-                                                        <X className="w-3.5 h-3.5 text-gray-400 hover:text-red-400" />
-                                                    </button>
-                                                )}
+                                                    "error") && (
+                                                        <button
+                                                            onClick={() =>
+                                                                removePendingFile(
+                                                                    fileProgress.id,
+                                                                )
+                                                            }
+                                                            className="flex-shrink-0 p-1 hover:bg-[#1b1b1e] rounded transition-colors"
+                                                            title="Remove file"
+                                                        >
+                                                            <X className="w-3.5 h-3.5 text-gray-400 hover:text-red-400" />
+                                                        </button>
+                                                    )}
                                             </div>
                                         ))}
                                     </div>
@@ -1526,36 +1551,36 @@ export default function WorkspaceChat({
                                     {pendingFiles.some(
                                         (f) => f.status === "pending",
                                     ) && (
-                                        <Button
-                                            onClick={handleBatchUpload}
-                                            disabled={
-                                                uploading ||
-                                                !editorWorkspaceSlug
-                                            }
-                                            size="sm"
-                                            className="w-full bg-[#15a366] hover:bg-[#10a35a] text-white text-sm font-semibold"
-                                        >
-                                            {uploading ? (
-                                                <>
-                                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                                    Uploading...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Paperclip className="h-4 w-4 mr-2" />
-                                                    Upload{" "}
-                                                    {
-                                                        pendingFiles.filter(
-                                                            (f) =>
-                                                                f.status ===
-                                                                "pending",
-                                                        ).length
-                                                    }{" "}
-                                                    Document(s)
-                                                </>
-                                            )}
-                                        </Button>
-                                    )}
+                                            <Button
+                                                onClick={handleBatchUpload}
+                                                disabled={
+                                                    uploading ||
+                                                    !editorWorkspaceSlug
+                                                }
+                                                size="sm"
+                                                className="w-full bg-[#15a366] hover:bg-[#10a35a] text-white text-sm font-semibold"
+                                            >
+                                                {uploading ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                        Uploading...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Paperclip className="h-4 w-4 mr-2" />
+                                                        Upload{" "}
+                                                        {
+                                                            pendingFiles.filter(
+                                                                (f) =>
+                                                                    f.status ===
+                                                                    "pending",
+                                                            ).length
+                                                        }{" "}
+                                                        Document(s)
+                                                    </>
+                                                )}
+                                            </Button>
+                                        )}
                                 </div>
                             )}
 
@@ -1625,16 +1650,14 @@ export default function WorkspaceChat({
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
                             onDrop={handleDrop}
-                            className={`border-2 border-dashed rounded-lg transition-all duration-300 ${
-                                pendingFiles.length > 0
-                                    ? "p-2 border-[#0E2E33]/30 bg-transparent"
-                                    : "p-4 border-[#0E2E33] bg-transparent"
-                            } ${isDragOver ? "border-[#15a366] bg-[#0E2E33]/50" : ""}`}
+                            className={`border-2 border-dashed rounded-lg transition-all duration-300 ${pendingFiles.length > 0
+                                ? "p-2 border-[#0E2E33]/30 bg-transparent"
+                                : "p-4 border-[#0E2E33] bg-transparent"
+                                } ${isDragOver ? "border-[#15a366] bg-[#0E2E33]/50" : ""}`}
                         >
                             <div
-                                className={`text-center text-sm text-gray-400 transition-all ${
-                                    pendingFiles.length > 0 ? "text-xs" : ""
-                                }`}
+                                className={`text-center text-sm text-gray-400 transition-all ${pendingFiles.length > 0 ? "text-xs" : ""
+                                    }`}
                             >
                                 {pendingFiles.length === 0 ? (
                                     <>
@@ -1718,6 +1741,14 @@ export default function WorkspaceChat({
                         </div>
                     )}
 
+                    {/* Embedding Status Indicator */}
+                    {isEmbedding && embeddingProgress && (
+                        <div className="flex items-center gap-2 bg-[#0E2E33]/50 border border-[#1b5e5e] rounded px-3 py-2">
+                            <Loader2 className="w-4 h-4 animate-spin text-[#15a366]" />
+                            <span className="text-xs text-gray-300">{embeddingProgress}</span>
+                        </div>
+                    )}
+
                     {/* Chat Input */}
                     <div className="flex gap-3">
                         <div className="flex-1 space-y-2">
@@ -1757,12 +1788,12 @@ export default function WorkspaceChat({
                                     <button
                                         onClick={handleSendMessage}
                                         disabled={
-                                            !chatInput.trim() || isLoading
+                                            !chatInput.trim() || isLoading || isEmbedding
                                         }
                                         className="flex items-center justify-center bg-[#15a366] hover:bg-[#13a45b] p-3 rounded-full shadow-lg disabled:opacity-50 transition-colors"
-                                        title="Send"
+                                        title={isEmbedding ? "Waiting for documents to be indexed..." : "Send"}
                                     >
-                                        {isLoading ? (
+                                        {isLoading || isEmbedding ? (
                                             <Loader2 className="w-4 h-4 animate-spin text-white" />
                                         ) : (
                                             <Send className="w-4 h-4 text-white" />
