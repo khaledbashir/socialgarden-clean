@@ -78,25 +78,25 @@ export interface SOW {
   name: string;
   workspaceId: string;
   vertical?:
-    | "property"
-    | "education"
-    | "finance"
-    | "healthcare"
-    | "retail"
-    | "hospitality"
-    | "professional-services"
-    | "technology"
-    | "other"
-    | null;
+  | "property"
+  | "education"
+  | "finance"
+  | "healthcare"
+  | "retail"
+  | "hospitality"
+  | "professional-services"
+  | "technology"
+  | "other"
+  | null;
   service_line?:
-    | "crm-implementation"
-    | "marketing-automation"
-    | "revops-strategy"
-    | "managed-services"
-    | "consulting"
-    | "training"
-    | "other"
-    | null;
+  | "crm-implementation"
+  | "marketing-automation"
+  | "revops-strategy"
+  | "managed-services"
+  | "consulting"
+  | "training"
+  | "other"
+  | null;
 }
 
 export interface ChatMessage {
@@ -139,6 +139,7 @@ export interface PDFExportData {
   clientName: string;
   company: {
     name: string;
+    logoUrl?: string;
   };
   projectSubtitle: string;
   projectOverview: string;
