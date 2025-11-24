@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Check, Loader2, ChevronRight } from "lucide-react";
 
 interface ProgressStep {
@@ -65,9 +65,9 @@ export default function WorkspaceCreationProgress({
           <DialogTitle className="text-2xl font-bold text-white">
             Setting Up {workspaceName}
           </DialogTitle>
-          <p className="text-sm text-gray-300 mt-2 font-light">
+          <DialogDescription className="text-sm text-gray-300 mt-2 font-light">
             Creating your workspace and AI setup...
-          </p>
+          </DialogDescription>
         </DialogHeader>
         <div className="py-6 px-1">
           <div className="grid grid-cols-4 gap-3">
@@ -93,13 +93,12 @@ export default function WorkspaceCreationProgress({
                 {/* Step Label */}
                 <div className="flex-1">
                   <p
-                    className={`text-sm font-medium transition-colors ${
-                      step.completed
+                    className={`text-sm font-medium transition-colors ${step.completed
                         ? "text-emerald-400"
                         : step.loading
                           ? "text-white font-semibold"
                           : "text-gray-400"
-                    }`}
+                      }`}
                   >
                     {step.label}
                   </p>
@@ -126,13 +125,12 @@ export default function WorkspaceCreationProgress({
             {steps.map((step, index) => (
               <div
                 key={index}
-                className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${
-                  step.completed
+                className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${step.completed
                     ? "bg-gradient-to-r from-emerald-500 to-green-400"
                     : step.loading
                       ? "bg-gradient-to-r from-emerald-400/60 to-green-300/60 animate-pulse"
                       : "bg-slate-700/40"
-                }`}
+                  }`}
               />
             ))}
           </div>
