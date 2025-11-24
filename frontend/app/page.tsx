@@ -1377,11 +1377,11 @@ export default function Page() {
 
             // 🎯 FORCE EDITOR RESET: Explicitly load default content
             // This ensures we don't see the previous document's content
-            if (editorRef.current) {
+            if (editorRef.current && editorRef.current.commands && typeof editorRef.current.commands.setContent === "function") {
                 console.log("🧹 Resetting editor content for new workspace...");
                 editorRef.current.commands.setContent(defaultEditorContent);
             } else {
-                console.warn("⚠️ Editor ref not available for reset - content might be stale");
+                console.warn("⚠️ Editor ref not available or setContent missing - content might be stale");
             }
 
             console.log(`📊 STATE SYNC: Post-navigation state set:`, {
