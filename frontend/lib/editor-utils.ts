@@ -151,23 +151,23 @@ function parseMarkdownToNodes(markdown: string, parseTables: boolean = false): a
     else if (parseTables && line.startsWith("|") && line.endsWith("|")) {
       flushParagraph();
       flushList();
-      
+
       // Collect all table lines
       const headerLine = line;
       let j = i + 1;
       const dataLines: string[] = [];
-      
+
       // Skip separator line (|---|---|) if present
       if (j < lines.length && /^\|\s*[-:|\s]+\s*\|/.test(lines[j].trim())) {
         j++;
       }
-      
+
       // Collect data rows
       while (j < lines.length && lines[j].trim().startsWith("|") && lines[j].trim().endsWith("|")) {
         dataLines.push(lines[j].trim());
         j++;
       }
-      
+
       // Parse table (need at least header + 1 data row)
       if (dataLines.length > 0) {
         const tableNode = parsePipeTable(headerLine, dataLines);
@@ -309,6 +309,27 @@ function convertJSONToPricingTable(jsonData: any): any | null {
     };
   }
 
+  // Handle role_allocation (from new prompt)
+  if (jsonData.role_allocation && Array.isArray(jsonData.role_allocation)) {
+    const rows = jsonData.role_allocation.map((role: any) => ({
+      role: role.role || role.name || "",
+      hours: role.hours || null,
+      rate: role.rate || null,
+      total: role.total || null,
+    }));
+    return {
+      type: "editablePricingTable",
+      attrs: {
+        rows,
+        discount: jsonData.discount_percent || jsonData.discount || 0,
+        scopeName: jsonData.scope_name,
+        scopeDescription: jsonData.scope_description,
+        deliverables: jsonData.deliverables,
+        assumptions: jsonData.assumptions,
+      },
+    };
+  }
+
   // Handle simple roles array
   if (jsonData.roles && Array.isArray(jsonData.roles)) {
     const rows = jsonData.roles.map((role: any) => ({
@@ -322,6 +343,10 @@ function convertJSONToPricingTable(jsonData: any): any | null {
       attrs: {
         rows,
         discount: jsonData.discount || 0,
+        scopeName: jsonData.scope_name,
+        scopeDescription: jsonData.scope_description,
+        deliverables: jsonData.deliverables,
+        assumptions: jsonData.assumptions,
       },
     };
   }
@@ -347,6 +372,8 @@ function convertJSONToPricingTable(jsonData: any): any | null {
           jsonData.project_name || jsonData.phase_name || "Project Pricing",
         scopeDescription:
           jsonData.project_type || (jsonData.currency ? `Currency: ${jsonData.currency}` : ""),
+        deliverables: jsonData.deliverables,
+        assumptions: jsonData.assumptions,
       },
     };
   }
@@ -377,8 +404,8 @@ function parsePipeTable(headerLine: string, dataLines: string[]): any | null {
 
   // More flexible column detection - try multiple terms
   const roleIndex = findColumnIndex(["role", "name", "item", "description", "deliverable", "phase", "service"]);
-  const descriptionIndex = findColumnIndex(["description", "details", "notes"]) !== roleIndex 
-    ? findColumnIndex(["description", "details", "notes"]) 
+  const descriptionIndex = findColumnIndex(["description", "details", "notes"]) !== roleIndex
+    ? findColumnIndex(["description", "details", "notes"])
     : -1;
   const hoursIndex = findColumnIndex(["hours", "hour", "hrs", "h"]);
   const rateIndex = findColumnIndex(["rate", "investment", "cost", "aud", "price", "amount", "$"]);
@@ -401,10 +428,10 @@ function parsePipeTable(headerLine: string, dataLines: string[]): any | null {
       .filter((c, idx, arr) => idx > 0 && idx < arr.length - 1); // Remove empty first/last
 
     // Extract role - use first column if no role column found
-    const role = roleIndex >= 0 && roleIndex < cells.length 
-      ? cells[roleIndex] 
+    const role = roleIndex >= 0 && roleIndex < cells.length
+      ? cells[roleIndex]
       : cells[0] || "";
-    
+
     // Extract description - use second column if available and not used for role
     const description = descriptionIndex >= 0 && descriptionIndex < cells.length && descriptionIndex !== roleIndex
       ? cells[descriptionIndex]
@@ -483,7 +510,7 @@ function parsePipeTable(headerLine: string, dataLines: string[]): any | null {
         .split("|")
         .map((c) => c.trim())
         .filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
-      
+
       return {
         id: `row-${rowIdx}-${Date.now()}`,
         role: cells[0] || "",
@@ -549,7 +576,7 @@ export function convertNovelToHTML(content: any): string {
     if (node.type === "editablePricingTable" && node.attrs?.rows) {
       // Minimal table conversion
       const rows = node.attrs.rows;
-      const th = "<tr>" + rows.map((r:any)=>`<td>${r.role}</td><td>${r.hours}</td><td>${r.rate}</td>`).join("") + "</tr>";
+      const th = "<tr>" + rows.map((r: any) => `<td>${r.role}</td><td>${r.hours}</td><td>${r.rate}</td>`).join("") + "</tr>";
       return `<table>${th}</table>`;
     }
     return "";
