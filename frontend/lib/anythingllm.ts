@@ -327,7 +327,7 @@ export class AnythingLLMService {
      * Uses the /v1/workspace/{slug}/update endpoint with openAiPrompt
      */
     async setArchitectPrompt(workspaceSlug: string, userBudgetAud?: number): Promise<boolean> {
-        const budgetLine = typeof userBudgetAud === 'number' && userBudgetAud > 0 
+        const budgetLine = typeof userBudgetAud === 'number' && userBudgetAud > 0
             ? `\n\nCRITICAL INSTRUCTION: STRICT BUDGET ADHERENCE\nThe user has specified a Maximum Budget of: ${userBudgetAud}.\nCurrent Currency: AUD.\n\n1. You MUST calculate the total cost of the roles you assign based on the Rate Card provided.\n2. If your calculated total exceeds ${userBudgetAud}, you MUST reduce hours or remove non-essential lower-priority roles (e.g., reduce Senior oversight, reduce meeting hours) until the total is under ${userBudgetAud}.\n3. If it is impossible to meet the budget, output a simplified "Phase 1 MVP" scope that fits the budget.\n4. Do NOT return a JSON that totals more than ${userBudgetAud} unless you flag "within_budget": false and explain why in "budget_notes".\n`
             : "";
 
@@ -362,12 +362,12 @@ You MUST include a DIVERSE set of roles based on the project requirements. The 3
 1. Start with the 3 mandatory governance roles (minimal hours: 5-15h, 3-10h, 6-12h respectively)
 2. Analyze the brief and uploaded documents to identify ALL work types needed
 3. **CRITICAL: EXECUTION ROLE MAPPING** - You MUST map specific deliverables to execution roles:
-   - "Chatbot" or "AI Agent" → Include "Tech - Producer - Chat Bot Build"
-   - "Audit" or "Review" → Include "Tech - Sr. Consultant - Audit" or "Tech - Specialist - Research"
-   - "Build", "Develop", "Setup" → Include "Tech - Producer - Development" or "Tech - Specialist - Complex Workflow"
-   - Email work → Include "Tech - Producer - Email" or "Tech - Specialist - Email"
+   - "Chatbot" or "AI Agent" → Include "Tech - Producer - Chat Bot / Live Chat"
+   - "Audit" or "Review" → Include "Tech - Sr. Consultant - Advisory & Consultation"
+   - "Build", "Develop", "Setup" → Include "Tech - Producer - Web Development"
+   - "Email work" → Include "Tech - Producer - Email Production"
    - Design work → Include "Tech - Producer - Design" or "Design - Digital Asset (Onshore)"
-   - Integration work → Include "Tech - Integrations" or "Tech - Producer - Integration"
+   - Integration work → Include "Tech - Integrations" or "Tech - Producer - Integration Assistance"
    - Strategy work → Include appropriate Consultant or Strategy roles
 4. **CRITICAL BUDGET VALIDATION (MANDATORY):**
    - Extract the user's budget from their prompt (e.g., "$12,000 limit" means $12,000 budget)
@@ -434,98 +434,96 @@ followed by the full content you just generated. This triggers the auto-insert f
 Reference Data
 
 [OFFICIAL_RATE_CARD]
-Account Management - Head Of: $365/hr
-Account Management - Director: $295/hr
-Account Management - Senior Account Manager: $210/hr
-Account Management - Account Manager: $180/hr
-Account Management - Account Coordinator: $120/hr
-Project Management - Head Of: $295/hr
-Project Management - Senior Project Manager: $210/hr
-Project Management - Project Manager: $180/hr
-Tech - Head Of - Customer Success: $365/hr
-Tech - Head Of - Program Strategy: $365/hr
-Tech - Head Of - Senior Project Management: $365/hr
-Tech - Head Of - Systems: $365/hr
-Tech - Delivery - Project Coordination: $110/hr
-Tech - Integrations: $170/hr
-Tech - Integrations (Senior): $295/hr
-Tech - Keyword Research: $120/hr
-Tech - Landing Page - (Offshore): $120/hr
-Tech - Landing Page - (Onshore): $210/hr
-Tech - Website Optimisation: $120/hr
-Tech - Producer - Admin: $120/hr
-Tech - Producer - Campaign Orchestration: $120/hr
-Tech - Producer - Chat Bot Build: $120/hr
-Tech - Producer - Copywriting: $120/hr
-Tech - Producer - Deployment: $120/hr
-Tech - Producer - Design: $120/hr
-Tech - Producer - Development: $120/hr
-Tech - Producer - Documentation: $120/hr
-Tech - Producer - Email: $120/hr
-Tech - Producer - Field Marketing: $120/hr
-Tech - Producer - Integration: $120/hr
-Tech - Producer - Landing Page: $120/hr
-Tech - Producer - Lead Management: $120/hr
-Tech - Producer - Reporting: $120/hr
-Tech - Producer - Services: $120/hr
-Tech - Producer - SMS Setup: $120/hr
-Tech - Producer - Support & Monitoring: $120/hr
-Tech - Producer - Testing: $120/hr
-Tech - Producer - Training: $120/hr
-Tech - Producer - Web Optimisation: $120/hr
-Tech - Producer - Workflow: $120/hr
-Tech - SEO Producer: $120/hr
-Tech - SEO Strategy: $180/hr
-Tech - Specialist - Admin: $180/hr
-Tech - Specialist - Campaign Orchestration: $180/hr
-Tech - Specialist - Complex Workflow: $180/hr
-Tech - Specialist - Database Management: $180/hr
-Tech - Specialist - Email: $180/hr
-Tech - Specialist - Integration: $180/hr
-Tech - Specialist - Integration (Snr): $190/hr
-Tech - Specialist - Lead Management: $180/hr
-Tech - Specialist - Program Strategy: $180/hr
-Tech - Specialist - Reporting: $180/hr
-Tech - Specialist - Services: $180/hr
-Tech - Specialist - Testing: $180/hr
-Tech - Specialist - Training: $180/hr
-Tech - Specialist - Workflow: $180/hr
-Tech - Sr. Architect - App Development: $365/hr
-Tech - Sr. Architect - Consultation: $365/hr
-Tech - Sr. Architect - Data Migration: $365/hr
-Tech - Sr. Architect - Integration Strategy: $365/hr
-Tech - Sr. Consultant - Advisory & Consultation: $295/hr
-Tech - Sr. Consultant - Analytics: $295/hr
-Tech - Sr. Consultant - Audit: $295/hr
-Tech - Sr. Consultant - Campaign Strategy: $295/hr
-Tech - Sr. Consultant - CRM Strategy: $295/hr
-Tech - Sr. Consultant - Data Migration: $295/hr
-Tech - Sr. Consultant - Field Marketing: $295/hr
-Tech - Sr. Consultant - Services: $295/hr
-Tech - Sr. Consultant - Solution Design: $295/hr
-Tech - Sr. Consultant - Technical: $295/hr
-Tech - Sr. Consultant - Strategy: $295/hr
-Tech - Specialist - Research: $180/hr
-Content - Campaign Strategy: $180/hr
-Content - Keyword Research: $120/hr
-Content - Keyword Research (Senior): $150/hr
-Content - Optimisation: $150/hr
-Content - Reporting (Offshore): $120/hr
-Content - Reporting (Onshore): $150/hr
-Content - SEO Copywriting: $150/hr
-Content - SEO Strategy: $210/hr
-Content - Website Optimisation: $120/hr
-Content - Copywriter: $150/hr
-Copywriting (Offshore): $120/hr
-Copywriting (Onshore): $180/hr
-Design - Digital Asset (Offshore): $140/hr
-Design - Digital Asset (Onshore): $190/hr
-Design - Email (Offshore): $120/hr
-Design - Email (Onshore): $295/hr
-Design - Landing Page (Onshore): $190/hr
-Design - Landing page (Offshore): $120/hr
-Dev (or Tech) - Landing Page (Offshore): $120/hr
-Dev (or Tech) - Landing Page (Onshore): $210/hr
+Account Management - (Senior Account Director): $365.00
+Account Management - (Account Director): $295.00
+Account Management - (Account Manager): $180.00
+Account Management (Off): $120.00
+Account Management - (Senior Account Manager): $210.00
+Project Management - (Account Director): $295.00
+Project Management - (Account Manager): $180.00
+Project Management - (Senior Account Manager): $210.00
+Tech - Delivery - Project Coordination: $110.00
+Tech - Delivery - Project Management: $150.00
+Tech - Head Of- Customer Experience Strategy: $365.00
+Tech - Head Of- Program Strategy: $365.00
+Tech - Head Of- Senior Project Management: $365.00
+Tech - Head Of- System Setup: $365.00
+Tech - Integrations: $170.00
+Tech - Integrations (Sm MAP): $295.00
+Tech - Keyword Research: $120.00
+Tech - Landing Page - (Offshore): $120.00
+Tech - Landing Page - (Onshore): $210.00
+Tech - Producer - Admin Configuration: $120.00
+Tech - Producer - Campaign Build: $120.00
+Tech - Producer - Chat Bot / Live Chat: $120.00
+Tech - Producer - Copywriting: $120.00
+Tech - Producer - Deployment: $120.00
+Tech - Producer - Design: $120.00
+Tech - Producer - Development: $120.00
+Tech - Producer - Documentation Setup: $120.00
+Tech - Producer - Email Production: $120.00
+Tech - Producer - Field / Property Setup: $120.00
+Tech - Producer - Integration Assistance: $120.00
+Tech - Producer - Landing Page Production: $120.00
+Tech - Producer - Lead Scoring Setup: $120.00
+Tech - Producer - Reporting: $120.00
+Tech - Producer - Services: $120.00
+Tech - Producer - SMS Setup: $120.00
+Tech - Producer - Support & Monitoring: $120.00
+Tech - Producer - Testing: $120.00
+Tech - Producer - Training: $120.00
+Tech - Producer - Web Development: $120.00
+Tech - Producer - Workflows: $120.00
+Tech - SEO Producer: $120.00
+Tech - SEO Strategy: $180.00
+Tech - Specialist - Admin Configuration: $180.00
+Tech - Specialist - Campaign Optimisation: $180.00
+Tech - Specialist - Campaign Orchestration: $180.00
+Tech - Specialist - Database Management: $180.00
+Tech - Specialist - Email Production: $180.00
+Tech - Specialist - Integration Configuration: $180.00
+Tech - Specialist - Integration Services: $190.00
+Tech - Specialist - Lead Scoring Setup: $180.00
+Tech - Specialist - Program Management: $180.00
+Tech - Specialist - Reporting: $180.00
+Tech - Specialist - Services: $180.00
+Tech - Specialist - Testing: $180.00
+Tech - Specialist - Training: $180.00
+Tech - Specialist - Workflows: $180.00
+Tech - Sr. Architect - Approval & Testing: $365.00
+Tech - Sr. Architect - Consultancy Services: $365.00
+Tech - Sr. Architect - Data Strategy: $365.00
+Tech - Sr. Architect - Integration Strategy: $365.00
+Tech - Sr. Consultant - Admin Configuration: $295.00
+Tech - Sr. Consultant - Advisory & Consultation: $295.00
+Tech - Sr. Consultant - Approval & Testing: $295.00
+Tech - Sr. Consultant - Campaign Optimisation: $295.00
+Tech - Sr. Consultant - Campaign Strategy: $295.00
+Tech - Sr. Consultant - Database Management: $295.00
+Tech - Sr. Consultant - Reporting: $295.00
+Tech - Sr. Consultant - Services: $295.00
+Tech - Sr. Consultant - Strategy: $295.00
+Tech - Sr. Consultant - Training: $295.00
+Tech - Website Optimisation: $120.00
+Content - Campaign Strategy (Onshore): $180.00
+Content - Keyword Research (Offshore): $120.00
+Content - Keyword Research (Onshore): $150.00
+Content - Optimisation (Onshore): $150.00
+Content - Reporting (Offshore): $120.00
+Content - Reporting (Onshore): $150.00
+Content - SEO Copywriting (Onshore): $150.00
+Content - SEO Strategy (Onshore): $210.00
+Content - Website Optimisations (Offshore): $120.00
+Copywriting (Offshore): $120.00
+Copywriting (Onshore): $180.00
+Design - Digital Asset (Offshore): $140.00
+Design - Digital Asset (Onshore): $190.00
+Design - Email (Offshore): $120.00
+Design - Email (Onshore): $295.00
+Design - Landing Page (Offshore): $120.00
+Design - Landing Page (Onshore): $190.00
+Dev (orTech) - Landing Page - (Offshore): $120.00
+Dev (orTech) - Landing Page - (Onshore): $210.00
 
 [FINANCIAL_RULES]
 
@@ -639,7 +637,7 @@ For multi-scope:
                 typeof window !== "undefined"
                     ? window.location.origin
                     : process.env.NEXT_PUBLIC_APP_URL ||
-                      "http://localhost:3000";
+                    "http://localhost:3000";
 
             const response = await fetch(`${baseUrl}/api/rate-card/markdown`);
             const result = await response.json();
@@ -765,7 +763,7 @@ For multi-scope:
             if (!rawTextData.success || !location) {
                 throw new Error(
                     rawTextData.error ||
-                        "Rate card processing failed - no location",
+                    "Rate card processing failed - no location",
                 );
             }
 
@@ -958,7 +956,7 @@ Metadata:
                 console.error(`❌ Document processing failed:`, rawTextData);
                 throw new Error(
                     rawTextData.error ||
-                        "Document processing failed - no location returned",
+                    "Document processing failed - no location returned",
                 );
             }
 

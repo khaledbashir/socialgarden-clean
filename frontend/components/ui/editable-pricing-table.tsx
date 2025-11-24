@@ -55,9 +55,9 @@ type PricingTableRow = {
 const initialRoles = [
   {
     id: `role-${Date.now()}-1`,
-    role: "Tech - Head Of - Senior Project Management",
+    role: "Tech - Head Of- Senior Project Management",
     hours: 0,
-    rate: RATE_CARD_MAP["Tech - Head Of - Senior Project Management"] ?? 0,
+    rate: RATE_CARD_MAP["Tech - Head Of- Senior Project Management"] ?? 0,
   },
   {
     id: `role-${Date.now()}-2`,
@@ -142,10 +142,10 @@ export const EditablePricingTable = () => {
         // Auto-sort mandatory Account Management role to the bottom
         const accountManagementRow = newItems.find(item => item.role === "Account Management - (Account Manager)");
         if (accountManagementRow) {
-            newItems = newItems.filter(item => item.role !== "Account Management - (Account Manager)");
-            newItems.push(accountManagementRow);
+          newItems = newItems.filter(item => item.role !== "Account Management - (Account Manager)");
+          newItems.push(accountManagementRow);
         }
-        
+
         return newItems;
       });
     }
