@@ -127,7 +127,7 @@ const TailwindAdvancedEditor = forwardRef(
                                             Array.isArray(jsonData.content) &&
                                             jsonData.content.length === 1 &&
                                             jsonData.content[0].type ===
-                                                "paragraph" &&
+                                            "paragraph" &&
                                             (!jsonData.content[0].content ||
                                                 jsonData.content[0].content
                                                     .length === 0)
@@ -176,11 +176,41 @@ const TailwindAdvancedEditor = forwardRef(
                                         editor.commands.insertContent(content);
                                     }
                                 } else {
-                                    // Regular text content, insert directly
+                                    // Regular text content - use chunked insertion for large content
                                     console.log(
                                         "ADVANCED-EDITOR: Inserting string content at cursor position",
                                     );
-                                    editor.commands.insertContent(content);
+
+                                    // 🔥 FIX: Chunked insertion for large content to prevent UI freeze
+                                    const CHUNK_SIZE = 10000; // 10KB chunks
+                                    if (content.length > CHUNK_SIZE) {
+                                        console.log(
+                                            `⚡ [CHUNKED INSERT] Large content detected (${content.length} chars), using chunked insertion`
+                                        );
+
+                                        // Split content into chunks
+                                        const chunks: string[] = [];
+                                        for (let i = 0; i < content.length; i += CHUNK_SIZE) {
+                                            chunks.push(content.substring(i, i + CHUNK_SIZE));
+                                        }
+
+                                        // Insert chunks progressively using requestAnimationFrame
+                                        let chunkIndex = 0;
+                                        const insertNextChunk = () => {
+                                            if (chunkIndex < chunks.length) {
+                                                editor.commands.insertContent(chunks[chunkIndex]);
+                                                chunkIndex++;
+                                                requestAnimationFrame(insertNextChunk);
+                                            } else {
+                                                console.log("✅ [CHUNKED INSERT] All chunks inserted successfully");
+                                            }
+                                        };
+
+                                        requestAnimationFrame(insertNextChunk);
+                                    } else {
+                                        // Small content, insert directly
+                                        editor.commands.insertContent(content);
+                                    }
                                 }
                             } else {
                                 // For JSONContent, prefer to set content when a full 'doc' is provided
@@ -196,7 +226,7 @@ const TailwindAdvancedEditor = forwardRef(
                                         (Array.isArray(contentArray) &&
                                             contentArray.length === 1 &&
                                             contentArray[0].type ===
-                                                "paragraph" &&
+                                            "paragraph" &&
                                             (!contentArray[0].content ||
                                                 contentArray[0].content
                                                     .length === 0));
