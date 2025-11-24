@@ -177,11 +177,11 @@ export default function Page() {
     const sanitizeAccountManagementRoles = (
         roles: Array<
             | {
-                  role: string;
-                  hours?: number;
-                  description?: string;
-                  rate?: number;
-              }
+                role: string;
+                hours?: number;
+                description?: string;
+                rate?: number;
+            }
             | string
         >,
     ) => {
@@ -242,11 +242,11 @@ export default function Page() {
             ...nonAM.map((r) =>
                 typeof r === "string"
                     ? {
-                          role: r,
-                          hours: 0,
-                          description: "",
-                          rate: ROLES.find((x) => x.name === r)?.rate || 0,
-                      }
+                        role: r,
+                        hours: 0,
+                        description: "",
+                        rate: ROLES.find((x) => x.name === r)?.rate || 0,
+                    }
                     : r,
             ),
             {
@@ -497,7 +497,7 @@ export default function Page() {
                     "📦 Editor JSON to save (immediate):",
                     JSON.stringify(editorContent),
                 );
-            } catch (_) {}
+            } catch (_) { }
             if (!editorContent) {
                 console.warn(
                     "⚠️ saveCurrentSOWNow: No editor content to save for:",
@@ -1361,7 +1361,7 @@ export default function Page() {
                 `✅ Document ${sowId} verified in both state and database, proceeding with navigation`,
             );
 
-            
+
 
             // Direct navigation without handleSelectDoc to avoid race condition
             console.log(`🎯 Direct navigation to document ${sowId}`);
@@ -1374,6 +1374,15 @@ export default function Page() {
 
             setCurrentDocId(sowId);
             setViewMode("editor");
+
+            // 🎯 FORCE EDITOR RESET: Explicitly load default content
+            // This ensures we don't see the previous document's content
+            if (editorRef.current) {
+                console.log("🧹 Resetting editor content for new workspace...");
+                editorRef.current.commands.setContent(defaultEditorContent);
+            } else {
+                console.warn("⚠️ Editor ref not available for reset - content might be stale");
+            }
 
             console.log(`📊 STATE SYNC: Post-navigation state set:`, {
                 newCurrentDocId: sowId,
@@ -1423,7 +1432,7 @@ export default function Page() {
                 const errorData = await dbResponse.json();
                 throw new Error(
                     errorData.details ||
-                        "Failed to delete workspace from database",
+                    "Failed to delete workspace from database",
                 );
             }
 
@@ -1662,10 +1671,10 @@ export default function Page() {
                         prev.map((doc) =>
                             doc.id === tempThreadSlug
                                 ? {
-                                      ...doc,
-                                      id: thread.slug,
-                                      threadSlug: thread.slug,
-                                  }
+                                    ...doc,
+                                    id: thread.slug,
+                                    threadSlug: thread.slug,
+                                }
                                 : doc,
                         ),
                     );
@@ -1677,13 +1686,13 @@ export default function Page() {
                         prev.map((ws) =>
                             ws.id === workspaceId
                                 ? {
-                                      ...ws,
-                                      sows: ws.sows.map((sow) =>
-                                          sow.id === tempThreadSlug
-                                              ? { ...sow, id: thread.slug }
-                                              : sow,
-                                      ),
-                                  }
+                                    ...ws,
+                                    sows: ws.sows.map((sow) =>
+                                        sow.id === tempThreadSlug
+                                            ? { ...sow, id: thread.slug }
+                                            : sow,
+                                    ),
+                                }
                                 : ws,
                         ),
                     );
@@ -2579,7 +2588,7 @@ export default function Page() {
                                         // Persist locally for prompt injection and UI
                                         try {
                                             localStorage.setItem('maxBudgetAud', String(value || 0));
-                                        } catch {}
+                                        } catch { }
                                     }}
                                     onCreateWorkspace={() => {
                                         setCreateWorkspaceType("sow");
@@ -2606,7 +2615,7 @@ export default function Page() {
                 rightPanel={
                     // Only show chat when in editor mode with a document, or in dashboard mode
                     (viewMode === "editor" && currentDoc) ||
-                    viewMode === "dashboard" ? (
+                        viewMode === "dashboard" ? (
                         <WorkspaceChat
                             isOpen={agentSidebarOpen}
                             onToggle={() =>
@@ -2640,7 +2649,7 @@ export default function Page() {
                 onClose={() => setShowSendModal(false)}
                 docId={currentDocId}
                 document={currentDoc}
-                onSuccess={() => {}}
+                onSuccess={() => { }}
             />
             <ShareLinkModal
                 isOpen={showShareModal}
