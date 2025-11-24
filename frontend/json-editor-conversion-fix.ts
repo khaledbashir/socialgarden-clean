@@ -27,50 +27,103 @@ interface V41PricingData {
     grand_total: number;
 }
 
-// Convert V4.1 JSON to TipTap editor JSON format
 export function convertV41JSONToEditorFormat(
     pricingData: V41PricingData,
-): string {
-    console.log("🔄 [JSON->EDITOR] Converting V4.1 JSON to editor format");
-
-    let markdownContent = `# Statement of Work\n\n`;
+): any {
+    console.log("🔄 [JSON->EDITOR] Converting V4.1 JSON to TipTap JSON format");
 
     // Helper to safely format numbers
     const fmt = (num: number | undefined) => (num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    // Add project header
-    markdownContent += `**Currency:** ${pricingData.currency}  \n`;
-    markdownContent += `**GST Rate:** ${pricingData.gst_rate}%  \n`;
-    markdownContent += `**Total Investment:** ${pricingData.currency} ${fmt(pricingData.grand_total)}  \n\n`;
+    // Build TipTap JSON content array
+    const content: any[] = [];
+
+    // Add title
+    content.push({
+        type: "heading",
+        attrs: { level: 1 },
+        content: [{ type: "text", text: "Statement of Work" }]
+    });
+
+    // Add project header paragraph
+    content.push({
+        type: "paragraph",
+        content: [
+            { type: "text", marks: [{ type: "strong" }], text: "Currency:" },
+            { type: "text", text: ` ${pricingData.currency}  ` },
+            { type: "hardBreak" },
+            { type: "text", marks: [{ type: "strong" }], text: "GST Rate:" },
+            { type: "text", text: ` ${pricingData.gst_rate}%  ` },
+            { type: "hardBreak" },
+            { type: "text", marks: [{ type: "strong" }], text: "Total Investment:" },
+            { type: "text", text: ` ${pricingData.currency} ${fmt(pricingData.grand_total)}` }
+        ]
+    });
 
     // Process each scope
     pricingData.scopes.forEach((scope, scopeIndex) => {
         const scopeNumber = scopeIndex + 1;
-        markdownContent += `## Phase ${scopeNumber}: ${scope.scope_name}\n\n`;
-        markdownContent += `**Description:** ${scope.scope_description}\n\n`;
 
-        // Add deliverables
+        // Scope heading
+        content.push({
+            type: "heading",
+            attrs: { level: 2 },
+            content: [{ type: "text", text: `Phase ${scopeNumber}: ${scope.scope_name}` }]
+        });
+
+        // Description
+        content.push({
+            type: "paragraph",
+            content: [
+                { type: "text", marks: [{ type: "strong" }], text: "Description:" },
+                { type: "text", text: ` ${scope.scope_description}` }
+            ]
+        });
+
+        // Deliverables
         if (scope.deliverables && scope.deliverables.length > 0) {
-            markdownContent += `**Deliverables:**\n`;
-            scope.deliverables.forEach((deliverable) => {
-                markdownContent += `- ${deliverable}\n`;
+            content.push({
+                type: "paragraph",
+                content: [{ type: "text", marks: [{ type: "strong" }], text: "Deliverables:" }]
             });
-            markdownContent += `\n`;
+            content.push({
+                type: "bulletList",
+                content: scope.deliverables.map(d => ({
+                    type: "listItem",
+                    content: [{
+                        type: "paragraph",
+                        content: [{ type: "text", text: d }]
+                    }]
+                }))
+            });
         }
 
-        // Add assumptions
+        // Assumptions
         if (scope.assumptions && scope.assumptions.length > 0) {
-            markdownContent += `**Assumptions:**\n`;
-            scope.assumptions.forEach((assumption) => {
-                markdownContent += `- ${assumption}\n`;
+            content.push({
+                type: "paragraph",
+                content: [{ type: "text", marks: [{ type: "strong" }], text: "Assumptions:" }]
             });
-            markdownContent += `\n`;
+            content.push({
+                type: "bulletList",
+                content: scope.assumptions.map(a => ({
+                    type: "listItem",
+                    content: [{
+                        type: "paragraph",
+                        content: [{ type: "text", text: a }]
+                    }]
+                }))
+            });
         }
 
-        // Add pricing table for this scope
-        markdownContent += `### Investment Breakdown - Phase ${scopeNumber}\n\n`;
+        // Investment breakdown heading
+        content.push({
+            type: "heading",
+            attrs: { level: 3 },
+            content: [{ type: "text", text: `Investment Breakdown - Phase ${scopeNumber}` }]
+        });
 
-        // Create the rows for this scope's table
+        // Create the pricing table node
         const tableRows = (scope.role_allocation || []).map((role, idx) => ({
             id: `row-${scopeIndex}-${idx}-${Date.now()}`,
             role: role.role,
@@ -79,60 +132,77 @@ export function convertV41JSONToEditorFormat(
             rate: role.rate,
         }));
 
-        // Serialize rows and other data for the custom node
-        const rowsJson = JSON.stringify(tableRows).replace(/"/g, '&quot;');
-        const aiDataJson = JSON.stringify({ rows: tableRows, discount: scope.discount || 0 }).replace(/"/g, '&quot;');
-
-        // Construct the HTML for the custom node
-        // We use data attributes to pass the structured data
-        markdownContent += `<div data-type="editable-pricing-table" 
-            data-rows="${rowsJson}" 
-            data-discount="${scope.discount || 0}"
-            data-scope-name="${scope.scope_name}"
-            data-scope-description="${scope.scope_description}"
-            data-scope-index="${scopeIndex}"
-            data-total-scopes="${pricingData.scopes.length}"
-            data-mode="view"
-            data-ai-generated-data="${aiDataJson}"
-            data-show-totals="true"></div>\n\n`;
+        // Add the editablePricingTable node
+        content.push({
+            type: "editablePricingTable",
+            attrs: {
+                rows: tableRows,
+                discount: scope.discount || 0,
+                scopeName: scope.scope_name,
+                scopeDescription: scope.scope_description,
+                scopeIndex: scopeIndex,
+                totalScopes: pricingData.scopes.length,
+                mode: "view",
+                showTotals: true
+            }
+        });
     });
 
-    // Add overall financial summary table (ReadOnly Markdown Table)
-    markdownContent += `## Investment Summary\n\n`;
-    markdownContent += `| Scope | Estimated Hours | Total Cost |\n`;
-    markdownContent += `|-------|-----------------|------------|\n`;
-
-    pricingData.scopes.forEach((scope, idx) => {
-        const scopeTotal = (scope.role_allocation || []).reduce((sum, r) => sum + (r.cost || 0), 0);
-        const scopeHours = (scope.role_allocation || []).reduce((sum, r) => sum + (r.hours || 0), 0);
-        const discountAmount = scopeTotal * ((scope.discount || 0) / 100);
-        const finalScopeTotal = scopeTotal - discountAmount;
-
-        markdownContent += `| **Scope ${idx + 1}: ${scope.scope_name}** | **${scopeHours}** | **${pricingData.currency} ${fmt(finalScopeTotal)}** |\n`;
+    // Add overall summary heading
+    content.push({
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "Investment Summary" }]
     });
 
-    markdownContent += `| **TOTAL PROJECT** | **${pricingData.scopes.reduce((acc, s) => acc + (s.role_allocation || []).reduce((h, r) => h + (r.hours || 0), 0), 0)}** | **${pricingData.currency} ${fmt(pricingData.grand_total_pre_gst)}** |\n\n`;
+    // Add summary placeholder
+    content.push({
+        type: "paragraph",
+        content: [{ type: "text", text: "[editablePricingTable]" }]
+    });
 
-    // Final totals
-    if (pricingData.discount > 0) {
-        const discountAmount = (pricingData.grand_total_pre_gst || 0) * (pricingData.discount / 100);
-        const discountedSubtotal = (pricingData.grand_total_pre_gst || 0) - discountAmount;
-        markdownContent += `**Subtotal (before discount):** ${pricingData.currency} ${fmt(pricingData.grand_total_pre_gst)}\n`;
-        markdownContent += `**Discount:** ${pricingData.discount}% (-${pricingData.currency} ${fmt(discountAmount)})\n`;
-        markdownContent += `**Subtotal (after discount):** ${pricingData.currency} ${fmt(discountedSubtotal)}\n`;
-    } else {
-        markdownContent += `**Subtotal:** ${pricingData.currency} ${fmt(pricingData.grand_total_pre_gst)}\n`;
-    }
+    // Add financial summary
+    const discountAmount = pricingData.grand_total_pre_gst * (pricingData.discount / 100);
+    const subtotalAfterDiscount = pricingData.grand_total_pre_gst - discountAmount;
 
-    markdownContent += `**GST:** ${pricingData.gst_rate}% (${pricingData.currency} ${fmt(pricingData.gst_amount)})\n`;
-    markdownContent += `**TOTAL PROJECT VALUE:** ${pricingData.currency} ${fmt(pricingData.grand_total)}\n\n`;
+    content.push({
+        type: "paragraph",
+        content: [
+            { type: "text", marks: [{ type: "strong" }], text: "Subtotal (before discount):" },
+            { type: "text", text: ` ${pricingData.currency} ${fmt(pricingData.grand_total_pre_gst)}  ` },
+            { type: "hardBreak" },
+            { type: "text", marks: [{ type: "strong" }], text: "Discount:" },
+            { type: "text", text: ` ${pricingData.discount}% (-${pricingData.currency} ${fmt(discountAmount)})  ` },
+            { type: "hardBreak" },
+            { type: "text", marks: [{ type: "strong" }], text: "Subtotal (after discount):" },
+            { type: "text", text: ` ${pricingData.currency} ${fmt(subtotalAfterDiscount)}  ` },
+            { type: "hardBreak" },
+            { type: "text", marks: [{ type: "strong" }], text: "GST:" },
+            { type: "text", text: ` ${pricingData.gst_rate}% (${pricingData.currency} ${fmt(pricingData.gst_amount)})  ` },
+            { type: "hardBreak" },
+            { type: "text", marks: [{ type: "strong" }], text: "TOTAL PROJECT VALUE:" },
+            { type: "text", text: ` ${pricingData.currency} ${fmt(pricingData.grand_total)}` }
+        ]
+    });
 
-    // Add closing
-    markdownContent += `---\n\n`;
-    markdownContent += `*This Statement of Work was generated using The Architect V4.1 AI system.*`;
+    // Add horizontal rule
+    content.push({ type: "horizontalRule" });
 
-    return markdownContent;
+    // Add footer
+    content.push({
+        type: "paragraph",
+        content: [
+            { type: "text", marks: [{ type: "em" }], text: "This Statement of Work was generated using The Architect V4.1 AI system." }
+        ]
+    });
+
+    // Return as TipTap JSON document
+    return {
+        type: "doc",
+        content: content
+    };
 }
+
 
 // Extract JSON from markdown content
 export function extractJSONFromContent(content: string): V41PricingData | null {
