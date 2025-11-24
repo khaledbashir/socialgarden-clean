@@ -132,7 +132,20 @@ export function useDocumentState({
                 const foldersResponse = await fetch("/api/folders", {
                     signal: abortController.signal,
                 });
+
+                if (!foldersResponse.ok) {
+                    console.error(`❌ Folders API returned ${foldersResponse.status}`);
+                    throw new Error(`Folders API failed with status ${foldersResponse.status}`);
+                }
+
                 const foldersData = await foldersResponse.json();
+
+                // Guard against undefined or invalid response
+                if (!Array.isArray(foldersData)) {
+                    console.error("❌ Folders API returned invalid data:", foldersData);
+                    throw new Error("Folders API returned invalid data format");
+                }
+
                 console.log(
                     "✅ Loaded folders from database:",
                     foldersData.length,
@@ -142,7 +155,7 @@ export function useDocumentState({
                     signal: abortController.signal,
                 });
                 const { sows } = await sowsResponse.json();
-                const dbSOWs = sows;
+                const dbSOWs = sows || [];
                 console.log("✅ Loaded SOWs from database:", dbSOWs.length);
 
                 const workspacesWithSOWs: Workspace[] = [];
