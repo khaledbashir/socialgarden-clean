@@ -22,86 +22,84 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     const [roles, setRoles] = useState<RoleRate[]>([]);
     const [rolesLoading, setRolesLoading] = useState(true);
 
-    // Store raw data from node attrs
-    const initialRowsRef = useRef(
-        (
-            node.attrs.rows || [
-                { role: "", description: "", hours: 0, rate: 0 },
-            ]
-        ).map((row: any, idx: number) => ({
-            ...row,
-            id: row.id || `row-${idx}-${Date.now()}`,
-        })),
-    );
-
-    // 🔒 CRITICAL FIX: Watch for node.attrs.rows changes and update initialRowsRef
-    // This ensures the component reacts to new JSON data from AI
     useEffect(() => {
-        const currentRows = node.attrs.rows || [];
-        const currentRowsStr = JSON.stringify(currentRows);
-        const storedRowsStr = JSON.stringify(initialRowsRef.current.map(r => ({ role: r.role, hours: r.hours, rate: r.rate, total: r.total })));
-
-        // Only update if rows actually changed (not just a reference change)
-        if (currentRowsStr !== storedRowsStr && currentRows.length > 0) {
-            console.log("🔄 [Pricing Table] Detected node.attrs.rows change, updating initialRowsRef", {
-                oldCount: initialRowsRef.current.length,
-                newCount: currentRows.length,
-                newRows: currentRows.slice(0, 3).map((r: any) => ({ role: r.role, hours: r.hours, rate: r.rate }))
-            });
-
-            initialRowsRef.current = currentRows.map((row: any, idx: number) => ({
-                ...row,
-                id: row.id || `row-${idx}-${Date.now()}`,
-            }));
-
-            // Force re-render by updating state
-            setIsUserModified(false); // Reset user modification flag so new data can populate
-        }
-    }, [node.attrs.rows]);
-
-    // 🔒 CRITICAL FIX: Use useMemo to enforce roles BEFORE first render
-    // This ensures rows are compliant from the very first render - no flicker
-    const enforcedRows = useMemo(() => {
-        if (roles.length === 0) {
-            // Rate card not loaded yet - return empty to show loading
-            return [];
-        }
-
-        try {
-            console.log(
-                "🔒 [Pricing Table] Applying mandatory role enforcement via useMemo...",
-                { inputRowsCount: initialRowsRef.current.length }
-            );
-            const compliantRows = enforceMandatoryRoles(
-                initialRowsRef.current,
-                roles,
-            );
-
-            // Validate
-            const validation = validateMandatoryRoles(compliantRows);
-            if (!validation.isValid) {
-                console.error(
-                    "❌ [Pricing Table] Validation failed after enforcement:",
-                    validation.details,
-                );
-            } else {
-                console.log(
-                    "✅ [Pricing Table] Validation passed:",
-                    validation.details,
-                );
+        const fetchRoles = async () => {
+            try {
+                const response = await fetch("/api/rate-card");
+                const result = await response.json();
+                if (result.success) {
+                    setRoles(result.data);
+                } else {
+                    console.error("Failed to fetch rate card roles:", result.error);
+                }
+            } catch (error) {
+                console.error("Error fetching rate card roles:", error);
+            } finally {
+                setRolesLoading(false);
             }
+        };
+        fetchRoles();
+    }, []);
 
-            return compliantRows;
+    // 🎯 Derived State: Enforce roles on the input data
+    const enforcedRows = useMemo(() => {
+        if (roles.length === 0) return [];
+        const currentRows = node.attrs.rows || [{ role: "", description: "", hours: 0, rate: 0 }];
+        try {
+            return enforceMandatoryRoles(currentRows, roles);
         } catch (error) {
             console.error("❌ [Pricing Table] Enforcement failed:", error);
-            return initialRowsRef.current;
+            return currentRows;
         }
-    }, [roles, node.attrs.rows]); // Recalculate when roles OR node.attrs.rows change
+    }, [roles, node.attrs.rows]);
 
-    // State for rows (initialized from enforcedRows)
-    const [rows, setRows] = useState<PricingRow[]>(enforcedRows);
+    // 🎯 Local State
+    const [rows, setRows] = useState<PricingRow[]>([]);
     const [discount, setDiscount] = useState(node.attrs.discount || 0);
-    const [showTotal, setShowTotal] = useState(node.attrs.showTotal !== false); // Default to true
+    const [showTotal, setShowTotal] = useState(node.attrs.showTotal !== false);
+
+    // Dummy state to maintain compatibility with existing handlers (updateRow, etc.)
+    // We don't use this for logic anymore, but we keep it to prevent compile errors
+    const [isUserModified, setIsUserModified] = useState(false);
+
+    // 🎯 Sync Local State with Enforced Rows (External Updates)
+    useEffect(() => {
+        if (enforcedRows.length === 0) return;
+
+        // We compare stringified versions to detect external changes
+        const currentRowsJson = JSON.stringify(rows);
+        const enforcedRowsJson = JSON.stringify(enforcedRows);
+
+        if (currentRowsJson !== enforcedRowsJson) {
+            console.log("🔄 [Pricing Table] Syncing rows from enforced source");
+            setRows(enforcedRows);
+        }
+    }, [enforcedRows]); // Intentionally omit 'rows' to avoid loop
+
+    // 🎯 Sync Node Attributes with Local State (Internal Updates)
+    useEffect(() => {
+        const attrs = node.attrs;
+        const rowsChanged = JSON.stringify(rows) !== JSON.stringify(attrs.rows);
+        const discountChanged = discount !== attrs.discount;
+        const showTotalChanged = showTotal !== attrs.showTotal;
+
+        if ((rowsChanged || discountChanged || showTotalChanged) && rows.length > 0) {
+            const timer = setTimeout(() => {
+                updateAttributes({ rows, discount, showTotal });
+            }, 0);
+            return () => clearTimeout(timer);
+        }
+    }, [rows, discount, showTotal, node.attrs]);
+
+    // 🎯 Sync Discount/ShowTotal from Attributes (External Updates)
+    useEffect(() => {
+        if (node.attrs.discount !== undefined && node.attrs.discount !== discount) {
+            setDiscount(node.attrs.discount);
+        }
+        if (node.attrs.showTotal !== undefined && node.attrs.showTotal !== showTotal) {
+            setShowTotal(node.attrs.showTotal);
+        }
+    }, [node.attrs.discount, node.attrs.showTotal]);
 
     // 🎯 Save/Revert metadata tracking
     const [mode, setMode] = useState<'view' | 'edit'>(node.attrs.mode || 'view');
@@ -109,82 +107,19 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
         node.attrs.aiGeneratedData ? JSON.parse(node.attrs.aiGeneratedData) : null
     );
 
-    // 🎯 Store AI-generated data on initial load if not already stored
+    // 🎯 Store AI-generated data on initial load
     useEffect(() => {
-        // Store AI data if:
-        // 1. Not already stored
-        // 2. We have rows (table is populated)
-        // 3. Mode is 'view' (not yet edited) OR mode is not set (initial state)
-        // 4. Rate card is loaded (so we have valid data)
         if (!aiGeneratedDataRef.current && rows.length > 0 && (mode === 'view' || !node.attrs.mode) && roles.length > 0) {
-            console.log("💾 [Pricing Table] Storing initial AI-generated data");
             aiGeneratedDataRef.current = {
                 rows: JSON.parse(JSON.stringify(rows)),
                 discount,
             };
-            // Persist to node attributes
             updateAttributes({
                 aiGeneratedData: JSON.stringify(aiGeneratedDataRef.current),
                 mode: 'view',
             });
         }
-    }, [rows.length, mode, roles.length]); // Re-check when rows are populated or roles load
-
-    // Update rows when enforcedRows changes (after rate card loads)
-    // BUT: Don't overwrite if user has manually added rows
-    const [isUserModified, setIsUserModified] = useState(false);
-
-    useEffect(() => {
-        // Only auto-update rows if user hasn't manually modified them
-        if (enforcedRows.length > 0 && !isUserModified) {
-            console.log("🔄 [Pricing Table] Updating rows from enforcedRows", {
-                count: enforcedRows.length,
-                sample: enforcedRows.slice(0, 2).map(r => ({ role: r.role, hours: r.hours, rate: r.rate }))
-            });
-            setRows(enforcedRows);
-        }
-    }, [enforcedRows, isUserModified]);
-
-    // 🎯 CRITICAL FIX: Sync discount state with node.attrs.discount when it changes
-    // Use ref to track if we're updating from internal state change to prevent loop
-    const isInternalUpdateRef = useRef(false);
-
-    useEffect(() => {
-        // Skip if this is an internal update (we're the ones changing it)
-        if (isInternalUpdateRef.current) {
-            isInternalUpdateRef.current = false;
-            return;
-        }
-
-        // Only sync if node.attrs actually changed from external source
-        if (
-            node.attrs.discount !== undefined &&
-            node.attrs.discount !== discount
-        ) {
-            console.log(
-                `🔍 [DISCOUNT DEBUG] Syncing discount from node.attrs: ${node.attrs.discount}%`,
-            );
-            setDiscount(node.attrs.discount);
-        }
-    }, [node.attrs.discount]); // Removed discount from deps to prevent loop
-
-    // 🎯 Sync showTotal state with node.attrs.showTotal when it changes
-    useEffect(() => {
-        // Skip if this is an internal update
-        if (isInternalUpdateRef.current) {
-            return;
-        }
-
-        if (
-            node.attrs.showTotal !== undefined &&
-            node.attrs.showTotal !== showTotal
-        ) {
-            console.log(
-                `🔍 [SHOW TOTAL DEBUG] Syncing showTotal from node.attrs: ${node.attrs.showTotal}`,
-            );
-            setShowTotal(node.attrs.showTotal);
-        }
-    }, [node.attrs.showTotal]); // Removed showTotal from deps to prevent loop
+    }, [rows.length, mode, roles.length]);
 
     // Drag and drop state
     const [draggedRowId, setDraggedRowId] = useState<string | null>(null);
@@ -198,54 +133,6 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     const scopeIndex = node.attrs.scopeIndex || 0;
     const totalScopes = node.attrs.totalScopes || 1;
     const isMultiScope = totalScopes > 1;
-
-    useEffect(() => {
-        const fetchRoles = async () => {
-            try {
-                const response = await fetch("/api/rate-card");
-                const result = await response.json();
-                if (result.success) {
-                    setRoles(result.data);
-                } else {
-                    console.error(
-                        "Failed to fetch rate card roles:",
-                        result.error,
-                    );
-                }
-            } catch (error) {
-                console.error("Error fetching rate card roles:", error);
-            } finally {
-                setRolesLoading(false);
-            }
-        };
-        fetchRoles();
-    }, []);
-
-    // 🔒 CRITICAL FIX: Prevent infinite loop by checking if values actually changed
-    // and using useRef to track previous values
-    const prevValuesRef = useRef({ rows, discount, showTotal });
-
-    useEffect(() => {
-        // Only update if values actually changed
-        const prev = prevValuesRef.current;
-        const rowsChanged = JSON.stringify(prev.rows) !== JSON.stringify(rows);
-        const discountChanged = prev.discount !== discount;
-        const showTotalChanged = prev.showTotal !== showTotal;
-
-        if (rowsChanged || discountChanged || showTotalChanged) {
-            // Mark as internal update to prevent sync loop
-            isInternalUpdateRef.current = true;
-
-            // Update ref before calling updateAttributes
-            prevValuesRef.current = { rows, discount, showTotal };
-
-            // Defer updateAttributes to a microtask to avoid flushSync errors
-            // This prevents calling updateAttributes from within a React lifecycle
-            Promise.resolve().then(() => {
-                updateAttributes({ rows, discount, showTotal });
-            });
-        }
-    }, [rows, discount, showTotal]); // Removed updateAttributes from deps to prevent loop
 
     const updateRow = (
         id: string,

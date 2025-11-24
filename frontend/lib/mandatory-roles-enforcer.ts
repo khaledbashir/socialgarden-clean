@@ -307,7 +307,7 @@ export function enforceMandatoryRoles(
             );
             throw new Error(
                 `Mandatory role "${mandatory.role}" missing from Rate Card. ` +
-                    `Cannot generate compliant SOW without it.`,
+                `Cannot generate compliant SOW without it.`,
             );
         }
 
@@ -328,7 +328,7 @@ export function enforceMandatoryRoles(
         if (validatedHours !== hours) {
             console.warn(
                 `⚠️ [Enforcer] Adjusted hours for ${mandatory.role}: ` +
-                    `${hours} → ${validatedHours} (min: ${mandatory.minHours}, max: ${mandatory.maxHours})`,
+                `${hours} → ${validatedHours} (min: ${mandatory.minHours}, max: ${mandatory.maxHours})`,
             );
         }
 
@@ -337,7 +337,7 @@ export function enforceMandatoryRoles(
 
         console.log(
             `✅ [Enforcer] Mandatory role #${mandatory.order}: ${mandatory.role} ` +
-                `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
+            `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
         );
 
         return {
@@ -378,10 +378,10 @@ export function enforceMandatoryRoles(
         // Validate hours upfront (needed for both branches)
         const validatedHours = Math.max(0, Number(aiRole.hours) || 0);
 
-        // Skip if this is a mandatory role (already processed)
-        if (processedRoles.has(normalizedAiRole)) {
+        // Skip if this is a mandatory role (already processed OR will be processed)
+        if (processedRoles.has(normalizedAiRole) || isMandatoryRole(aiRole.role)) {
             console.log(
-                `⏭️ [Enforcer] Skipping duplicate: ${aiRole.role} (already in mandatory section)`,
+                `⏭️ [Enforcer] Skipping mandatory role in general loop: ${aiRole.role}`,
             );
             continue;
         }
@@ -394,7 +394,7 @@ export function enforceMandatoryRoles(
         if (!rateCardEntry) {
             console.warn(
                 `⚠️ [Enforcer] Role "${aiRole.role}" not found in Rate Card. ` +
-                    `This role will be PRESERVED with a default rate to prevent data loss.`,
+                `This role will be PRESERVED with a default rate to prevent data loss.`,
             );
 
             // CRITICAL FIX: Preserve role instead of skipping to prevent missing rows
@@ -428,7 +428,7 @@ export function enforceMandatoryRoles(
             oversightRolesAdded++;
             console.log(
                 `📊 [Enforcer] Management/Oversight role (bottom): ${rateCardEntry.roleName} ` +
-                    `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
+                `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
             );
         } else {
             // Technical/delivery roles go in the MIDDLE
@@ -436,7 +436,7 @@ export function enforceMandatoryRoles(
             technicalRolesAdded++;
             console.log(
                 `➕ [Enforcer] Technical role (middle): ${rateCardEntry.roleName} ` +
-                    `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
+                `(${validatedHours}h @ $${rateCardEntry.hourlyRate}/h)`,
             );
         }
 
@@ -460,7 +460,7 @@ export function enforceMandatoryRoles(
 
     console.log(
         `🎯 [Enforcer] Enforcement complete: ` +
-            `${topRoles.length} top (leadership) + ${middleRoles.length} middle (technical) + ${bottomRoles.length} bottom (management/oversight) = ${result.length} total`,
+        `${topRoles.length} top (leadership) + ${middleRoles.length} middle (technical) + ${bottomRoles.length} bottom (management/oversight) = ${result.length} total`,
     );
 
     return result;
@@ -520,13 +520,13 @@ export function validateMandatoryRoles(
         if (
             headOfRole &&
             normalizeRoleName(rows[0]?.role) !==
-                normalizeRoleName(headOfRole.role)
+            normalizeRoleName(headOfRole.role)
         ) {
             result.isValid = false;
             result.incorrectOrder = true;
             result.details.push(
                 `⚠️ Incorrect order: Position 1 should be "${headOfRole.role}", ` +
-                    `but found "${rows[0]?.role}"`,
+                `but found "${rows[0]?.role}"`,
             );
         }
 
@@ -534,13 +534,13 @@ export function validateMandatoryRoles(
         if (
             deliveryRole &&
             normalizeRoleName(rows[1]?.role) !==
-                normalizeRoleName(deliveryRole.role)
+            normalizeRoleName(deliveryRole.role)
         ) {
             result.isValid = false;
             result.incorrectOrder = true;
             result.details.push(
                 `⚠️ Incorrect order: Position 2 should be "${deliveryRole.role}", ` +
-                    `but found "${rows[1]?.role}"`,
+                `but found "${rows[1]?.role}"`,
             );
         }
 
@@ -555,7 +555,7 @@ export function validateMandatoryRoles(
                 result.incorrectOrder = true;
                 result.details.push(
                     `⚠️ Incorrect order: Last position should be "${accountMgmtRole.role}", ` +
-                        `but found "${lastRow?.role}"`,
+                    `but found "${lastRow?.role}"`,
                 );
             }
         }
@@ -576,7 +576,7 @@ export function validateMandatoryRoles(
                 result.isValid = false;
                 result.details.push(
                     `⚠️ ${row.role}: Hours ${row.hours} outside acceptable range ` +
-                        `(${mandatory.minHours}-${mandatory.maxHours})`,
+                    `(${mandatory.minHours}-${mandatory.maxHours})`,
                 );
             }
         }

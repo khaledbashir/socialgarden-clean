@@ -529,14 +529,40 @@ export function useDocumentState({
     const loadedDocIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (currentDoc && editorRef.current && currentDoc.id !== loadedDocIdRef.current) {
-            console.log("📄 Loading content for SOW", currentDocId, "...");
-            editorRef.current.commands?.setContent
-                ? editorRef.current.commands.setContent(currentDoc.content)
-                : editorRef.current.insertContent(currentDoc.content);
-            console.log("✅ LOAD SUCCESS for", currentDocId);
-            loadedDocIdRef.current = currentDoc.id;
-        }
+        if (!currentDoc || currentDoc.id === loadedDocIdRef.current) return;
+
+        let attempts = 0;
+        const maxAttempts = 50; // 5 seconds max
+
+        const loadContent = () => {
+            if (editorRef.current && editorRef.current.isReady) {
+                console.log("📄 Loading content for SOW", currentDocId, "...");
+                editorRef.current.commands?.setContent
+                    ? editorRef.current.commands.setContent(currentDoc.content)
+                    : editorRef.current.insertContent(currentDoc.content);
+                console.log("✅ LOAD SUCCESS for", currentDocId);
+                loadedDocIdRef.current = currentDoc.id;
+                return true;
+            }
+            return false;
+        };
+
+        // Try immediately
+        if (loadContent()) return;
+
+        // Poll if not ready
+        console.log("⏳ Editor not ready, polling...");
+        const interval = setInterval(() => {
+            attempts++;
+            if (loadContent() || attempts >= maxAttempts) {
+                clearInterval(interval);
+                if (attempts >= maxAttempts) {
+                    console.warn("⚠️ Editor failed to become ready in time for", currentDocId);
+                }
+            }
+        }, 100);
+
+        return () => clearInterval(interval);
     }, [currentDocId, currentDoc]);
 
     return {

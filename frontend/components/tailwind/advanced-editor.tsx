@@ -311,6 +311,7 @@ const TailwindAdvancedEditor = forwardRef(
                 getHTML: () => {
                     return editor?.getHTML() || "";
                 },
+                isReady: !!editor,
             }),
             [editor],
         );
