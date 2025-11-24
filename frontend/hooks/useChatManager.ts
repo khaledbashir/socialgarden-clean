@@ -552,16 +552,8 @@ export function useChatManager({
             setChatMessages(newMessages);
 
             try {
-                // Simplified flow: call AnythingLLM API for a response
-                const workspace =
-                    currentDoc?.workspaceSlug ||
-                    getWorkspaceForAgent(currentAgentId || "");
-                const threadSlug =
-                    threadSlugParam ||
-                    currentDoc?.threadSlug ||
-                    `temp-${Date.now()}`;
-
-                // Validate required parameters
+                // Validate workspace slug exists
+                const workspace = currentDoc?.workspaceSlug;
                 if (!workspace) {
                     log("❌ [Chat] No workspace available");
                     toast.error(
@@ -574,6 +566,11 @@ export function useChatManager({
                     } catch { }
                     return;
                 }
+
+                const threadSlug =
+                    threadSlugParam ||
+                    currentDoc?.threadSlug ||
+                    `temp-${Date.now()}`;
 
                 if (!threadSlug || threadSlug.startsWith("temp-")) {
                     log(
