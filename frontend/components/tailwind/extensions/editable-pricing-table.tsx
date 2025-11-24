@@ -193,6 +193,8 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
     // Extract scope-related attributes from node
     const scopeName = node.attrs.scopeName || "";
     const scopeDescription = node.attrs.scopeDescription || "";
+    const deliverables = node.attrs.deliverables || [];
+    const assumptions = node.attrs.assumptions || [];
     const scopeIndex = node.attrs.scopeIndex || 0;
     const totalScopes = node.attrs.totalScopes || 1;
     const isMultiScope = totalScopes > 1;
@@ -574,6 +576,30 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                     </div>
                 </div>
                 <div className="overflow-visible mb-4 relative z-50">
+                    {/* Deliverables Section - Placed BEFORE the table */}
+                    {deliverables && deliverables.length > 0 && (
+                        <div className="mb-4 p-4 bg-muted/30 rounded-md border border-border">
+                            <h4 className="font-bold text-sm mb-2 text-foreground dark:text-gray-100">Deliverables:</h4>
+                            <ul className="list-disc list-inside text-sm space-y-1 text-foreground dark:text-gray-100">
+                                {deliverables.map((item: string, idx: number) => (
+                                    <li key={idx}>{item}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* Assumptions Section - Placed BEFORE the table */}
+                    {assumptions && assumptions.length > 0 && (
+                        <div className="mb-4 p-4 bg-muted/30 rounded-md border border-border">
+                            <h4 className="font-bold text-sm mb-2 text-foreground dark:text-gray-100">Assumptions:</h4>
+                            <ul className="list-disc list-inside text-sm space-y-1 text-foreground dark:text-gray-100">
+                                {assumptions.map((item: string, idx: number) => (
+                                    <li key={idx}>{item}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
                     <table className="w-full border-collapse">
                         <thead>
                             <tr className="bg-[#0E0F0F] text-white">
@@ -738,6 +764,7 @@ const EditablePricingTableComponent = ({ node, updateAttributes }: any) => {
                                     </td>
                                 </tr>
                             ))}
+
                         </tbody>
                     </table>
                 </div>
@@ -907,249 +934,269 @@ export const EditablePricingTable = Node.create({
                     const show = element.getAttribute("data-show-totals");
                     return show !== "false";
                 },
-            },
-        };
-    },
+                showTotal: {
+                    default: true,
+                    parseHTML: (element) => {
+                        const show = element.getAttribute("data-show-totals");
+                        return show !== "false";
+                    },
+                },
+                deliverables: {
+                    default: [],
+                    parseHTML: (element) => {
+                        const data = element.getAttribute("data-deliverables");
+                        return data ? JSON.parse(data) : [];
+                    },
+                },
+                assumptions: {
+                    default: [],
+                    parseHTML: (element) => {
+                        const data = element.getAttribute("data-assumptions");
+                        return data ? JSON.parse(data) : [];
+                    },
+                },
+            };
+        },
 
-    parseHTML() {
-        return [
-            {
-                tag: 'div[data-type="editable-pricing-table"]',
-            },
-        ];
-    },
+            parseHTML() {
+            return [
+                {
+                    tag: 'div[data-type="editable-pricing-table"]',
+                },
+            ];
+        },
 
-    renderHTML({ node, HTMLAttributes }) {
-        const rows: PricingRow[] = node.attrs.rows || [];
-        const discount = node.attrs.discount || 0;
+        renderHTML({ node, HTMLAttributes }) {
+            const rows: PricingRow[] = node.attrs.rows || [];
+            const discount = node.attrs.discount || 0;
 
-        const subtotal = rows.reduce(
-            (sum, row) => sum + (Number(row.hours) || 0) * (Number(row.rate) || 0),
-            0,
-        );
-        const discountAmount = (subtotal * discount) / 100;
-        const subtotalAfterDiscount = subtotal - discountAmount;
-        const gst = subtotalAfterDiscount * 0.1;
-        const total = subtotalAfterDiscount + gst;
+            const subtotal = rows.reduce(
+                (sum, row) => sum + (Number(row.hours) || 0) * (Number(row.rate) || 0),
+                0,
+            );
+            const discountAmount = (subtotal * discount) / 100;
+            const subtotalAfterDiscount = subtotal - discountAmount;
+            const gst = subtotalAfterDiscount * 0.1;
+            const total = subtotalAfterDiscount + gst;
 
-        const tableContent: any[] = [
-            "table",
-            {
-                style: "width:100%; border-collapse:collapse; margin:1.5rem 0; border:2px solid #0e2e33;",
-            },
-            [
-                "thead",
-                {},
+            const tableContent: any[] = [
+                "table",
+                {
+                    style: "width:100%; border-collapse:collapse; margin:1.5rem 0; border:2px solid #0e2e33;",
+                },
                 [
-                    "tr",
+                    "thead",
                     {},
                     [
-                        "th",
-                        {
-                            style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:left; border:1px solid #0e2e33;",
-                        },
-                        "Role",
-                    ],
-                    [
-                        "th",
-                        {
-                            style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:left; border:1px solid #0e2e33;",
-                        },
-                        "Description",
-                    ],
-                    [
-                        "th",
-                        {
-                            style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
-                        },
-                        "Hours",
-                    ],
-                    [
-                        "th",
-                        {
-                            style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
-                        },
-                        "Rate",
-                    ],
-                    [
-                        "th",
-                        {
-                            style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
-                        },
-                        "Total",
-                    ],
-                ],
-            ],
-            [
-                "tbody",
-                {},
-                ...rows.map((row, index) => {
-                    // Ensure numeric types for calculations
-                    const hours = Number(row.hours) || 0;
-                    const rate = Number(row.rate) || 0;
-                    const rowTotal = hours * rate;
-                    const bgColor = index % 2 === 0 ? "#f9fafb" : "white";
-                    return [
                         "tr",
-                        { style: `background:${bgColor};` },
+                        {},
                         [
-                            "td",
+                            "th",
                             {
-                                style: "padding:0.875rem 1rem; border:1px solid #d1d5db;",
+                                style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:left; border:1px solid #0e2e33;",
                             },
-                            row.role,
+                            "Role",
                         ],
                         [
-                            "td",
+                            "th",
                             {
-                                style: "padding:0.875rem 1rem; border:1px solid #d1d5db;",
+                                style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:left; border:1px solid #0e2e33;",
                             },
-                            row.description || "",
+                            "Description",
                         ],
                         [
-                            "td",
+                            "th",
                             {
-                                style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right;",
+                                style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
                             },
-                            hours.toString(),
+                            "Hours",
                         ],
                         [
-                            "td",
+                            "th",
                             {
-                                style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right;",
+                                style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
                             },
-                            `$${rate.toFixed(2)}`,
+                            "Rate",
                         ],
                         [
-                            "td",
+                            "th",
                             {
-                                style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right; font-weight:600;",
+                                style: "background:#0e2e33; color:white; padding:0.875rem 1rem; text-align:right; border:1px solid #0e2e33;",
                             },
-                            `$${rowTotal.toFixed(2)}`,
+                            "Total",
                         ],
-                    ];
-                }),
-            ],
-        ];
-
-        // Optional scope header for PDF/HTML export
-        const scopeHeader: any[] = [];
-        if (node.attrs.scopeName) {
-            scopeHeader.push([
-                "div",
-                { style: "margin-bottom:0.5rem;" },
-                [
-                    "h4",
-                    {
-                        style: "margin:0; font-size:1rem; color:#0e2e33; font-weight:700;",
-                    },
-                    node.attrs.scopeName,
+                    ],
                 ],
-            ]);
-            if (node.attrs.scopeDescription) {
+                [
+                    "tbody",
+                    {},
+                    ...rows.map((row, index) => {
+                        // Ensure numeric types for calculations
+                        const hours = Number(row.hours) || 0;
+                        const rate = Number(row.rate) || 0;
+                        const rowTotal = hours * rate;
+                        const bgColor = index % 2 === 0 ? "#f9fafb" : "white";
+                        return [
+                            "tr",
+                            { style: `background:${bgColor};` },
+                            [
+                                "td",
+                                {
+                                    style: "padding:0.875rem 1rem; border:1px solid #d1d5db;",
+                                },
+                                row.role,
+                            ],
+                            [
+                                "td",
+                                {
+                                    style: "padding:0.875rem 1rem; border:1px solid #d1d5db;",
+                                },
+                                row.description || "",
+                            ],
+                            [
+                                "td",
+                                {
+                                    style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right;",
+                                },
+                                hours.toString(),
+                            ],
+                            [
+                                "td",
+                                {
+                                    style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right;",
+                                },
+                                `$${rate.toFixed(2)}`,
+                            ],
+                            [
+                                "td",
+                                {
+                                    style: "padding:0.875rem 1rem; border:1px solid #d1d5db; text-align:right; font-weight:600;",
+                                },
+                                `$${rowTotal.toFixed(2)}`,
+                            ],
+                        ];
+                    }),
+                ],
+            ];
+
+            // Optional scope header for PDF/HTML export
+            const scopeHeader: any[] = [];
+            if (node.attrs.scopeName) {
                 scopeHeader.push([
                     "div",
-                    { style: "margin-bottom:0.75rem; color:#374151;" },
-                    node.attrs.scopeDescription,
+                    { style: "margin-bottom:0.5rem;" },
+                    [
+                        "h4",
+                        {
+                            style: "margin:0; font-size:1rem; color:#0e2e33; font-weight:700;",
+                        },
+                        node.attrs.scopeName,
+                    ],
                 ]);
+                if (node.attrs.scopeDescription) {
+                    scopeHeader.push([
+                        "div",
+                        { style: "margin-bottom:0.75rem; color:#374151;" },
+                        node.attrs.scopeDescription,
+                    ]);
+                }
             }
-        }
 
-        const totalsSection: any[] = [
-            "div",
-            {
-                style: "margin-top:1.5rem; padding-top:1rem; border-top:2px solid #0e2e33;",
-            },
-            [
+            const totalsSection: any[] = [
                 "div",
-                { style: "max-width:400px; margin-left:auto;" },
+                {
+                    style: "margin-top:1.5rem; padding-top:1rem; border-top:2px solid #0e2e33;",
+                },
                 [
                     "div",
-                    {
-                        style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
-                    },
+                    { style: "max-width:400px; margin-left:auto;" },
                     [
-                        "span",
-                        { style: "font-weight:600; color:#0e2e33;" },
-                        "Subtotal:",
-                    ],
-                    [
-                        "span",
-                        { style: "font-weight:600; color:#0e2e33;" },
-                        `$${subtotal.toFixed(2)}`,
-                    ],
-                ],
-                ...(discount > 0
-                    ? [
+                        "div",
+                        {
+                            style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
+                        },
                         [
-                            "div",
-                            {
-                                style: "display:flex; justify-content:space-between; padding:0.5rem 0; color:#ef4444;",
-                            },
-                            ["span", {}, `Discount (${discount}%):`],
-                            ["span", {}, `-$${discountAmount.toFixed(2)}`],
+                            "span",
+                            { style: "font-weight:600; color:#0e2e33;" },
+                            "Subtotal:",
                         ],
                         [
-                            "div",
-                            {
-                                style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
-                            },
-                            [
-                                "span",
-                                { style: "font-weight:600;" },
-                                "Subtotal After Discount:",
-                            ],
-                            [
-                                "span",
-                                { style: "font-weight:600;" },
-                                `$${subtotalAfterDiscount.toFixed(2)}`,
-                            ],
+                            "span",
+                            { style: "font-weight:600; color:#0e2e33;" },
+                            `$${subtotal.toFixed(2)}`,
                         ],
-                    ]
-                    : []),
-                [
-                    "div",
-                    {
-                        style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
-                    },
-                    ["span", {}, "GST (10%):"],
-                    ["span", {}, `$${gst.toFixed(2)}`],
-                ],
-                [
-                    "div",
-                    {
-                        style: "display:flex; justify-content:space-between; padding:0.75rem 0; border-top:2px solid #0e2e33; margin-top:0.5rem;",
-                    },
+                    ],
+                    ...(discount > 0
+                        ? [
+                            [
+                                "div",
+                                {
+                                    style: "display:flex; justify-content:space-between; padding:0.5rem 0; color:#ef4444;",
+                                },
+                                ["span", {}, `Discount (${discount}%):`],
+                                ["span", {}, `-$${discountAmount.toFixed(2)}`],
+                            ],
+                            [
+                                "div",
+                                {
+                                    style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
+                                },
+                                [
+                                    "span",
+                                    { style: "font-weight:600;" },
+                                    "Subtotal After Discount:",
+                                ],
+                                [
+                                    "span",
+                                    { style: "font-weight:600;" },
+                                    `$${subtotalAfterDiscount.toFixed(2)}`,
+                                ],
+                            ],
+                        ]
+                        : []),
                     [
-                        "span",
+                        "div",
                         {
-                            style: "font-size:1.25rem; font-weight:700; color:#0e2e33;",
+                            style: "display:flex; justify-content:space-between; padding:0.5rem 0;",
                         },
-                        "Scope Total:",
+                        ["span", {}, "GST (10%):"],
+                        ["span", {}, `$${gst.toFixed(2)}`],
                     ],
                     [
-                        "span",
+                        "div",
                         {
-                            style: "font-size:1.25rem; font-weight:700; color:#0e2e33;",
+                            style: "display:flex; justify-content:space-between; padding:0.75rem 0; border-top:2px solid #0e2e33; margin-top:0.5rem;",
                         },
-                        `$${total.toFixed(2)}`,
+                        [
+                            "span",
+                            {
+                                style: "font-size:1.25rem; font-weight:700; color:#0e2e33;",
+                            },
+                            "Scope Total:",
+                        ],
+                        [
+                            "span",
+                            {
+                                style: "font-size:1.25rem; font-weight:700; color:#0e2e33;",
+                            },
+                            `$${total.toFixed(2)}`,
+                        ],
                     ],
                 ],
-            ],
-        ];
+            ];
 
-        return [
-            "div",
-            mergeAttributes(HTMLAttributes, {
-                "data-type": "editable-pricing-table",
-            }),
-            ...scopeHeader,
-            tableContent,
-            totalsSection,
-        ];
-    },
+            return [
+                "div",
+                mergeAttributes(HTMLAttributes, {
+                    "data-type": "editable-pricing-table",
+                }),
+                ...scopeHeader,
+                tableContent,
+                totalsSection,
+            ];
+        },
 
-    addNodeView() {
-        return ReactNodeViewRenderer(EditablePricingTableComponent);
-    },
-});
+        addNodeView() {
+            return ReactNodeViewRenderer(EditablePricingTableComponent);
+        },
+    });

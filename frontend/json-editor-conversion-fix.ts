@@ -62,67 +62,6 @@ export function convertV41JSONToEditorFormat(
 
     // Process each scope
     pricingData.scopes.forEach((scope, scopeIndex) => {
-        const scopeNumber = scopeIndex + 1;
-
-        // Scope heading
-        content.push({
-            type: "heading",
-            attrs: { level: 2 },
-            content: [{ type: "text", text: `Phase ${scopeNumber}: ${scope.scope_name}` }]
-        });
-
-        // Description
-        content.push({
-            type: "paragraph",
-            content: [
-                { type: "text", marks: [{ type: "bold" }], text: "Description:" },
-                { type: "text", text: ` ${scope.scope_description}` }
-            ]
-        });
-
-        // Deliverables
-        if (scope.deliverables && scope.deliverables.length > 0) {
-            content.push({
-                type: "paragraph",
-                content: [{ type: "text", marks: [{ type: "bold" }], text: "Deliverables:" }]
-            });
-            content.push({
-                type: "bulletList",
-                content: scope.deliverables.map(d => ({
-                    type: "listItem",
-                    content: [{
-                        type: "paragraph",
-                        content: [{ type: "text", text: d }]
-                    }]
-                }))
-            });
-        }
-
-        // Assumptions
-        if (scope.assumptions && scope.assumptions.length > 0) {
-            content.push({
-                type: "paragraph",
-                content: [{ type: "text", marks: [{ type: "bold" }], text: "Assumptions:" }]
-            });
-            content.push({
-                type: "bulletList",
-                content: scope.assumptions.map(a => ({
-                    type: "listItem",
-                    content: [{
-                        type: "paragraph",
-                        content: [{ type: "text", text: a }]
-                    }]
-                }))
-            });
-        }
-
-        // Investment breakdown heading
-        content.push({
-            type: "heading",
-            attrs: { level: 3 },
-            content: [{ type: "text", text: `Investment Breakdown - Phase ${scopeNumber}` }]
-        });
-
         // Create the pricing table node
         const tableRows = (scope.role_allocation || []).map((role, idx) => ({
             id: `row-${scopeIndex}-${idx}-${Date.now()}`,
@@ -132,7 +71,7 @@ export function convertV41JSONToEditorFormat(
             rate: role.rate,
         }));
 
-        // Add the editablePricingTable node
+        // Add the editablePricingTable node with ALL scope details
         content.push({
             type: "editablePricingTable",
             attrs: {
@@ -140,6 +79,8 @@ export function convertV41JSONToEditorFormat(
                 discount: scope.discount || 0,
                 scopeName: scope.scope_name,
                 scopeDescription: scope.scope_description,
+                deliverables: scope.deliverables || [],
+                assumptions: scope.assumptions || [],
                 scopeIndex: scopeIndex,
                 totalScopes: pricingData.scopes.length,
                 mode: "view",
