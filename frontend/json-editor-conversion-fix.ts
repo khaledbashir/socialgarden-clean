@@ -35,10 +35,13 @@ export function convertV41JSONToEditorFormat(
 
     let markdownContent = `# Statement of Work\n\n`;
 
+    // Helper to safely format numbers
+    const fmt = (num: number | undefined) => (num || 0).toLocaleString();
+
     // Add project header
     markdownContent += `**Currency:** ${pricingData.currency}  \n`;
     markdownContent += `**GST Rate:** ${pricingData.gst_rate}%  \n`;
-    markdownContent += `**Total Investment:** ${pricingData.currency} ${pricingData.grand_total.toLocaleString()}  \n\n`;
+    markdownContent += `**Total Investment:** ${pricingData.currency} ${fmt(pricingData.grand_total)}  \n\n`;
 
     // Process each scope
     pricingData.scopes.forEach((scope, scopeIndex) => {
@@ -69,44 +72,44 @@ export function convertV41JSONToEditorFormat(
         markdownContent += `| Role | Description | Hours | Rate | Cost |\n`;
         markdownContent += `|------|-------------|-------|------|----- |\n`;
 
-        scope.role_allocation.forEach((role) => {
+        (scope.role_allocation || []).forEach((role) => {
             markdownContent += `| ${role.role} | ${role.description} | ${role.hours} | ${pricingData.currency} ${role.rate} | ${pricingData.currency} ${role.cost} |\n`;
         });
 
         // Calculate scope total
-        const scopeTotal = scope.role_allocation.reduce(
-            (sum, role) => sum + role.cost,
+        const scopeTotal = (scope.role_allocation || []).reduce(
+            (sum, role) => sum + (role.cost || 0),
             0,
         );
-        markdownContent += `\n**Scope Total:** ${pricingData.currency} ${scopeTotal.toLocaleString()}\n\n`;
+        markdownContent += `\n**Scope Total:** ${pricingData.currency} ${fmt(scopeTotal)}\n\n`;
 
         // Add scope discount if specified
         if (scope.discount && scope.discount > 0) {
             const discountAmount = scopeTotal * (scope.discount / 100);
             const finalScopeTotal = scopeTotal - discountAmount;
-            markdownContent += `**Discount:** ${scope.discount}% (-${pricingData.currency} ${discountAmount.toLocaleString()})\n`;
-            markdownContent += `**Final Scope Total:** ${pricingData.currency} ${finalScopeTotal.toLocaleString()}\n\n`;
+            markdownContent += `**Discount:** ${scope.discount}% (-${pricingData.currency} ${fmt(discountAmount)})\n`;
+            markdownContent += `**Final Scope Total:** ${pricingData.currency} ${fmt(finalScopeTotal)}\n\n`;
         }
     });
 
     // Add overall financial summary
     markdownContent += `## Investment Summary\n\n`;
-    markdownContent += `**Subtotal (before discount):** ${pricingData.currency} ${pricingData.grand_total_pre_gst.toLocaleString()}\n`;
+    markdownContent += `**Subtotal (before discount):** ${pricingData.currency} ${fmt(pricingData.grand_total_pre_gst)}\n`;
 
     if (pricingData.discount > 0) {
         const discountAmount =
-            pricingData.grand_total_pre_gst * (pricingData.discount / 100);
+            (pricingData.grand_total_pre_gst || 0) * (pricingData.discount / 100);
         const discountedSubtotal =
-            pricingData.grand_total_pre_gst - discountAmount;
-        markdownContent += `**Discount:** ${pricingData.discount}% (-${pricingData.currency} ${discountAmount.toLocaleString()})\n`;
-        markdownContent += `**Subtotal (after discount):** ${pricingData.currency} ${discountedSubtotal.toLocaleString()}\n`;
+            (pricingData.grand_total_pre_gst || 0) - discountAmount;
+        markdownContent += `**Discount:** ${pricingData.discount}% (-${pricingData.currency} ${fmt(discountAmount)})\n`;
+        markdownContent += `**Subtotal (after discount):** ${pricingData.currency} ${fmt(discountedSubtotal)}\n`;
     } else {
-        const discountedSubtotal = pricingData.grand_total_pre_gst;
-        markdownContent += `**Subtotal (after discount):** ${pricingData.currency} ${discountedSubtotal.toLocaleString()}\n`;
+        const discountedSubtotal = pricingData.grand_total_pre_gst || 0;
+        markdownContent += `**Subtotal (after discount):** ${pricingData.currency} ${fmt(discountedSubtotal)}\n`;
     }
 
-    markdownContent += `**GST:** ${pricingData.gst_rate}% (${pricingData.currency} ${pricingData.gst_amount.toLocaleString()})\n`;
-    markdownContent += `**TOTAL PROJECT VALUE:** ${pricingData.currency} ${pricingData.grand_total.toLocaleString()}\n\n`;
+    markdownContent += `**GST:** ${pricingData.gst_rate}% (${pricingData.currency} ${fmt(pricingData.gst_amount)})\n`;
+    markdownContent += `**TOTAL PROJECT VALUE:** ${pricingData.currency} ${fmt(pricingData.grand_total)}\n\n`;
 
     // Add editable pricing table marker for TipTap processing
     markdownContent += `[editablePricingTable]\n\n`;
@@ -132,14 +135,50 @@ export function extractJSONFromContent(content: string): V41PricingData | null {
 
         for (const block of allBlocks) {
             const parsed = block.parsed;
-            // Validate that this looks like our V4.1 format
-            if (
-                parsed &&
-                parsed.currency &&
-                parsed.scopes &&
-                Array.isArray(parsed.scopes)
-            ) {
-                validJSONs.push(parsed as V41PricingData);
+
+            // Check if it looks like pricing data (has currency and scopes)
+            if (parsed && parsed.currency && Array.isArray(parsed.scopes)) {
+                // Normalize to V41PricingData (snake_case)
+                // Handle both camelCase (from some AI outputs) and snake_case
+
+                const grandTotal = parsed.grandTotal ?? parsed.grand_total ?? 0;
+                const gstAmount = parsed.gstAmount ?? parsed.gst_amount ?? 0;
+                const discount = parsed.discountPercent ?? parsed.discount ?? 0;
+
+                // Calculate pre-GST total if missing
+                let grandTotalPreGst = parsed.grandTotalPreGst ?? parsed.grand_total_pre_gst;
+                if (grandTotalPreGst === undefined) {
+                    // Reverse calculate from grand total and GST if possible
+                    // Total = (Subtotal - Discount) + GST
+                    // This is complex to reverse perfectly without more data, 
+                    // but often PreGST is just Total - GST
+                    grandTotalPreGst = grandTotal - gstAmount;
+                }
+
+                const normalized: V41PricingData = {
+                    currency: parsed.currency,
+                    gst_rate: parsed.gstRate ?? parsed.gst_rate ?? 10, // Default to 10% if missing
+                    discount: discount,
+                    grand_total: grandTotal,
+                    gst_amount: gstAmount,
+                    grand_total_pre_gst: grandTotalPreGst,
+                    scopes: parsed.scopes.map((s: any) => ({
+                        scope_name: s.scope_name,
+                        scope_description: s.scope_description,
+                        deliverables: Array.isArray(s.deliverables) ? s.deliverables : [],
+                        assumptions: Array.isArray(s.assumptions) ? s.assumptions : [],
+                        role_allocation: (s.roles || s.role_allocation || []).map((r: any) => ({
+                            role: r.role,
+                            description: r.description || "",
+                            hours: r.hours || 0,
+                            rate: r.rate || 0,
+                            cost: r.cost || 0
+                        })),
+                        discount: s.discountPercent ?? s.discount ?? 0
+                    }))
+                };
+
+                validJSONs.push(normalized);
                 console.log(
                     `✅ [JSON-EXTRACT] Found valid V4.1 JSON (total: ${validJSONs.length})`,
                 );
