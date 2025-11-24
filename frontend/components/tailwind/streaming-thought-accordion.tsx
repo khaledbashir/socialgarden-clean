@@ -74,43 +74,51 @@ export function StreamingThoughtAccordion({
             .trim();
 
         // Extract pricing JSON blocks - collect ALL matches to find the LAST one
+        // 🔥 PERFORMANCE FIX: Only parse JSON when streaming is complete
         const pricingBlocks: any[] = [];
-        const jsonMatches = [
-            ...workingContent.matchAll(/\{[\s\S]*?"scope_name"[\s\S]*?\}/g),
-        ];
 
-        // Parse all JSON blocks first to identify the valid ones
-        const validJSONBlocks: { parsed: any; index: number }[] = [];
+        // Skip expensive JSON parsing during streaming to prevent UI freeze
+        if (!isStreaming) {
+            const jsonMatches = [
+                ...workingContent.matchAll(/\{[\s\S]*?"scope_name"[\s\S]*?\}/g),
+            ];
 
-        for (let i = 0; i < jsonMatches.length; i++) {
-            const match = jsonMatches[i];
-            try {
-                const parsed = JSON.parse(match[0]);
-                if (parsed.scope_name && parsed.role_allocation) {
-                    validJSONBlocks.push({ parsed, index: i });
+            // Parse all JSON blocks first to identify the valid ones
+            const validJSONBlocks: { parsed: any; index: number }[] = [];
+
+            for (let i = 0; i < jsonMatches.length; i++) {
+                const match = jsonMatches[i];
+                try {
+                    const parsed = JSON.parse(match[0]);
+                    if (parsed.scope_name && parsed.role_allocation) {
+                        validJSONBlocks.push({ parsed, index: i });
+                    }
+                } catch (e) {
+                    // Silently skip invalid JSON - normal during streaming
                 }
-            } catch (e) {
-                console.warn("Could not parse JSON block:", e);
+            }
+
+            // Use ONLY the LAST valid JSON block
+            if (validJSONBlocks.length > 0) {
+                const lastValidJSON = validJSONBlocks[validJSONBlocks.length - 1];
+                pricingBlocks.push(lastValidJSON.parsed);
+
+                // Remove ALL JSON blocks from content
+                workingContent = workingContent
+                    .replace(/\{[\s\S]*?"scope_name"[\s\S]*?\}/g, "")
+                    .trim();
+
+                console.log(
+                    `🎯 [JSON-EXTRACT] Using LAST valid JSON out of ${validJSONBlocks.length} found`,
+                );
             }
         }
 
-        // Use ONLY the LAST valid JSON block
-        if (validJSONBlocks.length > 0) {
-            const lastValidJSON = validJSONBlocks[validJSONBlocks.length - 1];
-            pricingBlocks.push(lastValidJSON.parsed);
-
-            // Remove ALL JSON blocks from content
-            workingContent = workingContent
-                .replace(/\{[\s\S]*?"scope_name"[\s\S]*?\}/g, "")
-                .trim();
-
-            console.log(
-                `🎯 [JSON-EXTRACT] Using LAST valid JSON out of ${validJSONBlocks.length} found`,
-            );
-        }
 
         // Clean the remaining content
         const cleanedContent = cleanSOWContent(workingContent);
+
+
 
         return {
             thinking: extractedThinking,
