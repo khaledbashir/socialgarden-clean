@@ -170,6 +170,17 @@ export function calculateFinancialBreakdown(
     rows: Array<{ hours: number; rate: number }>,
     discountPercent: number = 0
 ): FinancialBreakdown {
+    // 🔒 CRITICAL: Validate discount percentage to prevent negative values
+    // Match backend validation logic (0-100% range)
+    const validDiscountPercent = Math.max(0, Math.min(100, Number(discountPercent) || 0));
+
+    // Log validation if discount was clamped
+    if (validDiscountPercent !== discountPercent) {
+        console.warn(
+            `⚠️ [Financial Calculation] Invalid discount ${discountPercent}% clamped to ${validDiscountPercent}%`
+        );
+    }
+
     // Step 1: Calculate subtotal (sum of all role costs)
     const subtotal = rows.reduce((sum, row) => {
         const hours = Number(row.hours) || 0;
@@ -177,9 +188,9 @@ export function calculateFinancialBreakdown(
         return sum + hours * rate;
     }, 0);
 
-    // Step 2: Apply discount
-    const discount = calculateDiscount(subtotal, discountPercent);
-    const subtotalAfterDiscount = subtotal - discount;
+    // Step 2: Apply validated discount
+    const discount = calculateDiscount(subtotal, validDiscountPercent);
+    const subtotalAfterDiscount = Math.max(0, subtotal - discount); // Prevent negative subtotal
 
     // Step 3: Calculate GST
     const gst = calculateGST(subtotalAfterDiscount);
@@ -196,7 +207,7 @@ export function calculateFinancialBreakdown(
     return {
         subtotal,
         discount,
-        discountPercent,
+        discountPercent: validDiscountPercent, // Return validated percentage
         subtotalAfterDiscount,
         gst,
         totalBeforeRounding,

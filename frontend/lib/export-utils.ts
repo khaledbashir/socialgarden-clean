@@ -135,14 +135,14 @@ export function formatSOWToHTML(sowJson: any): string {
         const phases = Array.isArray(sowJson?.phases)
             ? sowJson.phases
             : Array.isArray(sowJson?.scopes)
-              ? sowJson.scopes.map((s: any) => ({
+                ? sowJson.scopes.map((s: any) => ({
                     scope_name: s.scope_name || s.name || "Untitled Phase",
                     scope_description: s.scope_description || s.description || "",
                     deliverables: s.deliverables || [],
                     role_allocation: s.role_allocation || s.roles || [],
                     discount_percent: s.discount_percent || sowJson?.discount_percent || 0,
                 }))
-              : [];
+                : [];
         if (Array.isArray(phases) && phases.length > 0) {
             phases.forEach((phase: any) => {
                 const name = phase?.scope_name || phase?.name || "Untitled Phase";
@@ -163,14 +163,14 @@ export function formatSOWToHTML(sowJson: any): string {
                 const roles = Array.isArray(phase?.role_allocation) ? phase.role_allocation : [];
                 if (roles.length > 0) {
                     const rows = roles
-                      .filter((r: any) => r && r.role)
-                      .map((r: any, idx: number) => ({
-                        id: `row-${idx}-${Date.now()}`,
-                        role: String(r.role || ""),
-                        description: String(r.description || ""),
-                        hours: Number(r.hours) || 0,
-                        rate: Number(r.rate) || Number(r.cost) / (Number(r.hours) || 1) || 0,
-                      }));
+                        .filter((r: any) => r && r.role)
+                        .map((r: any, idx: number) => ({
+                            id: `row-${idx}-${Date.now()}`,
+                            role: String(r.role || ""),
+                            description: String(r.description || ""),
+                            hours: Number(r.hours) || 0,
+                            rate: Number(r.rate) || Number(r.cost) / (Number(r.hours) || 1) || 0,
+                        }));
                     const discount = Number(phase?.discount_percent) || 0;
                     const attrs = { rows, discount, scopeName: name, scopeDescription: desc };
                     const dataAttr = JSON.stringify(attrs).replace(/"/g, '&quot;');
@@ -181,8 +181,8 @@ export function formatSOWToHTML(sowJson: any): string {
         const assumptions = Array.isArray(sowJson?.assumptions)
             ? sowJson.assumptions
             : Array.isArray(sowJson?.global_assumptions)
-              ? sowJson.global_assumptions
-              : [];
+                ? sowJson.global_assumptions
+                : [];
         if (assumptions.length > 0) {
             htmlContent += `<h3>Assumptions</h3><ul>`;
             assumptions.forEach((assump: any) => {
@@ -210,13 +210,27 @@ export function calculateTotals(
     let discountAmount = 0;
     if (discount) {
         if (discount.type === "percentage") {
-            discountAmount = subtotal * (discount.value / 100);
+            // 🔒 CRITICAL: Validate percentage discount (0-100%)
+            const validPercent = Math.max(0, Math.min(100, Number(discount.value) || 0));
+            if (validPercent !== discount.value) {
+                console.warn(
+                    `⚠️ [Export Utils] Invalid discount ${discount.value}% clamped to ${validPercent}%`
+                );
+            }
+            discountAmount = subtotal * (validPercent / 100);
         } else {
-            discountAmount = discount.value;
+            // 🔒 CRITICAL: Fixed discount cannot exceed subtotal
+            const validFixed = Math.max(0, Math.min(subtotal, Number(discount.value) || 0));
+            if (validFixed !== discount.value) {
+                console.warn(
+                    `⚠️ [Export Utils] Fixed discount $${discount.value} clamped to $${validFixed}`
+                );
+            }
+            discountAmount = validFixed;
         }
     }
 
-    const grandTotal = subtotal - discountAmount;
+    const grandTotal = Math.max(0, subtotal - discountAmount); // Prevent negative total
 
     return {
         subtotal,
@@ -407,8 +421,8 @@ export async function exportToPDF(
                 ? 45
                 : 30
             : options?.showLogo
-              ? 30
-              : 10;
+                ? 30
+                : 10;
         let remainingHeight = height;
         let yPosition = yOffset;
 
@@ -661,7 +675,7 @@ export function extractSOWStructuredJson(text: string): ArchitectSOW | null {
             if (obj && Array.isArray(obj.scopeItems)) {
                 return obj as ArchitectSOW;
             }
-        } catch {}
+        } catch { }
     }
     // 2) Try generic code fences if they appear to include scopeItems
     const anyBlocks = [...text.matchAll(/```\s*([\s\S]*?)\s*```/g)];
@@ -673,7 +687,7 @@ export function extractSOWStructuredJson(text: string): ArchitectSOW | null {
             if (obj && Array.isArray(obj.scopeItems)) {
                 return obj as ArchitectSOW;
             }
-        } catch {}
+        } catch { }
     }
     // 3) Attempt to locate embedded JSON objects that contain scopeItems/scope_items
     const candidates = [
@@ -690,12 +704,12 @@ export function extractSOWStructuredJson(text: string): ArchitectSOW | null {
             const scopeItems = Array.isArray(normalized.scopeItems)
                 ? normalized.scopeItems
                 : Array.isArray(normalized.scope_items)
-                  ? normalized.scope_items
-                  : undefined;
+                    ? normalized.scope_items
+                    : undefined;
             if (scopeItems) {
                 return { ...normalized, scopeItems } as ArchitectSOW;
             }
-        } catch {}
+        } catch { }
     }
     // 3) Nothing found
     return null;
@@ -789,20 +803,20 @@ export function extractPricingFromHTML(html: string): PricingRow[] {
                 const rate =
                     rateIdx >= 0
                         ? parseFloat(
-                              (cells[rateIdx]?.textContent || "0").replace(
-                                  /[^\d.]/g,
-                                  "",
-                              ),
-                          ) || 0
+                            (cells[rateIdx]?.textContent || "0").replace(
+                                /[^\d.]/g,
+                                "",
+                            ),
+                        ) || 0
                         : 0;
                 const total =
                     totalIdx >= 0
                         ? parseFloat(
-                              (cells[totalIdx]?.textContent || "0").replace(
-                                  /[^\d.]/g,
-                                  "",
-                              ),
-                          ) || hours * rate
+                            (cells[totalIdx]?.textContent || "0").replace(
+                                /[^\d.]/g,
+                                "",
+                            ),
+                        ) || hours * rate
                         : hours * rate;
                 if (hours > 0 && rate > 0)
                     out.push({ role, hours, rate, total });
