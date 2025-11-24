@@ -64,8 +64,8 @@ export function calculateTotalInvestment(contentJSON: string | any): number {
 
   try {
     // Handle both JSON string and object inputs
-    const content: TipTapContent = typeof contentJSON === 'string' 
-      ? JSON.parse(contentJSON) 
+    const content: TipTapContent = typeof contentJSON === 'string'
+      ? JSON.parse(contentJSON)
       : contentJSON;
     let totalInvestment = 0;
 
@@ -149,7 +149,7 @@ export function cleanSOWContent(content: string) {
     // Clean up extra whitespace that might be left behind
     .replace(/\n\n\n+/g, '\n\n')
     .trim();
-  
+
   return cleaned;
 }
 
@@ -167,7 +167,7 @@ export function transformScopesToPDFFormat(
       const rate = Math.max(0, Number(role.rate) || 0);
       const calculatedCost = hours * rate;
       const cost = Math.max(0, Number(role.cost) || calculatedCost);
-      
+
       return {
         description: role.description || "",
         role: role.role || "",
@@ -204,6 +204,7 @@ export function transformScopesToPDFFormat(
     clientName,
     company: {
       name: "Social Garden",
+      logoUrl: "/social-garden-logo.png",
     },
     projectSubtitle: "",
     projectOverview: "",
