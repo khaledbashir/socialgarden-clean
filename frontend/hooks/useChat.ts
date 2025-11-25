@@ -156,19 +156,8 @@ What would you like to work on today?`,
         }
     }, [currentDoc?.threadSlug]);
 
-    // Clear messages when switching to a different document/thread
-    useEffect(() => {
-        // Only clear if we're switching to a different document (not just re-rendering)
-        // and we don't already have messages for this document
-        // and we're not currently streaming (to avoid interrupting conversations)
-        if (currentDoc && chatMessages.length > 0 && !streamingMessageId) {
-            // Check if current messages are from a different document
-            const firstMessage = chatMessages[0];
-            if (firstMessage && !firstMessage.id.includes(currentDoc.id)) {
-                setChatMessages([]);
-            }
-        }
-    }, [currentDoc?.id, streamingMessageId]); // Include streamingMessageId to prevent clearing during streaming
+    // Chat history is automatically loaded when currentDoc.threadSlug changes (lines 32-69)
+    // No need for additional clearing logic - the loadThreadHistory effect handles it
 
     const handleSend = async (message: string) => {
         if (!currentAgentId) {

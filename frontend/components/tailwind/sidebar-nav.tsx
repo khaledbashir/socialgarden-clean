@@ -20,6 +20,7 @@ import {
     GripVertical,
     Settings,
     CheckCircle2,
+    FolderPlus,
 } from "lucide-react";
 import {
     DndContext,
@@ -53,25 +54,25 @@ interface Document {
     title: string;
     folderId: string | null; // null means it's in "All Docs"
     vertical?:
-        | "property"
-        | "education"
-        | "finance"
-        | "healthcare"
-        | "retail"
-        | "hospitality"
-        | "professional-services"
-        | "technology"
-        | "other"
-        | null;
+    | "property"
+    | "education"
+    | "finance"
+    | "healthcare"
+    | "retail"
+    | "hospitality"
+    | "professional-services"
+    | "technology"
+    | "other"
+    | null;
     service_line?:
-        | "crm-implementation"
-        | "marketing-automation"
-        | "revops-strategy"
-        | "managed-services"
-        | "consulting"
-        | "training"
-        | "other"
-        | null;
+    | "crm-implementation"
+    | "marketing-automation"
+    | "revops-strategy"
+    | "managed-services"
+    | "consulting"
+    | "training"
+    | "other"
+    | null;
 }
 
 interface SidebarNavProps {
@@ -101,6 +102,7 @@ interface SidebarNavProps {
     ) => void;
     onDeleteWorkspace: (id: string) => void;
     onCreateSOW: (workspaceId: string, sowName: string) => Promise<void>;
+    onNewDoc?: () => void; // New prop for creating unfiled doc
 
     // Legacy props for backward compatibility
     folders?: Folder[];
@@ -141,6 +143,7 @@ export default function SidebarNav({
     onCreateWorkspace,
     onDeleteWorkspace,
     onCreateSOW,
+    onNewDoc,
     // Legacy props
     folders,
     currentFolderId,
@@ -161,8 +164,8 @@ export default function SidebarNav({
     const actualFolders = Array.isArray(folders)
         ? folders
         : Array.isArray(workspaces)
-          ? workspaces
-          : [];
+            ? workspaces
+            : [];
     const actualCurrentFolderId = currentFolderId || currentWorkspaceId || null;
     const actualCurrentDocumentId = currentDocumentId || currentSOWId || null;
 
@@ -170,7 +173,7 @@ export default function SidebarNav({
     const actualDocuments = Array.isArray(documents) ? documents : [];
     const actualOnSelectFolder = onSelectFolder || onSelectWorkspace;
     const actualOnSelectDocument =
-        onSelectDocument || onSelectSOW || (() => {});
+        onSelectDocument || onSelectSOW || (() => { });
     const actualOnRenameDocument = onRenameDocument || onRenameSOW;
     const actualOnDeleteDocument = onDeleteDocument || onDeleteSOW;
     // Helper functions to categorize folders (must be before usage)
@@ -486,11 +489,10 @@ export default function SidebarNav({
                                 onClick={() => {
                                     onSelectFolder(folder.id);
                                 }}
-                                className={`w-full text-left px-2 py-1 text-sm transition-colors flex items-center gap-1 ${
-                                    currentFolderId === folder.id
+                                className={`w-full text-left px-2 py-1 text-sm transition-colors flex items-center gap-1 ${currentFolderId === folder.id
                                         ? "text-[#1CBF79] font-medium"
                                         : "text-gray-300 hover:text-white"
-                                }`}
+                                    }`}
                                 title={folder.name}
                             >
                                 <span>
@@ -651,11 +653,10 @@ export default function SidebarNav({
             <div
                 ref={setNodeRef}
                 style={style}
-                className={`space-y-1 px-2 py-1.5 rounded-lg group transition-colors ${
-                    currentDocumentId === document.id
+                className={`space-y-1 px-2 py-1.5 rounded-lg group transition-colors ${currentDocumentId === document.id
                         ? "bg-[#0e2e33] text-white"
                         : "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
-                }`}
+                    }`}
             >
                 {/* Document Item Row */}
                 <div className="flex items-center gap-2">
@@ -768,17 +769,30 @@ export default function SidebarNav({
 
             {/* STATIC LINKS SECTION */}
             <div className="flex-shrink-0 p-4 space-y-2 border-b border-gray-800">
-                {/* Primary Create Workspace CTA */}
-                <div className="px-4 pb-3">
+                {/* Primary Actions */}
+                <div className="px-4 pb-3 flex gap-2">
+                    {/* New Doc Button (Primary) */}
                     <button
                         onClick={() => {
-                            console.log("🆕 Create Workspace button clicked");
-                            onCreateWorkspace?.();
+                            console.log("🆕 New Doc button clicked");
+                            onNewDoc?.();
                         }}
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] text-white text-sm font-semibold rounded-lg transition-colors"
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1CBF79] hover:bg-[#16a366] text-white text-sm font-semibold rounded-lg transition-colors"
                     >
                         <Plus className="w-4 h-4" />
-                        Create Workspace
+                        New Doc
+                    </button>
+
+                    {/* New Folder Button (Secondary) */}
+                    <button
+                        onClick={() => {
+                            console.log("🆕 New Folder button clicked");
+                            onCreateWorkspace?.();
+                        }}
+                        className="inline-flex items-center justify-center px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg transition-colors"
+                        title="New Folder"
+                    >
+                        <FolderPlus className="w-5 h-5" />
                     </button>
                 </div>
 
@@ -889,11 +903,10 @@ export default function SidebarNav({
                                 return (
                                     <div className="space-y-1">
                                         <div
-                                            className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
-                                                currentFolderId === null
+                                            className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm font-medium rounded-lg transition-colors cursor-pointer ${currentFolderId === null
                                                     ? "text-[#1CBF79] bg-[#0e2e33]"
                                                     : "text-gray-300 hover:text-white hover:bg-gray-800/50"
-                                            }`}
+                                                }`}
                                             onClick={() =>
                                                 setAllDocsExpanded(
                                                     !allDocsExpanded,

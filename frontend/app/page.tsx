@@ -2516,6 +2516,7 @@ export default function Page() {
                         }}
                         onDeleteWorkspace={handleDeleteWorkspace}
                         onCreateSOW={handleCreateSOW}
+                        onNewDoc={() => handleNewDoc()}
                     />
                 }
                 mainPanel={
