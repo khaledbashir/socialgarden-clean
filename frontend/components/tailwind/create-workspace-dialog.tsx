@@ -54,16 +54,16 @@ export default function CreateWorkspaceDialog({
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="bg-background border border-border max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-foreground">Create New Workspace</DialogTitle>
+                    <DialogTitle className="text-foreground">Create New Folder</DialogTitle>
                     <DialogDescription className="text-muted-foreground">
-                        Enter a name for your workspace. This will help you organize your SOWs.
+                        Create a folder to organize your SOWs. A blank SOW will be created automatically.
                     </DialogDescription>
                 </DialogHeader>
-                
+
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="workspace-name" className="text-foreground">
-                            Workspace Name
+                            Folder Name
                         </Label>
                         <Input
                             id="workspace-name"
@@ -81,7 +81,7 @@ export default function CreateWorkspaceDialog({
 
                     <div className="space-y-2">
                         <Label htmlFor="workspace-type" className="text-foreground">
-                            Workspace Type
+                            Folder Type
                         </Label>
                         <select
                             id="workspace-type"
@@ -91,7 +91,7 @@ export default function CreateWorkspaceDialog({
                         >
                             <option value="sow">SOW Generation</option>
                             <option value="client">Client Folder</option>
-                            <option value="generic">Generic Workspace</option>
+                            <option value="generic">Generic Folder</option>
                         </select>
                     </div>
 
@@ -108,7 +108,7 @@ export default function CreateWorkspaceDialog({
                             disabled={!workspaceName.trim()}
                             className="bg-sg-green hover:bg-[#15a366] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Create Workspace
+                            Create Folder
                         </Button>
                     </div>
                 </div>

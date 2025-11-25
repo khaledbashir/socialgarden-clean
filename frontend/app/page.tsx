@@ -1125,17 +1125,16 @@ export default function Page() {
                 completedSteps: [],
             });
 
-            // 🏢 STEP 1: Create new AnythingLLM workspace with system prompt
+            // 🏢 STEP 1: Access master SOW workspace (NOT creating individual workspaces)
             console.log(
-                `🏢 Creating AnythingLLM workspace: ${workspaceName}...`,
+                `🏢 Accessing master SOW workspace for: ${workspaceName}...`,
             );
-            const workspace =
-                await anythingLLM.createWorkspaceWithPrompt(workspaceName);
+            const workspace = await anythingLLM.getMasterSOWWorkspace(workspaceName);
             const embedId = await anythingLLM.getOrCreateEmbedId(
                 workspace.slug,
             );
             console.log(
-                `✅ Workspace created with system prompt: ${workspace.slug}`,
+                `✅ Using master workspace: ${workspace.slug}`,
             );
 
             // Mark step 1 complete
@@ -1380,6 +1379,7 @@ export default function Page() {
                 newViewMode: "editor",
             });
 
+
             // 🎯 Content will be loaded by useDocumentState effect when currentDocId changes
             // This avoids race conditions with editor initialization
 
@@ -1390,6 +1390,27 @@ export default function Page() {
             window.history.replaceState({}, "", newUrl);
 
             console.log(`📊 STATE SYNC: URL updated to: ${newUrl}`);
+
+            // 🎯 CRITICAL FIX: Explicitly load blank content into editor
+            // Wait for state updates to propagate
+            await new Promise((resolve) => setTimeout(resolve, 300));
+
+            // Force editor to load the blank content
+            if (editorRef.current?.commands?.setContent) {
+                console.log(`📝 Explicitly loading blank content into editor for ${sowId}`);
+                editorRef.current.commands.setContent(defaultEditorContent);
+                console.log(`✅ Editor content loaded successfully`);
+            } else {
+                console.warn(`⚠️ Editor not ready, content will load via useEffect`);
+            }
+
+            // Close progress modal
+            setTimeout(() => {
+                setWorkspaceCreationProgress((prev) => ({
+                    ...prev,
+                    isOpen: false,
+                }));
+            }, 500);
         } catch (error) {
             console.error("❌ Error creating workspace:", error);
             toast.error("Failed to create workspace. Please try again.");
@@ -1418,7 +1439,7 @@ export default function Page() {
             }
 
             // 💾 Delete from database AND AnythingLLM (API endpoint handles both)
-            const dbResponse = await fetch(`/api/folders/${workspaceId}`, {
+            const dbResponse = await fetch(`/ api / folders / ${workspaceId} `, {
                 method: "DELETE",
             });
 
@@ -1431,7 +1452,7 @@ export default function Page() {
             }
 
             const result = await dbResponse.json();
-            console.log(`✅ Workspace deletion result:`, result);
+            console.log(`✅ Workspace deletion result: `, result);
 
             // Update state
             setWorkspaces((prev) => prev.filter((ws) => ws.id !== workspaceId));
@@ -1530,7 +1551,7 @@ export default function Page() {
         } catch (error) {
             console.error("Error deleting workspace:", error);
             toast.error(
-                `Failed to delete workspace: ${error instanceof Error ? error.message : String(error)}`,
+                `Failed to delete workspace: ${error instanceof Error ? error.message : String(error)} `,
             );
         }
     };
@@ -1565,7 +1586,7 @@ export default function Page() {
 
             // 🚀 FAST PATH: Create temporary document and switch to editor IMMEDIATELY
             // Use a temporary thread slug that will be replaced once AnythingLLM responds
-            const tempThreadSlug = `temp-${Date.now()}`;
+            const tempThreadSlug = `temp - ${Date.now()} `;
 
             const tempDoc: Document = {
                 id: tempThreadSlug,
@@ -1617,12 +1638,12 @@ export default function Page() {
 
                     if (!targetSlug) {
                         throw new Error(
-                            `Target workspace slug not found for ID: ${workspaceId}`,
+                            `Target workspace slug not found for ID: ${workspaceId} `,
                         );
                     }
 
                     console.log(
-                        `🔄 [Background] Using client workspace: ${targetSlug}`,
+                        `🔄[Background] Using client workspace: ${targetSlug} `,
                     );
 
                     // Create actual thread in AnythingLLM (Client Workspace)
@@ -1635,7 +1656,7 @@ export default function Page() {
                     }
 
                     console.log(
-                        `🔄 [Background] AnythingLLM thread created: ${thread.slug}`,
+                        `🔄[Background] AnythingLLM thread created: ${thread.slug} `,
                     );
 
                     // Save to database
@@ -1692,7 +1713,7 @@ export default function Page() {
                     );
 
                     console.log(
-                        `✅ [Background] SOW "${sowName}" fully initialized with thread: ${thread.slug}`,
+                        `✅[Background] SOW "${sowName}" fully initialized with thread: ${thread.slug} `,
                     );
                 } catch (error) {
                     console.error(
@@ -1802,7 +1823,7 @@ export default function Page() {
             );
 
             // Persist move to DB
-            await fetch(`/api/sow/${sowId}`, {
+            await fetch(`/ api / sow / ${sowId} `, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ folderId: toWorkspaceId }),
@@ -1889,7 +1910,7 @@ export default function Page() {
 
             if (success) {
                 toast.success(
-                    `✅ SOW embedded! Available in ${clientName}'s workspace AND master dashboard.`,
+                    `✅ SOW embedded! Available in ${clientName} 's workspace AND master dashboard.`,
                     {
                         duration: 5000,
                     },

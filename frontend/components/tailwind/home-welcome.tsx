@@ -29,9 +29,9 @@ export default function HomeWelcome({
                     {hasWorkspaces ? "Select a Client Workspace" : "Welcome to Social Garden SOW Generator"}
                 </h2>
                 <p className="mt-3 text-sm sm:text-base text-gray-500 dark:text-gray-400 leading-relaxed break-words">
-                    {hasWorkspaces 
+                    {hasWorkspaces
                         ? `You have ${workspaceCount} workspace${workspaceCount > 1 ? 's' : ''}. Select one from the sidebar to create or edit SOWs.`
-                        : "Get started by creating a workspace for each client. Then you can create as many SOWs as you need within each workspace." 
+                        : "Get started by creating a workspace for each client. Then you can create as many SOWs as you need within each workspace."
                     }
                 </p>
 
@@ -43,8 +43,8 @@ export default function HomeWelcome({
                         </div>
                     ) : !hasWorkspaces ? (
                         <>
-                            <Button 
-                                onClick={onCreateWorkspace} 
+                            <Button
+                                onClick={onCreateWorkspace}
                                 className="bg-[#1CBF79] hover:bg-[#15a366] text-white"
                             >
                                 Create Your First Workspace
@@ -60,16 +60,16 @@ export default function HomeWelcome({
                         </>
                     ) : (
                         <div className="flex flex-col items-center gap-2">
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <FolderOpen className="h-4 w-4" />
-                            <span>Select a workspace from the sidebar</span>
-                        </div>
-                            <Button 
-                                onClick={onCreateWorkspace} 
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <FolderOpen className="h-4 w-4" />
+                                <span>Select a workspace from the sidebar</span>
+                            </div>
+                            <Button
+                                onClick={onCreateWorkspace}
                                 variant="outline"
                                 className="mt-2"
                             >
-                                Create New Workspace
+                                Create New Folder
                             </Button>
                         </div>
                     )}
@@ -77,7 +77,7 @@ export default function HomeWelcome({
 
                 <div className="mt-8 text-xs sm:text-sm text-gray-400 dark:text-gray-500 leading-relaxed">
                     <p>
-                        💡 <strong>Best Practice:</strong> Create one workspace per client. 
+                        💡 <strong>Best Practice:</strong> Create one workspace per client.
                         Then use the <strong>+</strong> button next to the workspace name to create SOWs for that client.
                     </p>
                 </div>

@@ -157,7 +157,7 @@ const WorkspaceManager = ({
                             <DialogContent>
                                 <DialogHeader>
                                     <DialogTitle>
-                                        Create New Workspace
+                                        Create New Folder
                                     </DialogTitle>
                                     <DialogDescription>
                                         Create a new workspace for managing
@@ -282,12 +282,11 @@ const WorkspaceManager = ({
                                 {workspaces.map((workspace) => (
                                     <div
                                         key={workspace.id}
-                                        className={`flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer ${
-                                            activeWorkspaceSlug ===
-                                            workspace.workspace_slug
+                                        className={`flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer ${activeWorkspaceSlug ===
+                                                workspace.workspace_slug
                                                 ? "bg-blue-50 border-blue-200"
                                                 : ""
-                                        }`}
+                                            }`}
                                         onClick={() =>
                                             onWorkspaceSelect(
                                                 workspace.workspace_slug,
